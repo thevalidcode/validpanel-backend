@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const adminDocs = getDocs("admins");
+    const adminDocs = await getDocs("admins");
     const adminData = adminDocs.find((admin) => admin.email === email);
     const isMatch = await bcrypt.compare(password, adminData.password);
     if (isMatch) {
@@ -23,7 +23,7 @@ exports.getAdminData = async (req, res) => {
     return res.status(400).send({ error: "No UID" });
   }
   try {
-    const adminDocs = getDocs("admins");
+    const adminDocs = await getDocs("admins");
     const adminData = adminDocs.find((admin) => admin.uid === uid);
     return res.status(200).send({ adminData: adminData });
   } catch (error) {

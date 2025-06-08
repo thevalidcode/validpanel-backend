@@ -3,7 +3,7 @@ const https = require("https");
 const exec = require("child_process").exec;
 const { getDocs, updateDoc } = require("../crud");
 
-function createServer(domain, panelId, res) {
+function createServer(domain, panel_id, res) {
   fs.readFile("/etc/bind/named.conf.local", "utf8", (err, data) => {
     if (err) {
       console.error(`Error reading named.conf.local: ${err.message}`);
@@ -45,7 +45,7 @@ zone "${domain}" {
           createARecord(domain, "5.196.190.226");
           createVirtualHost(domain);
           res.json({
-            panelId: panelId,
+            panel_id: panel_id,
             message: "Server created successfully",
           });
         });
@@ -171,29 +171,41 @@ function createVirtualHost(domain) {
   );
 }
 
-async function checkSSL(url) {
+const MAX_RETRIES = 3;
+async function checkSSL(url, retries = 0) {
   return new Promise((resolve) => {
+    if (retries >= MAX_RETRIES) {
+      return resolve(true);
+    }
+
     const req = https.request(
       `https://${url}`,
       {
-        rejectUnauthorized: true, // Enforce certificate validation
+        rejectUnauthorized: true,
+        timeout: 5000,
       },
       (res) => {
-        resolve(res.statusCode === 200); // Site is using a valid SSL
+        resolve(res.statusCode === 200);
       }
     );
 
-    req.on("error", (e) => {
-      if (
-        e.code === "ECONNREFUSED" ||
-        e.code === "ENOTFOUND" ||
-        e.code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
-        e.code === "CERT_HAS_EXPIRED" ||
-        e.code === "CERT_COMMON_NAME_INVALID"
-      ) {
-        resolve(false); // SSL certificate issues or site not found
+    req.on("error", async (e) => {
+      const retryableErrors = [
+        "ECONNREFUSED",
+        "ENOTFOUND",
+        "DEPTH_ZERO_SELF_SIGNED_CERT",
+        "CERT_HAS_EXPIRED",
+        "CERT_COMMON_NAME_INVALID",
+        "ETIMEDOUT",
+      ];
+
+      if (retryableErrors.includes(e.code)) {
+        await updateDoc("registered_panels", url, {
+          retries: retries + 1,
+        });
+        resolve(false);
       } else {
-        resolve(false); // Treat all other errors as non-SSL for simplicity
+        resolve(false);
       }
     });
 
@@ -202,24 +214,38 @@ async function checkSSL(url) {
 }
 
 async function createSSL() {
-  const registeredPanels = getDocs("registeredPanels");
+  const registeredPanels = await getDocs("registered_panels");
   const panelsWithoutSSL = registeredPanels.filter((panel) => !panel.ssl);
 
   for (const panel of panelsWithoutSSL) {
-    const isSecured = await checkSSL(panel.uid);
-    if (isSecured) {
-      updateDoc("registeredPanels", panel.uid, { ssl: true });
-      addProxies(panel.uid);
-    } else {
-      exec(
-        `certbot --apache --redirect -d ${panel.uid}`,
-        (error, stdout, stderr) => {
-          if (error) {
-            console.error(`Error creating SSL: ${error.message}`);
-            return;
-          }
-        }
-      );
+    try {
+      const isSecured = await checkSSL(panel.uid, panel.retries || 0);
+
+      if (isSecured) {
+        await updateDoc("registered_panels", panel.uid, { ssl: true });
+        addProxies(panel.uid);
+      } else {
+        await new Promise((resolve, reject) => {
+          exec(
+            `certbot --apache --redirect -d ${panel.uid}`,
+            (error, stdout, stderr) => {
+              if (error) {
+                console.error(
+                  `Certbot failed for ${panel.uid}: ${error.message}`
+                );
+                return resolve(); // Don't throw; just continue
+              }
+              updateDoc("registered_panels", panel.uid, { ssl: true }).catch(
+                console.error
+              );
+              addProxies(panel.uid);
+              resolve();
+            }
+          );
+        });
+      }
+    } catch (err) {
+      console.error(`Unhandled error on panel ${panel.uid}:`, err.message);
     }
   }
 }
