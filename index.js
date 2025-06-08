@@ -29,10 +29,10 @@ cron.schedule("0 */3 * * *", () => {
 if (env === "production") {
   const options = {
     key: fs.readFileSync(
-      "/etc/letsencrypt/live/validpanel.com-0002/privkey.pem"
+      "/etc/letsencrypt/live/validpanel.com/privkey.pem"
     ),
     cert: fs.readFileSync(
-      "/etc/letsencrypt/live/validpanel.com-0002/fullchain.pem"
+      "/etc/letsencrypt/live/validpanel.com/fullchain.pem"
     ),
   };
   const server = https.createServer(options, app);
