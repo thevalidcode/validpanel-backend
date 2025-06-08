@@ -106,7 +106,8 @@ exports.forgetPassword = async (req, res) => {
       name: user.name,
       random_password: newPassword,
     });
-    updateDoc("users", user.uid, { password: newPassword });
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    updateDoc("users", user.uid, { password: hashedPassword });
     return res.status(200).send({ error: "Email sent successfully" });
   } catch (error) {
     return res.status(500).send({ error: "Error sending email" });

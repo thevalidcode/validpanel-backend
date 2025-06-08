@@ -118,7 +118,7 @@ panel.post("/create", async (req, res) => {
   }
 
   const lowerCaseDomain = domain.toLowerCase();
-  let mainPanelId = panelId ? panelId : 0;
+  let mainPanelId = panelId ? parseInt(panelId) : 0;
 
   if (!panelId) {
     const users = getDocs("users");
@@ -127,18 +127,25 @@ panel.post("/create", async (req, res) => {
     if (user) {
       const panels = getDocs("registeredPanels");
       const latestPanel = panels.sort((a, b) => b.panelId - a.panelId)[0];
-      mainPanelId = latestPanel
-        ? String(parseInt(latestPanel.panelId) + 1)
-        : "1";
-      const panelIds = user.panelIds.push(parseInt(mainPanelId));
+      let newPanelId = latestPanel ? latestPanel.panelId + 1 : 1;
+
+      // Ensure the new panel ID is unique
       while (
-        users.some((user) => user.panelIds.includes(parseInt(mainPanelId)))
+        users.some(
+          (user) =>
+            Array.isArray(user.panelIds) && user.panelIds.includes(newPanelId)
+        )
       ) {
-        parseInt(mainPanelId)++;
+        newPanelId++;
       }
-      updateDoc("users", uid, { panelIds: panelIds });
+
+      mainPanelId = newPanelId;
+      user.panelIds = user.panelIds || [];
+      user.panelIds.push(newPanelId);
+      updateDoc("users", uid, { panelIds: user.panelIds });
     }
   }
+
   const siteData = {
     uid: "site",
     title: "Panel",
@@ -148,6 +155,7 @@ panel.post("/create", async (req, res) => {
       value: "1",
     },
   };
+
   const designData = {
     adminstyles: {
       "--adbasebgcolor": "#24003d",
@@ -169,9 +177,11 @@ panel.post("/create", async (req, res) => {
     },
     uid: "design",
   };
+
   const user = getDocs("users", null, {
     find: { field: "uid", operator: "===", value: uid },
   });
+
   const adminData = {
     uid: user.uid,
     apiKey: user.uid,
@@ -180,23 +190,25 @@ panel.post("/create", async (req, res) => {
     timestamp: user.timestamp,
     name: user.name,
   };
+
   const homeData = {
     title: "The Best SMM Panel",
     uid: "home",
-    tutorial: ""
+    tutorial: "",
   };
+
   const providerData = {
     url: "validplug.com.ng",
     percentage: 100,
     key: "39cdc01d-49ec-40c0-8dd2-42990c8d22d3",
     sync: null,
-    id: 1
+    id: 1,
   };
+
   const notificationData = [
     {
       uid: "admin_emails",
-      emails: [`${user.email
-      }`]
+      emails: [user.email],
     },
     {
       uid: "email_templates",
@@ -206,25 +218,27 @@ panel.post("/create", async (req, res) => {
       fundsAdded: "",
       newMessage: "",
       verificationCode: "",
-      newSupport: ""
-    }
-  ]
+      newSupport: "",
+    },
+  ];
 
-  addPanelDoc("general", siteData, parseInt(mainPanelId));
-  addPanelDoc("admins", adminData, parseInt(mainPanelId));
-  addPanelDoc("pages", homeData, parseInt(mainPanelId));
-  addPanelDoc("design", designData, parseInt(mainPanelId));
-  addPanelDoc("providers", providerData, parseInt(mainPanelId));
-  addPanelDocs("notifications", notificationData, parseInt(mainPanelId));
+  addPanelDoc("general", siteData, mainPanelId);
+  addPanelDoc("admins", adminData, mainPanelId);
+  addPanelDoc("pages", homeData, mainPanelId);
+  addPanelDoc("design", designData, mainPanelId);
+  addPanelDoc("providers", providerData, mainPanelId);
+  addPanelDocs("notifications", notificationData, mainPanelId);
 
   const registeredPanelData = {
-    panelId: parseInt(mainPanelId),
+    panelId: mainPanelId,
     ssl: false,
     uid: lowerCaseDomain,
     userUids: [uid],
     timestamp: new Date(),
   };
+
   addDoc("registeredPanels", registeredPanelData);
+
   createServer(lowerCaseDomain, mainPanelId, res);
 });
 
