@@ -1,587 +1,347 @@
-const fs = require("fs");
-const path = require("path");
 const { v4: uuidv4 } = require("uuid");
+const { vsp_pool, vp_pool } = require("./db");
 
-const env = process.env.NODE_ENV;
+const buildWhereClause = (queryObj = {}, offset = 1) => {
+  const values = [];
+  const clauses = [];
 
-const getPanelCollectionPath = (col) => {
-  return env === "production"
-    ? `/panels_db/${col}.json`
-    : path.join(__dirname, `/fake_panels_db/${col}.json`);
-};
-
-const getCollectionPath = (col) => {
-  return env === "production"
-    ? `/validpanel_db/${col}.json`
-    : path.join(__dirname, `/fake_validpanel_db/${col}.json`);
-};
-
-const readData = (collection) => {
-  if (fs.existsSync(collection)) {
-    const fileContent = fs.readFileSync(collection, "utf8");
-    try {
-      return JSON.parse(fileContent);
-    } catch (error) {
-      return {};
+  if (Array.isArray(queryObj)) {
+    const subClauses = queryObj.map((cond, i) => {
+      const { clause, values: subValues } = buildWhereClause(cond, offset);
+      values.push(...subValues);
+      offset += subValues.length;
+      return `(${clause})`;
+    });
+    return { clause: subClauses.join(" OR "), values };
+  }
+  if ("field" in queryObj && "operator" in queryObj && "value" in queryObj) {
+    let { field, operator, value } = queryObj;
+    switch (operator) {
+      case "===":
+        operator = "=";
+        break;
+      case "!==":
+        operator = "!=";
+        break;
+      case "in":
+        operator = "IN";
+        break;
+      case "contains":
+        operator = "ILIKE";
+        value = `%${value}%`;
+        break;
+      case "range":
+        if (!Array.isArray(value) || value.length !== 2)
+          throw new Error("Range must be [min, max]");
+        clauses.push(`${field} BETWEEN $${offset} AND $${offset + 1}`);
+        values.push(value[0], value[1]);
+        return { clause: clauses.join(" AND "), values };
     }
-  }
-  return {};
-};
 
-const writeData = (collection, data) => {
-  fs.writeFileSync(collection, JSON.stringify(data, null, 2));
-};
-
-const removeKeysFromObject = (obj, keysToRemove) => {
-  keysToRemove.forEach((key) => {
-    delete obj[key];
-  });
-  return obj;
-};
-
-const getDocs = (col, panel_id, query = {}) => {
-  const collection = panel_id
-    ? getPanelCollectionPath(col)
-    : getCollectionPath(col);
-  const data = readData(collection);
-
-  let docs = panel_id ? data[col]?.[panel_id] || [] : data[col] || [];
-
-  if (!Array.isArray(docs) && typeof docs !== "object") {
-    return [];
-  }
-
-  // Apply query filters if any
-  if (query.find) {
-    docs = docs.find(createQueryFunction(query.find));
-  } else if (query.some) {
-    docs = docs.some(createQueryFunction(query.some));
-  } else if (query.includes) {
-    docs = docs.includes(query.includes);
-  } else if (query.filter) {
-    if (typeof query.filter.key === "string") {
-      docs = docs.filter((doc) => doc[query.filter]);
+    if (operator === "IN" && Array.isArray(value)) {
+      const placeholders = value.map((_, i) => `$${i + offset}`).join(", ");
+      clauses.push(`${field} IN (${placeholders})`);
+      values.push(...value);
     } else {
-      docs = docs.filter(createQueryFunction(query.filter));
+      clauses.push(`${field} ${operator} $${offset}`);
+      values.push(value);
     }
-  }
-
-  // Apply sorting if specified
-  if (query.sort) {
-    const { property, order = "asc" } = query.sort;
-    docs = docs.sort((a, b) => {
-      if (a[property] < b[property]) return order === "asc" ? -1 : 1;
-      if (a[property] > b[property]) return order === "asc" ? 1 : -1;
-      return 0;
+  } else {
+    Object.entries(queryObj).forEach(([key, val], idx) => {
+      clauses.push(`${key} = $${offset + idx}`);
+      values.push(val);
     });
   }
 
-  // Apply removeKeys if specified
-  if (query.removeKeys) {
-    const keysToRemove = query.removeKeys;
-    if (Array.isArray(docs)) {
-      docs = docs.map((doc) => removeKeysFromObject(doc, keysToRemove));
-    } else if (typeof docs === "object") {
-      docs = removeKeysFromObject(docs, keysToRemove);
-    }
-  }
-
-  // Apply leaveKeys if specified
-  if (query.leaveKeys) {
-    const keysToLeave = query.leaveKeys;
-    if (Array.isArray(docs)) {
-      docs = docs.map((doc) => retainKeysFromObject(doc, keysToLeave));
-    } else if (typeof docs === "object") {
-      docs = retainKeysFromObject(docs, keysToLeave);
-    }
-  }
-
-  return docs;
+  const clause = clauses.join(" AND ");
+  return { clause, values };
 };
 
-// Helper function to retain only specified keys in an object
-const retainKeysFromObject = (obj, keysToLeave) => {
-  const newObj = {};
-  keysToLeave.forEach((key) => {
-    if (obj.hasOwnProperty(key)) {
-      newObj[key] = obj[key];
+const getDocs = async (col, panel_id = null, query = {}) => {
+  try {
+    let where = "";
+    let values = [];
+
+    if (panel_id) {
+      where = "WHERE panel_id = $1";
+      values.push(panel_id);
     }
-  });
-  return newObj;
+
+    if (query.find || query.filter) {
+      const q = query.find || query.filter;
+      const cond = buildWhereClause(q, values.length + 1);
+      where = where ? `${where} AND ${cond.clause}` : `WHERE ${cond.clause}`;
+      values = [...values, ...cond.values];
+    }
+
+    const pool = panel_id ? vsp_pool : vp_pool;
+    const res = await pool.query(`SELECT * FROM ${col} ${where}`, values);
+    let docs = res.rows;
+
+    if (query.find) {
+      if (docs.length === 1) return docs[0];
+      if (docs.length > 1)
+        throw new Error("Multiple documents found for 'find'");
+      return null;
+    }
+
+    if (query.sort) {
+      const { property, order = "asc" } = query.sort;
+      docs.sort((a, b) =>
+        a[property] < b[property]
+          ? order === "asc"
+            ? -1
+            : 1
+          : a[property] > b[property]
+          ? order === "asc"
+            ? 1
+            : -1
+          : 0
+      );
+    }
+
+    if (query.removeKeys) {
+      const keysToRemove = query.removeKeys;
+      docs = docs.map((doc) => {
+        keysToRemove.forEach((key) => delete doc[key]);
+        return doc;
+      });
+    }
+
+    if (query.leaveKeys) {
+      const keysToLeave = query.leaveKeys;
+      docs = docs.map((doc) => {
+        const filtered = {};
+        keysToLeave.forEach((key) => {
+          if (key in doc) filtered[key] = doc[key];
+        });
+        return filtered;
+      });
+    }
+
+    return docs || [];
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
-const createQueryFunction = ({ field, operator, value }) => {
-  return (doc) => {
-    switch (operator) {
-      case "===":
-        return doc[field] === value;
-      case "!==":
-        return doc[field] !== value;
-      case "<":
-        return doc[field] < value;
-      case ">":
-        return doc[field] > value;
-      case "<=":
-        return doc[field] <= value;
-      case ">=":
-        return doc[field] >= value;
-      case "in":
-        if (!Array.isArray(value)) {
-          throw new Error(`Value for "in" operator must be an array`);
+const inferType = (val) => {
+  if (val === null) return "TEXT"; // or NULLABLE
+  if (typeof val === "string") return "TEXT";
+  if (typeof val === "number")
+    return Number.isInteger(val) ? "INTEGER" : "REAL";
+  if (typeof val === "boolean") return "BOOLEAN";
+  if (val instanceof Date) return "TIMESTAMP";
+  if (typeof val === "object") return "JSONB";
+  return "TEXT"; // fallback
+};
+
+const createTableIfNotExists = async (pool, col, data) => {
+  try {
+    const keys = Object.keys(data);
+    if (keys.length === 0) throw new Error("Data object must not be empty");
+
+    const columns = keys
+      .map((key) => {
+        const lowerKey = key.toLowerCase();
+        let type;
+
+        if (["timestamp", "created_at", "last_seen"].includes(lowerKey)) {
+          type = "TIMESTAMP";
+        } else {
+          type = inferType(data[key]);
         }
-        return value.includes(doc[field]);
-      default:
-        throw new Error(`Unsupported operator: ${operator}`);
-    }
-  };
+
+        if (lowerKey === "id") {
+          return `${key} SERIAL PRIMARY KEY`;
+        }
+        if (lowerKey === "uid") {
+          return `${key} ${type} UNIQUE`;
+        }
+        return `${key} ${type}`;
+      })
+      .join(", ");
+
+    const sql = `CREATE TABLE IF NOT EXISTS ${col} (${columns})`;
+    await pool.query(sql);
+  } catch (error) {
+    console.log(error.message);
+  }
 };
 
-const addDoc = (col, data) => {
-  const collection = getCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (!Array.isArray(existingData[col])) {
-    existingData[col] = [];
-  }
-
-  if (!data.uid) {
-    data.uid = uuidv4();
-  } else if (existingData[col].some((doc) => doc.uid === data.uid)) {
-    return { error: "UID already exists" };
-  }
-
-  existingData[col].push(data);
-  writeData(collection, existingData);
-  return { uid: data.uid };
-};
-
-const addPanelDoc = (col, data, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (Array.isArray(existingData[col])) {
-    return { error: "Collection is an array" };
-  }
-
-  if (!existingData[col]) {
-    existingData[col] = {};
-  }
-
-  if (!Array.isArray(existingData[col][panel_id])) {
-    existingData[col][panel_id] = [];
-  }
-
-  if (!data.uid) {
-    data.uid = uuidv4();
-  } else if (existingData[col][panel_id].some((doc) => doc.uid === data.uid)) {
-    return { error: "UID already exists" };
-  }
-
-  existingData[col][panel_id].push(data);
-  writeData(collection, existingData);
-  return { uid: data.uid };
-};
-
-const addDocs = (col, data) => {
-  const collection = getCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (!Array.isArray(existingData[col])) {
-    return { error: "Collection is not an array" };
-  }
-
-  const docsToAdd = data.filter((doc) => {
-    if (!doc.uid) {
-      doc.uid = uuidv4();
-      return true;
-    }
-    return !existingData[col].some(
-      (existingDoc) => existingDoc.uid === doc.uid
+const ensureColumnsExist = async (pool, table, data) => {
+  try {
+    const res = await pool.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+      [table]
     );
-  });
+    const existingCols = res.rows.map((r) => r.column_name.toLowerCase());
 
-  existingData[col].push(...docsToAdd);
-  writeData(collection, existingData);
-};
+    for (const [key, val] of Object.entries(data)) {
+      const lowerKey = key.toLowerCase();
+      if (!existingCols.includes(lowerKey)) {
+        let type;
 
-const addPanelDocs = (col, data, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const existingData = readData(collection);
+        if (["timestamp", "created_at", "last_seen"].includes(lowerKey)) {
+          type = "TIMESTAMP";
+        } else {
+          type = inferType(val);
+        }
 
-  if (Array.isArray(existingData[col])) {
-    return { error: "Collection is an array" };
-  }
-
-  if (!existingData[col]) {
-    existingData[col] = {};
-  }
-
-  if (!Array.isArray(existingData[col][panel_id])) {
-    existingData[col][panel_id] = [];
-  }
-
-  const docsToAdd = data.filter((doc) => {
-    if (!doc.uid) {
-      doc.uid = uuidv4();
-      return true;
+        await pool.query(`ALTER TABLE ${table} ADD COLUMN "${key}" ${type}`);
+      }
     }
-    return !existingData[col][panel_id].some(
-      (existingDoc) => existingDoc.uid === doc.uid
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+const addDoc = async (col, data) => {
+  try {
+    if (!data.uid) data.uid = uuidv4();
+
+    await createTableIfNotExists(vp_pool, col, data);
+    await ensureColumnsExist(vp_pool, col, data);
+
+    const keys = Object.keys(data);
+    const values = Object.values(data).map((v) =>
+      typeof v === "object" && v !== null && !(v instanceof Date)
+        ? JSON.stringify(v)
+        : v
     );
-  });
 
-  existingData[col][panel_id].push(...docsToAdd);
-  writeData(collection, existingData);
+    const params = keys.map((_, i) => `$${i + 1}`).join(", ");
+    const cols = keys.join(", ");
+
+    const result = await vp_pool.query(
+      `INSERT INTO ${col} (${cols}) VALUES (${params}) RETURNING id`,
+      values
+    );
+
+    return { id: result.rows[0].id, uid: data.uid };
+  } catch (err) {
+    console.log(err.message);
+    return { error: err.message };
+  }
 };
 
-const addSubDoc = (col, subDocKey, data) => {
-  const collection = getCollectionPath(col);
-  const existingData = readData(collection);
+const addPanelDoc = async (col, data, panel_id) => {
+  data.panel_id = panel_id;
+  if (!data.uid) data.uid = uuidv4();
+  try {
+    await createTableIfNotExists(vsp_pool, col, data);
+    await ensureColumnsExist(vsp_pool, col, data);
 
-  if (!Array.isArray(existingData[col])) {
-    return { error: "Collection is not an array" };
+    const keys = Object.keys(data);
+    const values = Object.values(data).map((v) =>
+      typeof v === "object" && v !== null && !(v instanceof Date)
+        ? JSON.stringify(v)
+        : v
+    );
+
+    const params = keys.map((_, i) => `$${i + 1}`).join(", ");
+    const cols = keys.join(", ");
+
+    const result = await vsp_pool.query(
+      `INSERT INTO ${col} (${cols}) VALUES (${params}) RETURNING id`,
+      values
+    );
+
+    return { id: result.rows[0].id, uid: data.uid };
+  } catch (err) {
+    console.log(err.message);
+    return { error: err.message };
   }
-
-  let subDoc = existingData[col].find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc) {
-    subDoc = { [subDocKey]: [] };
-    existingData[col].push(subDoc);
-  }
-
-  if (!Array.isArray(subDoc[subDocKey])) {
-    subDoc[subDocKey] = [];
-  }
-
-  if (!data.uid) {
-    data.uid = uuidv4();
-  } else if (
-    subDoc[subDocKey].some((subDocItem) => subDocItem.uid === data.uid)
-  ) {
-    return { error: "UID already exists" };
-  }
-
-  subDoc[subDocKey].push(data);
-  writeData(collection, existingData);
-  return { uid: data.uid };
 };
 
-const addPanelSubDoc = (col, subDocKey, data, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (Array.isArray(existingData[col])) {
-    return { error: "Collection is an array" };
-  }
-
-  if (!existingData[col]) {
-    existingData[col] = {};
-  }
-
-  if (!Array.isArray(existingData[col][panel_id])) {
-    existingData[col][panel_id] = [];
-  }
-
-  let subDoc = existingData[col][panel_id].find(
-    (doc) => doc[subDocKey] !== undefined
-  );
-  if (!subDoc) {
-    subDoc = { [subDocKey]: [] };
-    existingData[col][panel_id].push(subDoc);
-  }
-
-  if (!Array.isArray(subDoc[subDocKey])) {
-    subDoc[subDocKey] = [];
-  }
-
-  if (!data.uid) {
-    data.uid = uuidv4();
-  } else if (
-    subDoc[subDocKey].some((subDocItem) => subDocItem.uid === data.uid)
-  ) {
-    return { error: "UID already exists" };
-  }
-
-  subDoc[subDocKey].push(data);
-  writeData(collection, existingData);
-  return { uid: data.uid };
-};
-
-const addSubDocs = (col, subDocKey, docs) => {
-  const collection = getCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (!Array.isArray(existingData[col])) {
-    return { error: "Collection is not an array" };
-  }
-
-  let subDoc = existingData[col].find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc) {
-    subDoc = { [subDocKey]: [] };
-    existingData[col].push(subDoc);
-  }
-
-  if (!Array.isArray(subDoc[subDocKey])) {
-    subDoc[subDocKey] = [];
-  }
-
-  const docsToAdd = docs.filter((doc) => {
-    if (!doc.uid) {
-      doc.uid = uuidv4();
-      return true;
+const addDocs = async (col, docs) => {
+  try {
+    for (const doc of docs) {
+      const result = await await addDoc(col, doc);
+      if (result.error) return result;
     }
-    return !subDoc[subDocKey].some(
-      (existingDoc) => existingDoc.uid === doc.uid
-    );
-  });
-
-  subDoc[subDocKey].push(...docsToAdd);
-  writeData(collection, existingData);
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
-const addPanelSubDocs = (col, subDocKey, docs, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const existingData = readData(collection);
-
-  if (Array.isArray(existingData[col])) {
-    return { error: "Collection is an array" };
-  }
-
-  if (!existingData[col]) {
-    existingData[col] = {};
-  }
-
-  if (!Array.isArray(existingData[col][panel_id])) {
-    existingData[col][panel_id] = [];
-  }
-
-  let subDoc = existingData[col][panel_id].find(
-    (doc) => doc[subDocKey] !== undefined
-  );
-  if (!subDoc) {
-    subDoc = { [subDocKey]: [] };
-    existingData[col][panel_id].push(subDoc);
-  }
-
-  if (!Array.isArray(subDoc[subDocKey])) {
-    subDoc[subDocKey] = [];
-  }
-
-  const docsToAdd = docs.filter((doc) => {
-    if (!doc.uid) {
-      doc.uid = uuidv4();
-      return true;
+const addPanelDocs = async (col, docs, panel_id) => {
+  try {
+    for (const doc of docs) {
+      const result = await await addPanelDoc(col, doc, panel_id);
+      if (result.error) return result;
     }
-    return !subDoc[subDocKey].some(
-      (existingDoc) => existingDoc.uid === doc.uid
+  } catch (err) {
+    return { error: err.message };
+  }
+};
+
+const deleteDoc = async (col, uid) => {
+  try {
+    await vsp_pool.query(`DELETE FROM ${col} WHERE uid = $1`, [uid]);
+  } catch (err) {
+    return { error: err.message };
+  }
+};
+
+const deletePanelDoc = async (col, uid, panel_id) => {
+  try {
+    await vsp_pool.query(
+      `DELETE FROM ${col} WHERE uid = $1 AND panel_id = $2`,
+      [uid, panel_id]
     );
-  });
-
-  subDoc[subDocKey].push(...docsToAdd);
-  writeData(collection, existingData);
+  } catch (err) {
+    return { error: err.message };
+  }
 };
 
-const deleteDoc = (col, uid) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
+const deleteDocs = async (col, uids) => {
+  try {
+    await vp_pool.query(`DELETE FROM ${col} WHERE uid = ANY($1)`, [uids]);
+  } catch (err) {
+    return { error: err.message };
   }
-
-  const filteredData = data.filter((doc) => doc.uid !== uid);
-  mainData[col] = filteredData;
-  writeData(collection, mainData);
 };
 
-const deletePanelDoc = (col, uid, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Collection is not an array" };
+const deletePanelDocs = async (col, uids, panel_id) => {
+  try {
+    await vsp_pool.query(
+      `DELETE FROM ${col} WHERE uid = ANY($1) AND panel_id = $2`,
+      [uids, panel_id]
+    );
+  } catch (err) {
+    return { error: err.message };
   }
-
-  const filteredData = panelData.filter((doc) => doc.uid !== uid);
-  mainData[col][panel_id] = filteredData;
-  writeData(collection, mainData);
 };
 
-const deleteDocs = (col, uids) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
+const updateDoc = async (col, uid, newData) => {
+  try {
+    const keys = Object.keys(newData);
+    const values = Object.values(newData);
+    const sets = keys.map((key, i) => `${key} = $${i + 1}`).join(", ");
+    await vp_pool.query(
+      `UPDATE ${col} SET ${sets} WHERE uid = $${keys.length + 1}`,
+      [...values, uid]
+    );
+  } catch (err) {
+    return { error: err.message };
   }
-
-  const filteredData = data.filter((doc) => !uids.includes(doc.uid));
-  mainData[col] = filteredData;
-  writeData(collection, mainData);
 };
 
-const deletePanelDocs = (col, uids, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Collection is not an array" };
+const updatePanelDoc = async (col, uid, newData, panel_id) => {
+  try {
+    const keys = Object.keys(newData);
+    const values = Object.values(newData);
+    const sets = keys.map((key, i) => `${key} = $${i + 1}`).join(", ");
+    await vsp_pool.query(
+      `UPDATE ${col} SET ${sets} WHERE uid = $${
+        keys.length + 1
+      } AND panel_id = $${keys.length + 2}`,
+      [...values, uid, panel_id]
+    );
+  } catch (err) {
+    return { error: err.message };
   }
-
-  const filteredData = panelData.filter((doc) => !uids.includes(doc.uid));
-  mainData[col][panel_id] = filteredData;
-  writeData(collection, mainData);
-};
-
-const updateDoc = (col, uid, newData) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
-  }
-
-  const updatedData = data.map((doc) =>
-    doc.uid === uid ? { ...doc, ...newData } : doc
-  );
-  mainData[col] = updatedData;
-  writeData(collection, mainData);
-};
-
-const updatePanelDoc = (col, uid, newData, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Collection is not an array" };
-  }
-
-  const updatedData = panelData.map((doc) =>
-    doc.uid === uid ? { ...doc, ...newData } : doc
-  );
-  mainData[col][panel_id] = updatedData;
-  writeData(collection, mainData);
-};
-
-const deleteSubDocs = (col, subDocKey, uids) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
-  }
-
-  const subDoc = data.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].filter(
-    (doc) => !uids.includes(doc.uid)
-  );
-  writeData(collection, mainData);
-};
-
-const deleteSubDoc = (col, subDocKey, uid) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
-  }
-
-  const subDoc = data.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].filter((doc) => doc.uid !== uid);
-  writeData(collection, mainData);
-};
-
-const updateSubDoc = (col, subDocKey, uid, newData) => {
-  const collection = getCollectionPath(col);
-  const mainData = readData(collection);
-  const data = mainData[col];
-
-  if (!Array.isArray(data)) {
-    return { error: "Collection is not an array" };
-  }
-
-  const subDoc = data.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].map((doc) =>
-    doc.uid === uid ? { ...doc, ...newData } : doc
-  );
-  writeData(collection, mainData);
-};
-
-const updatePanelSubDoc = (col, subDocKey, uid, newData, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Panel data is not an array" };
-  }
-
-  let subDoc = panelData.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].map((doc) =>
-    doc.uid === uid ? { ...doc, ...newData } : doc
-  );
-  writeData(collection, mainData);
-};
-
-const deletePanelSubDocs = (col, subDocKey, uids, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Panel data is not an array" };
-  }
-
-  let subDoc = panelData.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].filter(
-    (doc) => !uids.includes(doc.uid)
-  );
-  writeData(collection, mainData);
-};
-
-const deletePanelSubDoc = (col, subDocKey, uid, panel_id) => {
-  const collection = getPanelCollectionPath(col);
-  const mainData = readData(collection);
-  const panelData = mainData[col]?.[panel_id];
-
-  if (!Array.isArray(panelData)) {
-    return { error: "Panel data is not an array" };
-  }
-
-  let subDoc = panelData.find((doc) => doc[subDocKey] !== undefined);
-  if (!subDoc || !Array.isArray(subDoc[subDocKey])) {
-    return { error: "Sub-collection is not an array" };
-  }
-
-  subDoc[subDocKey] = subDoc[subDocKey].filter((doc) => doc.uid !== uid);
-  writeData(collection, mainData);
 };
 
 module.exports = {
@@ -590,22 +350,12 @@ module.exports = {
   addPanelDoc,
   addDocs,
   addPanelDocs,
-  addSubDoc,
-  addPanelSubDoc,
-  addSubDocs,
-  addPanelSubDocs,
   deleteDoc,
   deletePanelDoc,
   deleteDocs,
   deletePanelDocs,
   updateDoc,
   updatePanelDoc,
-  deleteSubDocs,
-  deleteSubDoc,
-  updateSubDoc,
-  updatePanelSubDoc,
-  getPanelCollectionPath,
-  deletePanelSubDocs,
-  deletePanelSubDoc,
-  readData,
+  createTableIfNotExists,
+  ensureColumnsExist,
 };

@@ -15,7 +15,7 @@ const interpolateHtml = (html, variables) => {
 };
 
 const getEmailTemplate = async (type, data, logoUrl) => {
-  const templates = getDocs("notifications", null, {
+  const templates = await getDocs("notifications", null, {
     find: { field: "uid", operator: "===", value: "email_templates" },
   });
 
@@ -25,7 +25,7 @@ const getEmailTemplate = async (type, data, logoUrl) => {
   };
 
   if (!templates[type]) {
-    updateDoc("notifications", "email_templates", { [type]: "" });
+    await updateDoc("notifications", "email_templates", { [type]: "" });
   }
   const interpolatedHtml = interpolateHtml(templates[type] || "", variables);
   const defaultTemplate = getTemplate(type, variables);
@@ -48,10 +48,14 @@ const sendEmailConfig = async (from, to, type, data, logoUrl) => {
       to,
       subject: emailTemplate.subject,
       html: emailTemplate.html,
+      headers: {
+        "List-Unsubscribe":
+          "<mailto:unsubscribe@validpanel.com>, <https://validpanel.com/unsubscribe>",
+      },
     };
 
     let info = await transporter.sendMail(mailOptions);
-    addDoc("notifications", {
+    await addDoc("notifications", {
       from,
       to,
       subject: emailTemplate.subject,
@@ -63,7 +67,7 @@ const sendEmailConfig = async (from, to, type, data, logoUrl) => {
     });
     return { success: true };
   } catch (error) {
-    addDoc("notifications", {
+    await addDoc("notifications", {
       from,
       to,
       subject: emailTemplate.subject,
@@ -88,7 +92,7 @@ const sendEmail = async (
       to,
       type,
       data,
-      "https://validpanel.com/static/media/ValidPanelLogo.png"
+      "https://validpanel.com/assets/ValidPanel-CLfY079M.png"
     );
   } catch (error) {
     console.error({ error });
