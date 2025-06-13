@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { addDoc, getDocs, updateDoc } = require("../crud");
+const { addDoc } = require("../crud");
 const { getTemplate } = require("./emailTemplates");
 
 const transporter = nodemailer.createTransport({
@@ -8,40 +8,24 @@ const transporter = nodemailer.createTransport({
   path: "/usr/sbin/sendmail",
 });
 
-const interpolateHtml = (html, variables) => {
-  return html.replace(/\{\{(.*?)\}\}/g, (_, variableName) => {
-    return variables[variableName.trim()] || "";
-  });
-};
-
-const getEmailTemplate = async (type, data, logoUrl) => {
-  const templates = await getDocs("notifications", null, {
-    find: { field: "uid", operator: "===", value: "email_templates" },
-  });
-
+const getEmailTemplate = (type, data, logoUrl) => {
   const variables = {
     logo: logoUrl,
     ...data,
   };
-
-  if (!templates[type]) {
-    await updateDoc("notifications", "email_templates", { [type]: "" });
-  }
-  const interpolatedHtml = interpolateHtml(templates[type] || "", variables);
   const defaultTemplate = getTemplate(type, variables);
-  const htmlTemplate = interpolatedHtml ? interpolatedHtml : defaultTemplate;
 
   return {
     subject: `${type
       .replace(/([A-Z])/g, " $1")
       .replace(/^./, (str) => str.toUpperCase())
       .trim()} Notification`,
-    html: htmlTemplate,
+    html: defaultTemplate,
   };
 };
 
 const sendEmailConfig = async (from, to, type, data, logoUrl) => {
-  const emailTemplate = await getEmailTemplate(type, data, logoUrl);
+  const emailTemplate = getEmailTemplate(type, data, logoUrl);
   try {
     const mailOptions = {
       from,
@@ -55,7 +39,7 @@ const sendEmailConfig = async (from, to, type, data, logoUrl) => {
     };
 
     let info = await transporter.sendMail(mailOptions);
-    await addDoc("notifications", {
+    await addDoc("email_notifications", {
       from,
       to,
       subject: emailTemplate.subject,
@@ -67,7 +51,7 @@ const sendEmailConfig = async (from, to, type, data, logoUrl) => {
     });
     return { success: true };
   } catch (error) {
-    await addDoc("notifications", {
+    await addDoc("email_notifications", {
       from,
       to,
       subject: emailTemplate.subject,
