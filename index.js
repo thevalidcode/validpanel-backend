@@ -4,13 +4,9 @@ const fs = require("fs");
 const { startCronJobs } = require("./cronJobs");
 const PORT = 3002;
 const app = require("./app");
-const { importDataFromFolder } = require("./transferdb");
-
 const env = process.env.NODE_ENV;
 
 startCronJobs();
-
-importDataFromFolder();
 
 if (env === "production") {
   const options = {
