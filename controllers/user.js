@@ -50,15 +50,6 @@ exports.createUser = async (req, res) => {
       return res.status(400).send({ error: "Email already exists" });
     }
 
-    let userId;
-    if (usersDocs.length === 0) {
-      userId = 1;
-    } else {
-      const sortedUsers = usersDocs.sort((a, b) => b.id - a.id);
-      userId = sortedUsers[0].id + 1;
-    }
-    userData.id = userId;
-
     const panelsDocs = await getDocs("registered_panels");
     let panel_id;
     if (panelsDocs.length === 0) {

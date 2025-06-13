@@ -153,7 +153,7 @@ const createTableIfNotExists = async (pool, col, data) => {
         }
 
         if (lowerKey === "id") {
-          return `${key} ${type} PRIMARY KEY`;
+          return `${key} SERIAL PRIMARY KEY`;
         }
         if (lowerKey === "uid") {
           return `${key} ${type} UNIQUE`;
@@ -198,7 +198,6 @@ const ensureColumnsExist = async (pool, table, data) => {
 
 const addDoc = async (col, data) => {
   try {
-    if (!data.id) throw new Error("Missing required 'id' field");
     if (!data.uid) data.uid = uuidv4();
 
     await createTableIfNotExists(vp_pool, col, data);
@@ -214,12 +213,12 @@ const addDoc = async (col, data) => {
     const params = keys.map((_, i) => `$${i + 1}`).join(", ");
     const cols = keys.join(", ");
 
-    await vp_pool.query(
-      `INSERT INTO ${col} (${cols}) VALUES (${params})`,
+    const result = await vp_pool.query(
+      `INSERT INTO ${col} (${cols}) VALUES (${params}) RETURNING id`,
       values
     );
 
-    return { uid: data.uid };
+    return { id: result.rows[0].id, uid: data.uid };
   } catch (err) {
     console.log(err.message);
     return { error: err.message };
@@ -227,7 +226,6 @@ const addDoc = async (col, data) => {
 };
 
 const addPanelDoc = async (col, data, panel_id) => {
-  if (!data.id) return { error: "Missing required 'id' field" };
   data.panel_id = panel_id;
   if (!data.uid) data.uid = uuidv4();
   try {
@@ -244,12 +242,12 @@ const addPanelDoc = async (col, data, panel_id) => {
     const params = keys.map((_, i) => `$${i + 1}`).join(", ");
     const cols = keys.join(", ");
 
-    await vsp_pool.query(
-      `INSERT INTO ${col} (${cols}) VALUES (${params})`,
+    const result = await vsp_pool.query(
+      `INSERT INTO ${col} (${cols}) VALUES (${params}) RETURNING id`,
       values
     );
 
-    return { uid: data.uid };
+    return { id: result.rows[0].id, uid: data.uid };
   } catch (err) {
     console.log(err.message);
     return { error: err.message };

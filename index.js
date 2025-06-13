@@ -10,7 +10,7 @@ const env = process.env.NODE_ENV;
 
 startCronJobs();
 
-// importDataFromFolder()
+importDataFromFolder();
 
 if (env === "production") {
   const options = {
