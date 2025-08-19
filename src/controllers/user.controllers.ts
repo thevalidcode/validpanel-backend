@@ -76,13 +76,7 @@ export const createUser = async (req: Request, res: Response) => {
     });
 
     res.status(201).json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        plan: user.plan,
-      },
+      success: "Successfully created user",
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -121,18 +115,13 @@ export const me = async (req: Request, res: Response) => {
     });
 
     const { password: _, ...safeUser } = account;
-    res.status(200).json({ success: true, plan: account.plan, user: safeUser });
+    res.status(200).json({ success: "Logged in successfully" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
 
 export const getUserByUid = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success || parsed.data.role.toLowerCase() === "user") {
-    return res.status(403).json({ error: "Unauthorized access." });
-  }
-
   const { uid } = req.params;
   try {
     const user = await prisma.user.findUnique({
@@ -161,43 +150,28 @@ export const verifySession = async (req: Request, res: Response) => {
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success || parsed.data.role.toLowerCase() === "user") {
-    return res.status(403).json({ error: "Access denied." });
-  }
-
   const { uid } = req.body;
 
   try {
     await prisma.user.delete({ where: { uid } });
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: "Successfully deleted user" });
   } catch {
     res.status(500).json({ error: "Failed to delete user" });
   }
 };
 
 export const deleteUsers = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success || parsed.data.role.toLowerCase() === "user") {
-    return res.status(403).json({ error: "Access denied." });
-  }
-
   const { uids } = req.body;
 
   try {
     await prisma.user.deleteMany({ where: { uid: { in: uids } } });
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: "Successfully deleted users" });
   } catch {
     res.status(500).json({ error: "Failed to delete users" });
   }
 };
 
 export const updateUser = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success || parsed.data.role.toLowerCase() === "user") {
-    return res.status(403).json({ error: "Access denied." });
-  }
-
   const input = updateUserSchema.safeParse(req.body);
   if (!input.success)
     return res.status(400).json({ error: input.error.flatten() });
@@ -209,7 +183,7 @@ export const updateUser = async (req: Request, res: Response) => {
       where: { uid },
       data: fields,
     });
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: "Successfully updated user" });
   } catch {
     res.status(500).json({ error: "Failed to update user" });
   }

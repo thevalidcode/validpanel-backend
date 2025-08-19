@@ -96,16 +96,7 @@ export const GoogleAuthRequestSchema = z
   .openapi("GoogleAuthResponse");
 
 export const VerifySessionResponseSchema = z.object({
-  role: z.nativeEnum(UserPlan),
-});
-
-export const CreateUserSchema = z.object({
-  success: z.string(),
-  user: z.object({
-    id: z.coerce.number().describe("User id"),
-    email: z.string().email().describe("User email"),
-    username: z.string().describe("User username"),
-  }),
+  plan: z.nativeEnum(UserPlan),
 });
 
 export const createUserRequestSchema = z.object({

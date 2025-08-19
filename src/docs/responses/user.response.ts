@@ -4,7 +4,6 @@ import {
   UserPublicSchema,
   AuthenticateUserResponseSchema,
   VerifySessionResponseSchema,
-  CreateUserSchema,
 } from "../../schemas/user.schema";
 
 export const AuthenticateUserResponse = {
@@ -29,7 +28,9 @@ export const CreateUserResponse = {
   description: "User created successfully",
   content: {
     "application/json": {
-      schema: CreateUserSchema,
+      schema: z.object({
+        success: z.literal("User created successfully"),
+      }),
     },
   },
 };
@@ -48,7 +49,7 @@ export const UpdateSuccess = {
   content: {
     "application/json": {
       schema: z.object({
-        code: z.literal("update-success"),
+        success: z.literal("Updated user successfully"),
       }),
     },
   },
@@ -91,44 +92,6 @@ export const LoginResponse = {
     "application/json": {
       schema: z.object({
         success: z.literal("Logged in successfully"),
-        token: z.string(),
-        role: z.string(),
-        user: UserPublicSchema,
-      }),
-    },
-  },
-};
-
-export const SuccessMessage = {
-  description: "Operation successful",
-  content: {
-    "application/json": {
-      schema: z.object({
-        success: z.literal("Created Successfully"),
-        token: z.string(),
-        user: UserPublicSchema,
-      }),
-    },
-  },
-};
-
-export const AccessDenied = {
-  description: "Access denied for non-admins",
-  content: {
-    "application/json": {
-      schema: z.object({
-        error: z.literal("Access denied. Admins only."),
-      }),
-    },
-  },
-};
-
-export const Unauthorized = {
-  description: "Authentication failed",
-  content: {
-    "application/json": {
-      schema: z.object({
-        error: z.string(),
       }),
     },
   },
