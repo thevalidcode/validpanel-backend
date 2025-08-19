@@ -2,12 +2,11 @@ import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import session from "express-session";
-import pgSession from "connect-pg-simple";
-import { pool } from "./config/db.config";
 import { env } from "./config/env.config";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { apiLimiter } from "./middleware/ratelimit";
+import PrismaSessionStore from "./utils/PrismaSessionStore";
 
 // Routes
 import userRouter from "./routes/user.routes";
@@ -27,16 +26,9 @@ app.use(
   express.static(path.join(__dirname, "..", "public", "assets"))
 );
 
-// --- Session Store ---
-const pgSess = pgSession(session);
-
 app.use(
   session({
-    store: new pgSess({
-      pool,
-      tableName: "internal_api_sessions",
-      createTableIfMissing: true,
-    }),
+    store: new PrismaSessionStore(),
     secret: env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,

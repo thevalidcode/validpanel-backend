@@ -22,7 +22,6 @@ model User {
   image      String?
   stores     Store[] 
   password   String
-  username   String
   apiKey     String   @unique @map("api_key")
   plan       UserPlan   @default(FREE)
   status     UserStatus @default(ACTIVE)

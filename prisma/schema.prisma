@@ -59,7 +59,6 @@ model User {
   image     String?
   stores    Store[]
   password  String
-  username  String
   apiKey    String     @unique @map("api_key")
   plan      UserPlan   @default(FREE)
   status    UserStatus @default(ACTIVE)
@@ -97,7 +96,6 @@ model Admin {
   email     String
   image     String?
   password  String
-  username  String
   fullName  String
   apiKey    String      @unique @map("api_key")
   role      AdminRole   @default(BASIC)
@@ -202,6 +200,17 @@ model General {
   faviconUrl String? @map("favicon_url")
 
   @@map("general")
+}
+
+model InternalApiSession {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  data      Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("internal_api_sessions")
 }
 
 enum PaymentGatewayStatus {

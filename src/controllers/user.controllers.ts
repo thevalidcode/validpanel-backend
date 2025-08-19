@@ -12,14 +12,12 @@ import {
 import { prisma } from "../config/db.config";
 
 export const getUsers = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
   try {
     const users = await prisma.user.findMany({
       select: {
         id: true,
         uid: true,
         email: true,
-        username: true,
         fullName: true,
         plan: true,
         status: true,
@@ -36,12 +34,12 @@ export const createUser = async (req: Request, res: Response) => {
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { email, username, password, fullName } = parsed.data;
+  const { email, password, fullName } = parsed.data;
 
   try {
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        OR: [{ email }],
       },
     });
 
@@ -55,7 +53,6 @@ export const createUser = async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: {
         email,
-        username,
         uid: uuidv4(),
         fullName,
         password: hashedPassword,
@@ -83,7 +80,8 @@ export const createUser = async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
-        username: user.username,
+        fullName: user.fullName,
+        plan: user.plan,
       },
     });
   } catch (err: any) {
@@ -143,7 +141,6 @@ export const getUserByUid = async (req: Request, res: Response) => {
         id: true,
         uid: true,
         email: true,
-        username: true,
         fullName: true,
         plan: true,
         status: true,

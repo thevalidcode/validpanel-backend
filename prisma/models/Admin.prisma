@@ -19,7 +19,6 @@ model Admin {
   email     String
   image     String?
   password  String
-  username  String
   fullName  String
   apiKey    String   @unique @map("api_key")
   role      AdminRole   @default(BASIC)

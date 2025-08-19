@@ -23,7 +23,6 @@ export const UserSchema: z.ZodType<User> = z
     image: z.string().url(),
     password: z.string(),
     currency: z.string().toUpperCase().length(3),
-    username: z.string(),
     fullName: z.string(),
     spent: z.custom<Decimal>(),
     balance: z.custom<Decimal>(),
@@ -43,7 +42,6 @@ export const AdminSchema: z.ZodType<Admin> = z
     image: z.string().url(),
     password: z.string(),
     currency: z.string().toUpperCase().length(3),
-    username: z.string(),
     fullName: z.string(),
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
@@ -68,7 +66,6 @@ export const UserPublicSchema = z
     image: z.string().url(),
     timestamp: z.coerce.date(),
     currency: z.string().toUpperCase().length(3),
-    username: z.string(),
     status: z.nativeEnum(UserStatus),
     plan: z.nativeEnum(UserPlan),
     spent: z.custom<Decimal>(),
@@ -89,7 +86,6 @@ export const AuthenticateUserResponseSchema = z.object({
 export const AdminPublicSchema = z.object({
   id: z.number(),
   email: z.string().email(),
-  username: z.string(),
   role: z.nativeEnum(UserPlan),
 });
 
@@ -114,7 +110,6 @@ export const CreateUserSchema = z.object({
 
 export const createUserRequestSchema = z.object({
   email: z.string().email(),
-  username: z.string(),
   fullName: z.string(),
   password: z.string().min(6),
 });
