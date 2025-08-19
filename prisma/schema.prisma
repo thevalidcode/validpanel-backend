@@ -1,0 +1,330 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "./generated"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StoreStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  DISABLED @map("disabled")
+}
+
+enum StoreType {
+  SOCIAL  @map("social_media_store")
+  SHOP    @map("shop")
+  DIGITAL @map("digital")
+}
+
+model Store {
+  storeId   Int         @id @map("store_id")
+  uid       String      @unique
+  ssl       Boolean     @default(false)
+  plan      UserPlan    @default(FREE)
+  type      StoreType
+  status    StoreStatus @default(ACTIVE)
+  timestamp DateTime    @default(now())
+  ownerId   Int
+  owner     User        @relation(fields: [ownerId], references: [id])
+
+  @@map("stores")
+}
+
+enum UserStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  BANNED   @map("banned")
+}
+
+enum UserPlan {
+  FREE         @map("free")
+  STARTER      @map("starter")
+  ESSESENTIALS @map("essesentials")
+  PRO          @map("pro")
+  BUSINESS     @map("business")
+  EMPIRE       @map("empire")
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  refCode   Int?       @unique @default(autoincrement()) @map("ref_code")
+  uid       String     @unique
+  email     String
+  fullName  String
+  image     String?
+  stores    Store[]
+  password  String
+  username  String
+  apiKey    String     @unique @map("api_key")
+  plan      UserPlan   @default(FREE)
+  status    UserStatus @default(ACTIVE)
+  balance   Decimal    @default(0.00) @db.Decimal(10, 2)
+  spent     Decimal    @default(0.00) @db.Decimal(10, 2)
+  timestamp DateTime   @default(now())
+  lastSeen  DateTime   @default(now()) @map("last_seen")
+  currency  String     @default("USD")
+
+  ref        Int?
+  referredBy User?  @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
+  referrals  User[] @relation("Referral")
+
+  @@map("users")
+}
+
+enum AdminStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  BANNED   @map("banned")
+}
+
+enum AdminRole {
+  SUPER           @map("super")
+  BASIC           @map("basic")
+  MANAGER         @map("manager")
+  SUPPORTSTAFF    @map("support_staff")
+  FINANCEOFFICER  @map("finance_officer")
+  SERVICEOPERATOR @map("service_operator")
+}
+
+model Admin {
+  id        Int         @id @default(autoincrement())
+  uid       String      @unique
+  email     String
+  image     String?
+  password  String
+  username  String
+  fullName  String
+  apiKey    String      @unique @map("api_key")
+  role      AdminRole   @default(BASIC)
+  status    AdminStatus @default(ACTIVE)
+  timestamp DateTime    @default(now())
+  lastSeen  DateTime    @default(now()) @map("last_seen")
+
+  @@map("admins")
+}
+
+enum OrderStatus {
+  PENDING    @map("Pending")
+  CANCELED   @map("Canceled")
+  PARTIAL    @map("Partial")
+  FAILED     @map("Failed")
+  COMPLETED  @map("Completed")
+  ACTIVE     @map("In progress")
+  PROCESSING @map("Processing")
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  uid       String      @unique
+  timestamp DateTime    @default(now())
+  userUid   String      @map("user_uid")
+  currency  String      @default("USD")
+  status    OrderStatus @default(PENDING)
+  quantity  Int
+  start     Int         @default(0)
+  price     Decimal     @default(0.00) @db.Decimal(10, 2)
+
+  @@map("orders")
+}
+
+enum BlogStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
+model Blog {
+  id          Int        @id @default(autoincrement())
+  title       String
+  content     String
+  description String     @default("")
+  coverImage  String     @default("") @map("cover_image")
+  status      BlogStatus @default(ACTIVE)
+  position    Int
+  slug        String
+  uid         String     @unique
+  timestamp   DateTime   @default(now())
+
+  @@map("blogs")
+}
+
+model Currency {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique
+  timestamp DateTime @default(now())
+  quotes    Json
+
+  @@map("currencies")
+}
+
+model EmailLog {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique
+  sender    String
+  receiver  String
+  subject   String
+  html      String
+  status    String
+  messageId String?  @map("message_id")
+  response  String?
+  timestamp DateTime @default(now())
+
+  @@map("email_logs")
+}
+
+enum FaqStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
+model Faq {
+  id        Int       @id @default(autoincrement())
+  question  String
+  answer    String
+  status    FaqStatus @default(ACTIVE)
+  position  Int
+  slug      String
+  uid       String    @unique
+  timestamp DateTime  @default(now())
+
+  @@map("faqs")
+}
+
+model General {
+  id         Int     @id @default(autoincrement())
+  uid        String  @unique
+  title      String  @default("Valid Panel")
+  logoUrl    String? @map("logo_url")
+  faviconUrl String? @map("favicon_url")
+
+  @@map("general")
+}
+
+enum PaymentGatewayStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
+enum PaymentGatewayPlatform {
+  MANUAL      @map("manual")
+  FLUTTERWAVE @map("flutterwave")
+  PAYSTACK    @map("paystack")
+  REFERRAL    @map("referral")
+}
+
+model PaymentGateway {
+  id          Int                    @id @default(autoincrement())
+  uid         String                 @unique
+  platform    PaymentGatewayPlatform @default(MANUAL)
+  name        String
+  description String?
+  signature   String?
+  secretKey   Json?                  @map("secret_key")
+  image       String
+  status      PaymentGatewayStatus   @default(ACTIVE)
+  createdAt   DateTime               @default(now()) @map("created_at")
+  position    Int                    @map("position")
+  min         Decimal                @db.Decimal(10, 2)
+  max         Decimal                @db.Decimal(10, 2)
+
+  @@map("payment_gateways")
+}
+
+model SessionCode {
+  code      String   @id
+  email     String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+
+  @@map("session_codes")
+}
+
+enum TicketStatus {
+  OPEN     @map("open")
+  PENDING  @map("pending")
+  RESOLVED @map("resolved")
+  CLOSED   @map("closed")
+}
+
+enum TicketPriority {
+  LOW    @map("low")
+  MEDIUM @map("medium")
+  HIGH   @map("high")
+  URGENT @map("urgent")
+}
+
+model SupportTicket {
+  id          Int            @id @default(autoincrement())
+  uid         String         @unique @default(uuid())
+  description String?
+  userUid     String         @map("user_uid")
+  subject     String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  messages TicketMessage[] @relation("TicketMessages")
+
+  @@index([userUid])
+  @@map("support_tickets")
+}
+
+enum MessageSenderType {
+  USER  @map("user")
+  ADMIN @map("admin")
+}
+
+model TicketMessage {
+  id         Int               @id @default(autoincrement())
+  uid        String            @unique @default(uuid())
+  ticketUid  String            @map("ticket_uid")
+  senderUid  String            @map("sender_uid")
+  senderType MessageSenderType @map("sender_type")
+  message    String
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation("TicketMessages", fields: [ticketUid], references: [uid])
+
+  @@index([ticketUid])
+  @@index([senderUid])
+  @@map("ticket_messages")
+}
+
+enum TransactionStatus {
+  SUCCESS   @map("success")
+  FAILED    @map("failed")
+  COMPLETED @map("completed")
+  REVERSED  @map("reversed")
+  CANCELLED @map("cancelled")
+}
+
+model Transaction {
+  id             Int                    @id @default(autoincrement())
+  uid            String                 @unique
+  amount         Decimal                @db.Decimal(10, 2)
+  timestamp      DateTime               @default(now())
+  status         TransactionStatus
+  currency       String                 @default("USD")
+  paymentGateway PaymentGatewayPlatform @default(MANUAL) @map("payment_gateway")
+  chargedAmount  Decimal                @map("charged_amount")
+  userUid        String                 @map("user_uid")
+
+  @@map("transactions")
+}
+
+model UploadLog {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique
+  size      Int
+  url       String
+  filename  String
+  mimetype  String
+  timestamp DateTime @default(now())
+
+  @@map("upload_logs")
+}

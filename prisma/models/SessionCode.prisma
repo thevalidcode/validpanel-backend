@@ -1,0 +1,8 @@
+model SessionCode {
+  code       String   @id
+  email      String
+  expiresAt  DateTime @map("expires_at")
+  used       Boolean  @default(false)
+
+  @@map("session_codes")
+}

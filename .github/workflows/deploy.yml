@@ -1,4 +1,4 @@
-name: 🚀 Deploy project on push
+name: 🚀 Deploy to server on push
 
 on:
   push:
@@ -6,18 +6,42 @@ on:
       - main
 
 jobs:
-  web-deploy:
-    name: Deploy project
+  deploy:
+    name: Upload & Run Remote Commands
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚚 Get latest code
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 📂 Sync backend files
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: 🛠️ Install deps & build
+        run: |
+          npm ci
+          npm run build
+
+      - name: 📤 Upload project (excluding src/)
+        uses: appleboy/scp-action@v0.1.7
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 2022
+          source: "app,public,scripts,prisma,package.json"
+          target: "core-platform/backend"
+          overwrite: true
+
+      - name: 🧠 Run post-deploy commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 2022
+          script: |
+            cd core-platform/backend
+            npm i --omit=dev
+            pm2 describe core-platform > /dev/null \
+              && pm2 restart core-platform \
+              || pm2 start app/index.js --name core-platform
+            pm2 save
+            npm run migrate

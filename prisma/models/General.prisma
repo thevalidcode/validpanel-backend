@@ -1,0 +1,9 @@
+model General {
+  id             Int     @id @default(autoincrement())
+  uid                   String @unique
+  title                 String @default("Valid Panel")
+  logoUrl               String? @map("logo_url")
+  faviconUrl            String? @map("favicon_url")
+
+  @@map("general")
+}

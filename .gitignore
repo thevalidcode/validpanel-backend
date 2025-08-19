@@ -1,11 +1,8 @@
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-/fake_panels_db
-/fake_validpanel_db
-lerna-debug.log*
-.pnpm-debug.log*
 .env
+.vscode
+nodemon.json
+
 node_modules
+
+dist
+/prisma/generated

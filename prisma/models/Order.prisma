@@ -1,0 +1,23 @@
+enum OrderStatus {
+  PENDING     @map("Pending")
+  CANCELED    @map("Canceled")
+  PARTIAL     @map("Partial")
+  FAILED      @map("Failed")
+  COMPLETED   @map("Completed")
+  ACTIVE      @map("In progress")
+  PROCESSING  @map("Processing")
+}
+
+model Order {
+  id             Int     @id @default(autoincrement())
+  uid                 String    @unique
+  timestamp           DateTime  @default(now())
+  userUid             String    @map("user_uid")
+  currency            String    @default("USD")
+  status              OrderStatus    @default(PENDING)
+  quantity            Int
+  start               Int       @default(0)
+  price               Decimal   @default(0.00) @db.Decimal(10, 2)
+
+  @@map("orders")
+}
