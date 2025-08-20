@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(apiLimiter);
 app.use(express.urlencoded({ extended: true }));
 app.use(
-  `${env.BACKEND_PROXY_PATH}/assets`,
+  "/assets",
   express.static(path.join(__dirname, "..", "public", "assets"))
 );
 
@@ -48,6 +48,6 @@ app.use("/api/v1/user", cors(corsOptions), userRouter);
 app.use("/admin", cors(corsOptions), adminRouter);
 
 // --- Docs ---
-app.use(`${env.BACKEND_PROXY_PATH}/swagger`, swaggerRouter);
+app.use("/swagger", swaggerRouter);
 
 export default app;
