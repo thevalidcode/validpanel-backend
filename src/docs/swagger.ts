@@ -4,6 +4,7 @@ import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./paths";
 import { API_VERSION } from "../version";
 import * as swaggers from "../controllers/swagger.controllers";
+import { env } from "../config/env.config";
 
 const swaggerRouter = Router();
 
@@ -46,8 +47,8 @@ swaggerRouter.use(
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {
-    customCssUrl: "/assets/swagger-custom.css",
-    customfavIcon: "/assets/validpanel.png",
+    customCssUrl: `${env.BACKEND_PROXY_PATH}/assets/swagger-custom.css`,
+    customfavIcon: `${env.BACKEND_PROXY_PATH}/assets/validpanel.png`,
     customSiteTitle: "Valid Panel API Docs",
   })
 );
