@@ -2,9 +2,7 @@ import { env } from "../config/env.config";
 import type { Request, Response } from "express";
 
 const URL =
-  env.NODE_ENV === "production"
-    ? "/social-media-store/backend/admin/login"
-    : "/admin/login";
+  env.NODE_ENV === "production" ? "/core-platform/backend/admin" : "/admin";
 
 export const adminLogin = (req: Request, res: Response) => {
   res.send(`
@@ -97,7 +95,7 @@ export const adminLogin = (req: Request, res: Response) => {
 </head>
 <body>
 
-  <form class="login-form" method="POST" action="${URL}">
+  <form class="login-form" method="POST" action="${URL}/login">
     <h2>Admin Login</h2>
 
     <div class="form-group">
@@ -122,7 +120,7 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
   if (username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
     (req.session as any).isAdmin = true;
-    res.redirect(URL);
+    res.redirect(`${URL}/docs`);
   } else {
     res.status(401).send("Invalid credentials");
   }
@@ -130,6 +128,6 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
 export const logoutAdmin = (req: Request, res: Response) => {
   req.session.destroy(() => {
-    res.redirect(URL);
+    res.redirect(`${URL}/login`);
   });
 };
