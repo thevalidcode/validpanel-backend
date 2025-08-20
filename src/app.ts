@@ -43,7 +43,7 @@ app.use(
 
 // --- Public Routes ---
 app.use("/core/api/v1/user", cors(corsOptions), userRouter);
-app.use("/admin", adminRouter);
+app.use("/core/admin", adminRouter);
 
 // --- Docs ---
 app.use(swaggerRouter);

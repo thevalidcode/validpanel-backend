@@ -38,7 +38,7 @@ const openApiDocument = generator.generateDocument({
 });
 
 swaggerRouter.use(
-  "/admin/docs",
+  "/core/admin/docs",
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {
