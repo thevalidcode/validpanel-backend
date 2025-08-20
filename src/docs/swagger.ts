@@ -27,18 +27,18 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: `https://validpanel.com/core/api/v1`,
+      url: `https://validpanel.com/core-platform/backend/api/v1`,
       description: "Public testing server (use this to test endpoints)",
     },
     {
-      url: "http://localhost:3000/core/api/v1",
+      url: "http://localhost:3000/api/v1",
       description: "Local development server",
     },
   ],
 });
 
 swaggerRouter.use(
-  "/core/admin/docs",
+  "/admin/docs",
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {
