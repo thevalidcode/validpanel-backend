@@ -3,6 +3,7 @@ import swaggerUi from "swagger-ui-express";
 import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./paths";
 import { API_VERSION } from "../version";
+import * as swaggers from "../controllers/swagger.controllers";
 
 const swaggerRouter = Router();
 
@@ -37,8 +38,11 @@ const openApiDocument = generator.generateDocument({
   ],
 });
 
+swaggerRouter.get("/login", swaggers.adminLogin);
+swaggerRouter.post("/login", swaggers.authenticateAdmin);
+swaggerRouter.post("/logout", swaggers.logoutAdmin);
 swaggerRouter.use(
-  "/admin/docs",
+  "/docs",
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {

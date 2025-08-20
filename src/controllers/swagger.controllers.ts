@@ -2,7 +2,7 @@ import { env } from "../config/env.config";
 import type { Request, Response } from "express";
 
 const URL =
-  env.NODE_ENV === "production" ? "/core-platform/backend/admin" : "/admin";
+  env.NODE_ENV === "production" ? "/core-platform/backend/swagger" : "/swagger";
 
 export const adminLogin = (req: Request, res: Response) => {
   res.send(`
