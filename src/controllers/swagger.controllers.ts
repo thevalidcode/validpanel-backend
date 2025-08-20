@@ -117,7 +117,7 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
   if (username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
     (req.session as any).isAdmin = true;
-    res.redirect(`${env.BACKEND_PROXY_PATH}/swagger/docs`);
+    res.redirect(`${env.BACKEND_PROXY_PATH}/swagger/docs/`);
   } else {
     res.status(401).send("Invalid credentials");
   }
@@ -125,6 +125,6 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
 export const logoutAdmin = (req: Request, res: Response) => {
   req.session.destroy(() => {
-    res.redirect(`${env.BACKEND_PROXY_PATH}/swagger/login`);
+    res.redirect(`${env.BACKEND_PROXY_PATH}/swagger/login/`);
   });
 };
