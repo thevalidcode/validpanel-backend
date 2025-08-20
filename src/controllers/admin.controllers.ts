@@ -92,7 +92,7 @@ export const adminLogin = (req: Request, res: Response) => {
 </head>
 <body>
 
-  <form class="login-form" method="POST" action="/admin/login">
+  <form class="login-form" method="POST" action="/core-platform/backend/admin/login">
     <h2>Admin Login</h2>
 
     <div class="form-group">
@@ -117,7 +117,7 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
   if (username === env.ADMIN_USERNAME && password === env.ADMIN_PASSWORD) {
     (req.session as any).isAdmin = true;
-    res.redirect("/admin/docs");
+    res.redirect("/core-platform/backend/admin/docs");
   } else {
     res.status(401).send("Invalid credentials");
   }
@@ -125,6 +125,6 @@ export const authenticateAdmin = (req: Request, res: Response) => {
 
 export const logoutAdmin = (req: Request, res: Response) => {
   req.session.destroy(() => {
-    res.redirect("/admin/login");
+    res.redirect("/core-platform/backend/admin/login");
   });
 };
