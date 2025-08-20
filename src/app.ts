@@ -45,7 +45,7 @@ app.use(
 
 // --- Public Routes ---
 app.use("/api/v1/user", cors(corsOptions), userRouter);
-app.use("/admin", cors(corsOptions), adminRouter);
+app.use("/api/v1/admin", cors(corsOptions), adminRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);

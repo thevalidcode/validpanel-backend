@@ -29,7 +29,7 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: `https://validpanel.com/core-platform/backend/api/v1`,
+      url: `https://validpanel.com${env.BACKEND_PROXY_PATH}/api/v1`,
       description: "Public testing server (use this to test endpoints)",
     },
     {
