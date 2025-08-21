@@ -33,7 +33,7 @@ const openApiDocument = generator.generateDocument({
       description: "Public testing server (use this to test endpoints)",
     },
     {
-      url: "http://localhost:3000/api/v1",
+      url: "http://localhost:2340/api/v1",
       description: "Local development server",
     },
   ],

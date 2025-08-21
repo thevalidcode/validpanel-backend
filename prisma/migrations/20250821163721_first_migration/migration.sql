@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "StoreStatus" AS ENUM ('active', 'inactive', 'disabled');
+CREATE TYPE "StoreStatus" AS ENUM ('active', 'pending', 'inactive', 'disabled');
 
 -- CreateEnum
 CREATE TYPE "StoreType" AS ENUM ('social_media_store', 'shop', 'digital');
@@ -48,9 +48,11 @@ CREATE TABLE "stores" (
     "store_id" INTEGER NOT NULL,
     "uid" TEXT NOT NULL,
     "ssl" BOOLEAN NOT NULL DEFAULT false,
+    "approved" BOOLEAN NOT NULL DEFAULT false,
+    "suspended" BOOLEAN NOT NULL DEFAULT false,
     "plan" "UserPlan" NOT NULL DEFAULT 'free',
     "type" "StoreType" NOT NULL,
-    "status" "StoreStatus" NOT NULL DEFAULT 'active',
+    "status" "StoreStatus" NOT NULL DEFAULT 'pending',
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ownerId" INTEGER NOT NULL,
 
@@ -63,9 +65,9 @@ CREATE TABLE "users" (
     "ref_code" SERIAL,
     "uid" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
     "image" TEXT,
     "password" TEXT NOT NULL,
-    "username" TEXT NOT NULL,
     "api_key" TEXT NOT NULL,
     "plan" "UserPlan" NOT NULL DEFAULT 'free',
     "status" "UserStatus" NOT NULL DEFAULT 'active',
@@ -86,7 +88,7 @@ CREATE TABLE "admins" (
     "email" TEXT NOT NULL,
     "image" TEXT,
     "password" TEXT NOT NULL,
-    "username" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
     "api_key" TEXT NOT NULL,
     "role" "AdminRole" NOT NULL DEFAULT 'basic',
     "status" "AdminStatus" NOT NULL DEFAULT 'active',
@@ -176,6 +178,18 @@ CREATE TABLE "general" (
     "favicon_url" TEXT,
 
     CONSTRAINT "general_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "internal_api_sessions" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT,
+    "data" JSONB NOT NULL,
+    "expires_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "internal_api_sessions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

@@ -1,14 +1,8 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import {
-  Admin,
-  AdminRole,
-  AdminStatus,
-  User,
-  UserPlan,
-  UserStatus,
-} from "../../prisma/generated";
+import { User, UserPlan, UserStatus } from "../../prisma/generated";
 import { Decimal } from "@prisma/client/runtime/library";
+import { AdminSchema } from "./admin.schema";
 
 extendZodWithOpenApi(z);
 
@@ -32,23 +26,6 @@ export const UserSchema: z.ZodType<User> = z
     plan: z.nativeEnum(UserPlan),
   })
   .openapi("User");
-
-export const AdminSchema: z.ZodType<Admin> = z
-  .object({
-    id: z.number(),
-    email: z.string().email(),
-    uid: z.string().uuid(),
-    apiKey: z.string().uuid(),
-    image: z.string().url(),
-    password: z.string(),
-    currency: z.string().toUpperCase().length(3),
-    fullName: z.string(),
-    lastSeen: z.coerce.date(),
-    timestamp: z.coerce.date(),
-    status: z.nativeEnum(AdminStatus),
-    role: z.nativeEnum(AdminRole),
-  })
-  .openapi("Admin");
 
 export const AuthSchema = z.object({
   email: z.string().email(),
@@ -76,17 +53,12 @@ export const UserPublicSchema = z
 
 export const AuthenticateUserResponseSchema = z.object({
   success: z.literal("Logged in successfully"),
+  plan: z.nativeEnum(UserPlan),
   user: z.object({
     id: z.coerce.number().describe("User id"),
     email: z.string().email().describe("User email"),
-    username: z.string().describe("User username"),
+    fullName: z.string().describe("User full name"),
   }),
-});
-
-export const AdminPublicSchema = z.object({
-  id: z.number(),
-  email: z.string().email(),
-  role: z.nativeEnum(UserPlan),
 });
 
 export const GoogleAuthRequestSchema = z
@@ -99,15 +71,15 @@ export const VerifySessionResponseSchema = z.object({
   plan: z.nativeEnum(UserPlan),
 });
 
+export const AuthenticateUserSchema = z.object({
+  email: z.string().email().describe("User email"),
+  password: z.string().describe("User password"),
+});
+
 export const createUserRequestSchema = z.object({
   email: z.string().email(),
   fullName: z.string(),
   password: z.string().min(6),
-});
-
-export const loginSchema = z.object({
-  email: z.string().email().describe("User email"),
-  password: z.string().describe("User password"),
 });
 
 export const updateUserSchema = z.object({

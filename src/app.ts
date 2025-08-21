@@ -11,6 +11,7 @@ import PrismaSessionStore from "./utils/PrismaSessionStore";
 // Routes
 import userRouter from "./routes/user.routes";
 import adminRouter from "./routes/admin.routes";
+import storeRouter from "./routes/store.routes";
 import swaggerRouter from "./docs/swagger";
 import { corsOptions } from "./config/cors.config";
 
@@ -45,6 +46,7 @@ app.use(
 
 // --- Public Routes ---
 app.use("/api/v1/user", cors(corsOptions), userRouter);
+app.use("/api/v1/store", cors(corsOptions), storeRouter);
 app.use("/api/v1/admin", cors(corsOptions), adminRouter);
 
 // --- Docs ---

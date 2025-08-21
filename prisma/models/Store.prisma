@@ -1,5 +1,6 @@
 enum StoreStatus {
   ACTIVE      @map("active")
+  PENDING     @map("pending")
   INACTIVE    @map("inactive")
   DISABLED    @map("disabled")
 }
@@ -13,10 +14,12 @@ enum StoreType {
 model Store {
   storeId   Int         @id @map("store_id")
   uid       String      @unique
+  name      String
+  description String?
   ssl       Boolean     @default(false)
   plan      UserPlan    @default(FREE)
   type      StoreType
-  status    StoreStatus @default(ACTIVE)
+  status    StoreStatus @default(PENDING)
   timestamp DateTime    @default(now())
   ownerId  Int
   owner    User   @relation(fields: [ownerId], references: [id])

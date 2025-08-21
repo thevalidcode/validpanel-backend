@@ -6,7 +6,7 @@ import { env } from "../config/env.config";
 import {
   AuthSchema,
   createUserRequestSchema,
-  loginSchema,
+  AuthenticateUserSchema,
   updateUserSchema,
 } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
@@ -84,7 +84,7 @@ export const createUser = async (req: Request, res: Response) => {
 };
 
 export const me = async (req: Request, res: Response) => {
-  const parsed = loginSchema.safeParse(req.body);
+  const parsed = AuthenticateUserSchema.safeParse(req.body);
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
@@ -115,7 +115,15 @@ export const me = async (req: Request, res: Response) => {
     });
 
     const { password: _, ...safeUser } = account;
-    res.status(200).json({ success: "Logged in successfully" });
+    res.status(200).json({
+      success: "Logged in successfully",
+      plan: safeUser.plan,
+      user: {
+        id: account.id,
+        email: account.email,
+        fullName: account.fullName,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -143,10 +151,11 @@ export const getUserByUid = async (req: Request, res: Response) => {
 
 export const verifySession = async (req: Request, res: Response) => {
   const parsed = AuthSchema.safeParse(req.auth);
-  if (!parsed.success)
-    return res.status(400).json({ error: parsed.error.flatten() });
-
-  res.status(200).json({ role: parsed.data.role.toLowerCase() });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  res.status(200).json({ role: parsed.data.role });
 };
 
 export const deleteUser = async (req: Request, res: Response) => {

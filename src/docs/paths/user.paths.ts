@@ -1,7 +1,7 @@
 import { registry } from "../components/registry";
 import { z } from "zod";
 import {
-  loginSchema,
+  AuthenticateUserSchema,
   createUserRequestSchema,
   updateUserSchema,
 } from "../../schemas/user.schema";
@@ -33,7 +33,7 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: loginSchema,
+          schema: AuthenticateUserSchema,
         },
       },
     },
