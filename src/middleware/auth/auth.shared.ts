@@ -6,7 +6,6 @@ import { Decimal } from "@prisma/client/runtime/library";
 import {
   UserPlan,
   UserStatus,
-  AdminRole,
   AdminStatus,
 } from "../../../prisma/generated";
 
@@ -31,7 +30,7 @@ declare module "express" {
           user: {
             email: string;
             id: number;
-            role: AdminRole;
+            role: string;
             uid: string;
             apiKey: string;
             status: AdminStatus;

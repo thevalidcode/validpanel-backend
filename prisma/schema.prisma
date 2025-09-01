@@ -84,15 +84,6 @@ enum AdminStatus {
   BANNED   @map("banned")
 }
 
-enum AdminRole {
-  SUPER           @map("super")
-  BASIC           @map("basic")
-  MANAGER         @map("manager")
-  SUPPORTSTAFF    @map("support_staff")
-  FINANCEOFFICER  @map("finance_officer")
-  SERVICEOPERATOR @map("service_operator")
-}
-
 model Admin {
   id        Int         @id @default(autoincrement())
   uid       String      @unique
@@ -101,7 +92,8 @@ model Admin {
   password  String
   fullName  String
   apiKey    String      @unique @map("api_key")
-  role      AdminRole   @default(BASIC)
+  roleId    Int
+  role      AdminRole   @relation(fields: [roleId], references: [id])
   status    AdminStatus @default(ACTIVE)
   timestamp DateTime    @default(now())
   lastSeen  DateTime    @default(now()) @map("last_seen")
@@ -339,4 +331,52 @@ model UploadLog {
   timestamp DateTime @default(now())
 
   @@map("upload_logs")
+}
+
+model AdminRole {
+  id          Int                   @id @default(autoincrement())
+  uid         String                @unique @default(uuid())
+  name        String                @unique
+  admins      Admin[]
+  permissions AdminRolePermission[]
+
+  @@map("admin_roles")
+}
+
+model AdminPermission {
+  id    Int                   @id @default(autoincrement())
+  uid   String                @unique @default(uuid())
+  name  String                @unique
+  roles AdminRolePermission[]
+
+  @@map("admin_permissions")
+}
+
+model AdminRolePermission {
+  id           Int             @id @default(autoincrement())
+  roleId       Int
+  permissionId Int             @map("permissin_id")
+  role         AdminRole       @relation(fields: [roleId], references: [id])
+  permission   AdminPermission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("admin_role_permissions")
+}
+
+enum ServiceProviderStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
+model ServiceApiProvider {
+  id        Int                   @id @default(autoincrement())
+  uid       String                @unique @default(uuid())
+  name      String
+  url       String
+  image     String?
+  status    ServiceProviderStatus @default(ACTIVE)
+  createdAt DateTime              @default(now()) @map("created_at")
+  updatedAt DateTime              @updatedAt @map("updated_at")
+
+  @@map("service_api_provders")
 }

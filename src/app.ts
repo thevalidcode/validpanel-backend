@@ -7,13 +7,14 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { apiLimiter } from "./middleware/ratelimit";
 import PrismaSessionStore from "./utils/PrismaSessionStore";
+import { corsOptions } from "./config/cors.config";
 
 // Routes
 import userRouter from "./routes/user.routes";
 import adminRouter from "./routes/admin.routes";
 import storeRouter from "./routes/store.routes";
 import swaggerRouter from "./docs/swagger";
-import { corsOptions } from "./config/cors.config";
+import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
 
 const app = express();
 
@@ -45,9 +46,14 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/user", cors(corsOptions), userRouter);
-app.use("/api/v1/store", cors(corsOptions), storeRouter);
-app.use("/api/v1/admin", cors(corsOptions), adminRouter);
+app.use("/api/v1/users", cors(corsOptions), userRouter);
+app.use("/api/v1/stores", cors(corsOptions), storeRouter);
+app.use("/api/v1/admins", cors(corsOptions), adminRouter);
+app.use(
+  "/api/v1/service-api-providers",
+  cors(corsOptions),
+  serviceApiProviderRouter
+);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);

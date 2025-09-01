@@ -44,7 +44,10 @@ export const authenticateAdmin = async (
 
     const { email, apiKey, uid } = payload;
 
-    const admin = await prisma.admin.findFirst({ where: { email } });
+    const admin = await prisma.admin.findFirst({
+      where: { email },
+      include: { role: true },
+    });
     if (!admin || admin.apiKey !== apiKey) {
       res.status(401).json({ error: "Invalid admin API key or not found" });
       return;
@@ -55,7 +58,7 @@ export const authenticateAdmin = async (
     req.auth = {
       uid,
       type: "admin",
-      user: safeAdmin,
+      user: { ...safeAdmin, role: admin.role.name },
     };
 
     next();

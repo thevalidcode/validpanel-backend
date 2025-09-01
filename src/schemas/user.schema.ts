@@ -78,7 +78,7 @@ export const AuthenticateUserSchema = z.object({
 
 export const createUserRequestSchema = z.object({
   email: z.string().email(),
-  fullName: z.string(),
+  fullName: z.string().min(4),
   password: z.string().min(6),
 });
 

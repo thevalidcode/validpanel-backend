@@ -19,7 +19,12 @@ export const authenticateAdmin = async (
   const { email, password } = parsed.data;
 
   try {
-    const account = await prisma.admin.findFirst({ where: { email } });
+    const account = await prisma.admin.findFirst({
+      where: { email },
+      include: {
+        role: true,
+      },
+    });
 
     if (!account) {
       res.status(400).json({ error: "Incorrect login details" });
@@ -38,7 +43,7 @@ export const authenticateAdmin = async (
     }
 
     const apiKey = account.apiKey || uuidv4();
-    const role = account.role;
+    const role = account.role.name;
 
     const token = jwt.sign({ email, apiKey, role }, env.JWT_SECRET, {
       expiresIn: "7d",

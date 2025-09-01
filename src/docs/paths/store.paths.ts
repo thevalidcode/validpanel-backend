@@ -21,7 +21,7 @@ import {
 // GET /store
 registry.registerPath({
   method: "get",
-  path: "/store",
+  path: "/stores",
   summary: "Admin: Get all active stores",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -31,10 +31,10 @@ registry.registerPath({
   },
 });
 
-// GET /store/:uid
+// GET /stores/:uid
 registry.registerPath({
   method: "get",
-  path: "/store/{uid}",
+  path: "/stores/{uid}",
   summary: "Get store by UID",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -52,7 +52,7 @@ registry.registerPath({
 // POST /store
 registry.registerPath({
   method: "post",
-  path: "/store",
+  path: "/stores",
   summary: "Create a new store",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -72,10 +72,10 @@ registry.registerPath({
   },
 });
 
-// PUT /store/{uid}
+// PUT /stores/{uid}
 registry.registerPath({
   method: "put",
-  path: "/store/{uid}",
+  path: "/stores/{uid}",
   summary: "Update store details",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -98,10 +98,10 @@ registry.registerPath({
   },
 });
 
-// DELETE /store/{uid}
+// DELETE /stores/{uid}
 registry.registerPath({
   method: "delete",
-  path: "/store/{uid}",
+  path: "/stores/{uid}",
   summary: "Delete a store",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -117,10 +117,10 @@ registry.registerPath({
   },
 });
 
-// GET /store/my/store
+// GET /stores/my/store
 registry.registerPath({
   method: "get",
-  path: "/store/my/store",
+  path: "/stores/my/store",
   summary: "Get all stores owned by the authenticated user",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -133,10 +133,10 @@ registry.registerPath({
 
 // ========== ADMIN ROUTES ==========
 
-// GET /store/admin/all
+// GET /stores/admin/all
 registry.registerPath({
   method: "get",
-  path: "/store/admin/all",
+  path: "/stores/admin/all",
   summary: "Admin: Get all stores",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
@@ -146,10 +146,10 @@ registry.registerPath({
   },
 });
 
-// GET /store/admin/{uid}
+// GET /stores/admin/{uid}
 registry.registerPath({
   method: "get",
-  path: "/store/admin/{uid}",
+  path: "/stores/admin/{uid}",
   summary: "Admin: Get store by UID",
   tags: ["Stores"],
   security: [{ CookieAuth: [] }],
@@ -164,10 +164,10 @@ registry.registerPath({
   },
 });
 
-// PUT /store/admin/{uid}/approve
+// PUT /stores/admin/{uid}/approve
 registry.registerPath({
   method: "put",
-  path: "/store/admin/{uid}/approve",
+  path: "/stores/admin/{uid}/approve",
   summary: "Admin: Approve store",
   tags: ["Stores"],
   security: [{ CookieAuth: [] }],
@@ -181,10 +181,10 @@ registry.registerPath({
   },
 });
 
-// PUT /store/admin/{uid}/suspend
+// PUT /stores/admin/{uid}/suspend
 registry.registerPath({
   method: "put",
-  path: "/store/admin/{uid}/suspend",
+  path: "/stores/admin/{uid}/suspend",
   summary: "Admin: Suspend store",
   tags: ["Stores"],
   security: [{ CookieAuth: [] }],
@@ -198,10 +198,10 @@ registry.registerPath({
   },
 });
 
-// DELETE /store/admin/{uid}
+// DELETE /stores/admin/{uid}
 registry.registerPath({
   method: "delete",
-  path: "/store/admin/{uid}",
+  path: "/stores/admin/{uid}",
   summary: "Admin: Delete store",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],

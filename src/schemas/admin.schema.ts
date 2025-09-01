@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { Admin, AdminRole, AdminStatus } from "../../prisma/generated";
+import {
+  Admin,
+  AdminPermission,
+  AdminRole,
+  AdminStatus,
+} from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -17,13 +22,29 @@ export const AdminSchema: z.ZodType<Admin> = z
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
     status: z.nativeEnum(AdminStatus),
-    role: z.nativeEnum(AdminRole),
+    roleId: z.number(),
   })
   .openapi("Admin");
 
+export const RoleSchema: z.ZodType<AdminRole> = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    uid: z.string().uuid(),
+  })
+  .openapi("AdminRole");
+
+export const PermissionSchema: z.ZodType<AdminPermission> = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    uid: z.string().uuid(),
+  })
+  .openapi("AdminPermission");
+
 export const AuthenticateAdminResponseSchema = z.object({
   success: z.literal("Logged in successfully"),
-  role: z.nativeEnum(AdminRole),
+  role: z.string(),
   user: z.object({
     id: z.coerce.number().describe("Admin id"),
     email: z.string().email().describe("Admin email"),
@@ -52,4 +73,20 @@ export const updateAdminSchema = z.object({
   uid: z.string(),
   username: z.string().optional(),
   fullName: z.string().optional(),
+});
+
+export const CreatePermissionSchema = z.object({
+  name: z.coerce.string().toUpperCase(),
+});
+
+export const NameSchema = z.object({
+  name: z.string(),
+});
+
+export const UidSchema = z.object({
+  uid: z.string(),
+});
+
+export const SuccessMessageSchema = z.object({
+  success: z.string().describe("Admin operation was successful"),
 });
