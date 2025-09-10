@@ -12,7 +12,10 @@ import { corsOptions } from "./config/cors.config";
 // Routes
 import userRouter from "./routes/user.routes";
 import adminRouter from "./routes/admin.routes";
+import orderRouter from "./routes/order.routes";
 import storeRouter from "./routes/store.routes";
+import webhookRouter from "./routes/webhook.routes";
+import paymentGatewayRouter from "./routes/paymentGateway.routes";
 import swaggerRouter from "./docs/swagger";
 import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
 
@@ -49,6 +52,9 @@ app.use(
 app.use("/api/v1/users", cors(corsOptions), userRouter);
 app.use("/api/v1/stores", cors(corsOptions), storeRouter);
 app.use("/api/v1/admins", cors(corsOptions), adminRouter);
+app.use("/api/v1/orders", cors(corsOptions), orderRouter);
+app.use("/api/v1/webhooks", cors(corsOptions), webhookRouter);
+app.use("/api/v1/payment-gateways", cors(corsOptions), paymentGatewayRouter);
 app.use(
   "/api/v1/service-api-providers",
   cors(corsOptions),

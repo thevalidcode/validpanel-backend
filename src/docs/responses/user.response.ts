@@ -5,6 +5,8 @@ import {
   AuthenticateUserResponseSchema,
   VerifySessionResponseSchema,
 } from "../../schemas/user.schema";
+import { SubscriptionSchema } from "../../schemas/subscription.schema";
+import { StoreSchema } from "../../schemas/store.schema";
 
 export const AuthenticateUserResponse = {
   description: "Authenticated user session object",
@@ -30,6 +32,11 @@ export const CreateUserResponse = {
     "application/json": {
       schema: z.object({
         success: z.literal("User created successfully"),
+        nextStep: z
+          .literal("PLAN")
+          .describe(
+            "This shows the next step the user is suppose to take which is selecting a pricing plan."
+          ),
       }),
     },
   },
@@ -104,6 +111,57 @@ export const GoogleLoginResponse = {
       schema: z.object({
         token: z.string(),
         user: UserSchema,
+      }),
+    },
+  },
+};
+
+export const SelectPlanResponse = {
+  description: "Plan selected successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Plan selected successfully"),
+        subscription: SubscriptionSchema,
+        nextStep: z
+          .enum(["STORE_DETAILS", "PAYMENT"])
+          .describe(
+            "This shows the next step the user is suppose to take which is STORE_DETAILS if the plan's price is equal 0 and PAYMENT if the price isn't."
+          ),
+      }),
+    },
+  },
+};
+
+export const InitializeSubscriptionPaymentResponse = {
+  description: "Initialized payment successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        status: z.literal("success"),
+        url: z
+          .string()
+          .url()
+          .describe(
+            "This is the url the user will be redirected to, to complete the payment for the subscription."
+          ),
+      }),
+    },
+  },
+};
+
+export const SetupStoreResponse = {
+  description: "Store setup was successful",
+  content: {
+    "application/json": {
+      schema: z.object({
+        message: z.string(),
+        store: StoreSchema,
+        onboardingStep: z
+          .literal("COMPLETE")
+          .describe(
+            "This means that the user has completed all the onboarding steps and can move on to other pages."
+          ),
       }),
     },
   },

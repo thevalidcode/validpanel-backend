@@ -1,73 +1,106 @@
 import type { Request, Response } from "express";
 import {
-  CreateStoreSchema,
-  UpdateStoreSchema,
-  StoreUidSchema,
-  AdminActionSchema,
-} from "../schemas/store.schema";
+  GetAllOrdersRequestSchema,
+  GetMyOrdersRequestSchema,
+} from "../schemas/order.schema";
 import { AuthSchema } from "../schemas/user.schema";
-import { callInternalAPI } from "../utils/internalApi";
+import {
+  callInternalAPIForAdmins,
+  callInternalAPIForUsers,
+} from "../utils/internalApi";
+import { NormalizedOrder } from "../types/order.types";
+import { mapShopOrder, mapSocialOrder } from "../utils/mappers/order.mappers";
 
 /**
  * Get all orders (Admin only)
  */
 export const getAllOrders = async (req: Request, res: Response) => {
   try {
-    const { storeType, storeId, email, password } = req.query;
-
-    if (!storeType || !storeId || !email || !password) {
-      res.status(400).json({ error: "Missing required query parameters" });
+    const queryParsed = GetAllOrdersRequestSchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      res.json({ error: queryParsed.error.flatten() });
+      return;
+    }
+    const authParsed = AuthSchema.safeParse(req.auth);
+    if (!authParsed.success) {
+      res.json({ error: authParsed.error.flatten() });
       return;
     }
 
-    // Pagination parameters
-    const page = parseInt((req.query.page as string) || "1", 10);
-    const limit = parseInt((req.query.limit as string) || "20", 10);
+    const { user } = authParsed.data;
+    const { page, limit } = queryParsed.data;
 
-    const data = await callInternalAPI(
+    const socialMediaStoreOrders = await callInternalAPIForAdmins(
       "GET",
       `/orders?page=${page}&limit=${limit}`,
-      "admin", // userKey
-      email as string,
-      password as string,
-      storeType as "social-media-store" | "digital" | "shop",
-      storeId as string
+      user.uid,
+      "SOCIAL"
     );
 
-    res.status(200).json({ orders: data });
+    const shopOrders = await callInternalAPIForAdmins(
+      "GET",
+      `/orders?page=${page}&limit=${limit}`,
+      user.uid,
+      "SHOP"
+    );
+
+    // Normalize
+    const normalizedSocial: NormalizedOrder[] =
+      socialMediaStoreOrders.map(mapSocialOrder);
+    const normalizedShop: NormalizedOrder[] = shopOrders.map(mapShopOrder);
+
+    // Merge into one array
+    const allOrders: NormalizedOrder[] = [
+      ...normalizedSocial,
+      ...normalizedShop,
+    ];
+
+    res.status(200).json({ orders: allOrders });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch all orders " + err.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch all orders " + err.message });
   }
 };
 
 /**
  * Get current user's orders
  */
-export const getMyOrders = async (req: Request, res: Response): Promise<void> => {
+export const getMyOrders = async (req: Request, res: Response) => {
   try {
-    const { storeType, storeId, email, password } = req.query;
-
-    if (!storeType || !storeId || !email || !password) {
-      res.status(400).json({ error: "Missing required query parameters" });
+    const queryParsed = GetMyOrdersRequestSchema.safeParse(req.query);
+    if (!queryParsed.success) {
+      res.json({ error: queryParsed.error.flatten() });
+      return;
+    }
+    const authParsed = AuthSchema.safeParse(req.auth);
+    if (!authParsed.success) {
+      res.json({ error: authParsed.error.flatten() });
       return;
     }
 
-    // Pagination parameters
-    const page = parseInt((req.query.page as string) || "1", 10);
-    const limit = parseInt((req.query.limit as string) || "20", 10);
+    const { user } = authParsed.data;
+    const { storeId, page, limit } = queryParsed.data;
 
-    const data = await callInternalAPI(
+    const response = await callInternalAPIForUsers(
       "GET",
-      `/orders/me?page=${page}&limit=${limit}`,
-      "user", // userKey
-      email as string,
-      password as string,
-      storeType as "social-media-store" | "digital" | "shop",
-      storeId as string
+      `/orders?page=${page}&limit=${limit}`,
+      user.uid,
+      storeId
     );
 
-    res.status(200).json({ orders: data });
+    let allOrders: NormalizedOrder[];
+    // Normalize based on store type
+    if (response.storeType === "SOCIAL") {
+      allOrders = response.data.map(mapSocialOrder);
+    } else if (response.storeType === "SHOP") {
+      allOrders = response.data.map(mapShopOrder);
+    }
+
+    res.status(200).json({ orders: response.data });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch user orders " + err.message });
+    res
+      .status(500)
+      .json({ error: "Failed to fetch all orders " + err.message });
   }
 };

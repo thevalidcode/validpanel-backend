@@ -8,8 +8,14 @@ import {
   createUserRequestSchema,
   AuthenticateUserSchema,
   updateUserSchema,
+  selectPlanSchema,
+  paymentSchema,
+  setupStoreSchema,
 } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
+import { OnboardingStep } from "../../prisma/generated";
+import { InitializeSubscriptionPaymentSchema } from "../schemas/payment.schema";
+import * as paymentServices from "../services/payment.services";
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -19,7 +25,6 @@ export const getUsers = async (req: Request, res: Response) => {
         uid: true,
         email: true,
         fullName: true,
-        plan: true,
         status: true,
       },
     });
@@ -77,9 +82,156 @@ export const createUser = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: "Successfully created user",
+      nextStep: "PLAN" as OnboardingStep,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const selectPlan = async (req: Request, res: Response) => {
+  try {
+    const parsed = selectPlanSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+
+    const { planId } = parsed.data;
+    const userId = req.auth?.user.id!;
+
+    // Check if plan exists
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan) {
+      res.status(404).json({ error: "Subscription plan not found" });
+      return;
+    }
+
+    // Create subscription (status depends on price)
+    const status = plan.price.equals(0) ? "ACTIVE" : "PENDING";
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId,
+        planId,
+        status,
+        startedAt: new Date(),
+        expiresAt: plan.price.equals(0)
+          ? new Date(new Date().setFullYear(new Date().getFullYear() + 100)) // basically never expires
+          : null,
+      },
+    });
+
+    // Update user onboarding step
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        onboardingStep: plan.price.equals(0) ? "STORE_DETAILS" : "PAYMENT",
+      },
+    });
+
+    res.status(201).json({
+      message: "Plan selected successfully",
+      subscription,
+      nextStep: plan.price.equals(0) ? "STORE_DETAILS" : "PAYMENT",
+    });
+  } catch (error: any) {
+    console.error("Error selecting plan:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+};
+
+export const initializeSubscriptionPayment = async (
+  req: Request,
+  res: Response
+) => {
+  const parsed = InitializeSubscriptionPaymentSchema.safeParse(req.body);
+  const authParsed = AuthSchema.safeParse(req.auth);
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  const { user } = authParsed.data;
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const result = await paymentServices.createSubscriptionPayment(
+      user,
+      parsed.data
+    );
+    res.status(200).json({ status: "success", ...result });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+export const setupStore = async (req: Request, res: Response) => {
+  try {
+    const userId = req.auth?.user.id!;
+    const parsed = setupStoreSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+
+    const { type, name, domain, subscriptionId, logoUrl, color } = parsed.data;
+
+    // Check if domain already exists
+    const existingDomain = await prisma.store.findUnique({
+      where: { uid: domain },
+    });
+
+    if (existingDomain) {
+      return res.status(400).json({ error: "Domain already taken" });
+    }
+
+    // Check if subscription already exists
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: { id: subscriptionId, status: "ACTIVE" },
+      include: { plan: true },
+      orderBy: {
+        expiresAt: "desc", // get latest subscription
+      },
+    });
+
+    if (!existingSubscription) {
+      res.status(400).json({ error: "Subscription not found" });
+      return;
+    }
+
+    // Create store
+    const store = await prisma.store.create({
+      data: {
+        type,
+        name,
+        uid: domain,
+        plan: existingSubscription.plan.name,
+        ownerId: userId,
+      },
+    });
+
+    // Update user onboarding step → move forward
+    await prisma.user.update({
+      where: { id: userId },
+      data: { onboardingStep: "COMPLETE" },
+    });
+
+    res.status(201).json({
+      message: "Store setup successful",
+      store,
+      onboardingStep: "COMPLETE" as OnboardingStep,
+    });
+  } catch (err: any) {
+    console.error("Store setup error:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
 
@@ -94,7 +246,7 @@ export const me = async (req: Request, res: Response) => {
     const account = await prisma.user.findFirst({ where: { email } });
     if (!account)
       return res.status(400).json({ error: "Incorrect login details" });
-    if (account.status.toLowerCase() === "banned")
+    if (account.status === "BANNED")
       return res.status(403).json({ error: "Account is banned." });
 
     const isMatch = await bcrypt.compare(password, account.password);
@@ -102,7 +254,7 @@ export const me = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Incorrect login details" });
 
     const token = jwt.sign(
-      { email, apiKey: account.apiKey, plan: account.plan },
+      { email, apiKey: account.apiKey, uid: account.uid },
       env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -114,10 +266,8 @@ export const me = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const { password: _, ...safeUser } = account;
     res.status(200).json({
       success: "Logged in successfully",
-      plan: safeUser.plan,
       user: {
         id: account.id,
         email: account.email,
@@ -139,7 +289,6 @@ export const getUserByUid = async (req: Request, res: Response) => {
         uid: true,
         email: true,
         fullName: true,
-        plan: true,
         status: true,
       },
     });
@@ -155,7 +304,7 @@ export const verifySession = async (req: Request, res: Response) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  res.status(200).json({ role: parsed.data.role });
+  res.status(200).json({ email: parsed.data.user.email });
 };
 
 export const deleteUser = async (req: Request, res: Response) => {

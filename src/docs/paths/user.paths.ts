@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   AuthenticateUserSchema,
   createUserRequestSchema,
+  selectPlanSchema,
+  setupStoreSchema,
   updateUserSchema,
 } from "../../schemas/user.schema";
 
@@ -14,6 +16,9 @@ import {
   VerifySessionResponse,
   GetUserByUidResponse,
   CreateUserResponse,
+  SelectPlanResponse,
+  InitializeSubscriptionPaymentResponse,
+  SetupStoreResponse,
 } from "../responses/user.response";
 
 import {
@@ -22,6 +27,7 @@ import {
   ServerError,
   SuccessResponse,
 } from "../responses/common.response";
+import { InitializeSubscriptionPaymentSchema } from "../../schemas/payment.schema";
 
 // Authenticate user
 registry.registerPath({
@@ -186,6 +192,75 @@ registry.registerPath({
     200: SuccessResponse,
     400: BadRequest,
     403: Forbidden,
+    500: ServerError,
+  },
+});
+
+/**
+ *
+ * ROUTES FOR ONBOARDING USERS
+ *
+ */
+
+registry.registerPath({
+  method: "post",
+  path: "/users/onboarding/select-plan",
+  summary: "Select Plan for onboarding users",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: selectPlanSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SelectPlanResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/users/onboarding/initialize-payment",
+  summary: "Initialze payment for onboarding users",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: InitializeSubscriptionPaymentSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: InitializeSubscriptionPaymentResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/users/onboarding/setup",
+  summary: "Setup store for onboarding users",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: setupStoreSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SetupStoreResponse,
+    400: BadRequest,
     500: ServerError,
   },
 });

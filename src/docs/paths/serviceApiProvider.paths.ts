@@ -27,6 +27,7 @@ registry.registerPath({
   method: "post",
   path: "/service-api-providers",
   summary: "Create a new Service API Provider",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     body: {
@@ -49,6 +50,7 @@ registry.registerPath({
   method: "get",
   path: "/service-api-providers",
   summary: "Get all Service API Providers with filters & pagination",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     query: GetAllServiceProvidersQuerySchema,
@@ -65,6 +67,7 @@ registry.registerPath({
   method: "get",
   path: "/service-api-providers/{uid}",
   summary: "Get a Service API Provider by UID",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     params: GetServiceProviderByUidSchema,
@@ -84,6 +87,7 @@ registry.registerPath({
   method: "put",
   path: "/service-api-providers/{uid}",
   summary: "Update Service API Provider details",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     params: GetServiceProviderByUidSchema,
@@ -107,6 +111,7 @@ registry.registerPath({
   method: "patch",
   path: "/service-api-providers/{uid}/status",
   summary: "Update Service API Provider status",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     params: GetServiceProviderByUidSchema,
@@ -130,6 +135,7 @@ registry.registerPath({
   method: "delete",
   path: "/service-api-providers/{uid}",
   summary: "Delete a Service API Provider",
+  security: [{ CookieAuth: [] }],
   tags: ["Service API Providers"],
   request: {
     params: GetServiceProviderByUidSchema,

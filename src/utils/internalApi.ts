@@ -1,86 +1,148 @@
 import axios, { Method } from "axios";
+import jwt from "jsonwebtoken";
+import { env } from "../config/env.config"; // zod-validated env loader
 import { redis } from "../config/redis.config";
+import { prisma } from "../config/db.config";
+import { StoreType } from "../../prisma/generated";
+
+/* ---------------------- HELPERS ---------------------- */
 
 // Map store type to base URL
-function getBaseUrl(
-  storeType: "social-media-store" | "digital" | "shop"
-): string {
+function getBaseUrl(storeType: StoreType): string {
   switch (storeType) {
-    case "social-media-store":
-      return "https://validpanel.com/social-media-store/backend";
-    case "digital":
-      return "https://validpanel.com/digital/backend";
-    case "shop":
-      return "https://validpanel.com/shop/backend";
+    case "SOCIAL":
+      return "https://validpanel.com/social-media-store/backend/internal";
+    case "DIGITAL":
+      return "https://validpanel.com/digital/backend/internal";
+    case "SHOP":
+      return "https://validpanel.com/shop/backend/internal";
     default:
       throw new Error("Invalid store type");
   }
 }
 
-// Build unique Redis key
-function buildRedisKey(userKey: string, storeId: string) {
-  return `internalAuth:${userKey}:${storeId}`;
+// Build unique Redis key for caching tokens
+function buildRedisKey(parts: (string | number)[]): string {
+  return `internalAuth:${parts.join(":")}`;
 }
 
-async function getInternalAuthToken(
-  userKey: string,
-  email: string,
-  password: string,
-  storeType: "social-media-store" | "digital" | "shop",
-  storeId: string
+// Generate a signed internal JWT
+function generateInternalJWT(payload: object): string {
+  return jwt.sign(payload, env.CORE_SERVICE_SECRET, { expiresIn: "15m" });
+}
+
+/* ---------------------- TOKEN MANAGER ---------------------- */
+
+// For user-scoped calls (uid + storeId required)
+async function getUserScopedToken(
+  uid: string,
+  storeId: number,
+  serviceKey: string
 ): Promise<string> {
-  const redisKey = buildRedisKey(userKey, storeId);
+  const redisKey = buildRedisKey([uid, storeId]);
 
-  // 1. Try from Redis
+  // 1. Check Redis
   const cachedToken = await redis.get(redisKey);
-  if (cachedToken) {
-    return cachedToken;
-  }
+  if (cachedToken) return cachedToken;
 
-  // 2. Otherwise request a new one
-  const baseUrl = getBaseUrl(storeType);
-  const response = await axios.post(
-    `${baseUrl}/user/me`,
-    {
-      email,
-      password,
-      storeId,
-    },
-    {
-      headers: { Origin: "https://validpanel.com" },
-    }
-  );
-
-  const token = response.headers["x-internal-auth"];
-  if (!token) throw new Error("No internal auth token returned");
-
-  // 3. Save with 14-min TTL
-  await redis.set(redisKey, token, {
-    expiration: { type: "EX", value: 14 * 60 },
+  // 2. Create new token
+  const token = generateInternalJWT({
+    uid,
+    storeId,
+    type: "system",
+    serviceKey,
   });
+
+  // 3. Cache for 14 mins
+  await redis.set(redisKey, token, "EX", 14 * 60);
 
   return token;
 }
 
-export async function callInternalAPI(
+// For admin/global calls (no uid/storeId)
+async function getAdminScopedToken(
+  uid: string,
+  serviceKey: string
+): Promise<string> {
+  const redisKey = buildRedisKey([uid, serviceKey]);
+
+  // 1. Check Redis
+  const cachedToken = await redis.get(redisKey);
+  if (cachedToken) return cachedToken;
+
+  // 2. Create new token
+  const token = generateInternalJWT({
+    type: "system",
+    service: "core-platform",
+    serviceKey,
+  });
+
+  // 3. Cache for 14 mins
+  await redis.set(redisKey, token, "EX", 14 * 60);
+  return token;
+}
+
+/* ---------------------- MAIN CALL FUNCTIONS ---------------------- */
+
+/**
+ * Internal API call for user-scoped requests
+ * Example: A user’s orders, balance, or transactions inside a specific store.
+ */
+export async function callInternalAPIForUsers(
   method: Method, // GET, POST, PUT, DELETE
-  endpoint: string, // dynamic endpoint, e.g. "/user/me"
-  userKey: string,
-  email: string,
-  password: string,
-  storeType: "social-media-store" | "digital" | "shop",
-  storeId: string,
-  data?: any // optional body for POST/PUT
+  endpoint: string, // e.g. "/orders"
+  uid: string, // user ID
+  storeId: number, // store ID
+  data?: any // optional POST/PUT body
 ) {
   try {
-    const token = await getInternalAuthToken(
-      userKey,
-      email,
-      password,
-      storeType,
-      storeId
-    );
+    // Validate store
+    const store = await prisma.store.findUnique({ where: { storeId } });
+    if (!store) throw new Error("Store not found");
 
+    // Get token
+    const token = await getUserScopedToken(uid, storeId, "core-platform");
+
+    // Build request
+    const baseUrl = getBaseUrl(store.type);
+    const url = `${baseUrl}/internal${endpoint}`;
+
+    const response = await axios.request({
+      url,
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Origin: "https://validpanel.com",
+      },
+      data,
+    });
+
+    return { storeType: store.type, data: response.data };
+  } catch (err: any) {
+    throw new Error(
+      `User Internal API call failed: ${
+        err.response?.data?.error || err.message
+      }`
+    );
+  }
+}
+
+/**
+ * Internal API call for admin/global requests
+ * Example: Fetching all stores, analytics across the system, etc.
+ */
+export async function callInternalAPIForAdmins(
+  method: Method,
+  endpoint: string, // e.g. "/orders"
+  uid: string, // e.g. Admin's Uid
+  storeType: StoreType, // which service backend to hit
+  data?: any
+) {
+  try {
+    // Get admin-scoped token
+    const token = await getAdminScopedToken(uid, "core-platform");
+
+    // Build request
     const baseUrl = getBaseUrl(storeType);
     const url = `${baseUrl}${endpoint}`;
 
@@ -97,7 +159,9 @@ export async function callInternalAPI(
     return response.data;
   } catch (err: any) {
     throw new Error(
-      `Login failed: ${err.response?.data?.error || err.message}`
+      `Admin Internal API call failed: ${
+        err.response?.data?.error || err.message
+      }`
     );
   }
 }

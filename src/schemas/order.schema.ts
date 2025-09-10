@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { Decimal } from "@prisma/client/runtime/library";
+import { StoreType } from "../../prisma/generated";
+import { NormalizedOrder } from "../types/order.types";
 
 extendZodWithOpenApi(z);
 
@@ -8,40 +9,37 @@ const orderStatusEnum = z.enum([
   "PENDING",
   "PROCESSING",
   "COMPLETED",
-  "CANCELLED",
-  "REFUNDED",
+  "CANCELED",
   "FAILED",
-  "ON-HOLD",
   "PARTIAL",
-  "DISPUTED",
-  "AWAITING",
   "DELIVERED",
+  "SHIPPED",
   "ACTIVE",
 ]);
 
-const orderTypeEnum = z.enum(["social-media-store", "digital", "shop"]);
-
-export const OrderSchema = z
+export const OrderSchema: z.ZodType<NormalizedOrder> = z
   .object({
-    id: z.number(),
-    type: orderTypeEnum,
-    uid: z.string().uuid(),
-    currency: z.string().toUpperCase().length(3),
-    amount: z.custom<Decimal>(),
-    user: z.object({
-      id: z.number(),
+    customer: z.object({
       email: z.string().email(),
       name: z.string(),
       image: z.string().url(),
     }),
-    date: z.coerce.date(),
+    storeType: z.nativeEnum(StoreType),
+    id: z.string(),
+    currency: z.string().toUpperCase().length(3),
+    amount: z.string(),
     status: orderStatusEnum,
+    createdAt: z.string().date(),
   })
   .openapi("Order");
 
-export const GetAllOrderRequestSchema = z
-  .object({
-    storeType: orderTypeEnum,
-    storeId: z.string().uuid(),
-    email: z.string().email()
-  })
+export const GetAllOrdersRequestSchema = z.object({
+  page: z.coerce.number().default(1),
+  limit: z.coerce.number().default(20),
+});
+
+export const GetMyOrdersRequestSchema = z.object({
+  storeId: z.coerce.number(),
+  page: z.coerce.number().default(1),
+  limit: z.coerce.number().default(20),
+});

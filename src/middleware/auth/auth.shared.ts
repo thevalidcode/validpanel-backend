@@ -3,11 +3,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env.config";
 import { tokenPayloadSchema } from "../../schemas/user.schema";
 import { Decimal } from "@prisma/client/runtime/library";
-import {
-  UserPlan,
-  UserStatus,
-  AdminStatus,
-} from "../../../prisma/generated";
+import { UserStatus, AdminStatus } from "../../../prisma/generated";
 
 declare module "express" {
   interface Request {
@@ -18,7 +14,6 @@ declare module "express" {
           user: {
             id: number;
             email: string;
-            plan: UserPlan;
             status: UserStatus;
             apiKey: string;
             balance: Decimal;

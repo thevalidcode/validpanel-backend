@@ -1,11 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import {
-  Store,
-  StoreStatus,
-  StoreType,
-  UserPlan,
-} from "../../prisma/generated";
+import { Store, StoreStatus, StoreType } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -20,16 +15,18 @@ export const StoreSchema: z.ZodType<Store> = z
     type: z.nativeEnum(StoreType),
     ownerId: z.number(),
     timestamp: z.coerce.date(),
-    plan: z.nativeEnum(UserPlan),
+    plan: z.string(),
   })
   .openapi("Store");
 
 export const CreateStoreSchema = z.object({
-  description: z.string().min(3).max(500),
+  description: z.string().min(3).max(500).optional(),
   name: z.string().min(3, "Store name must be at least 3 characters long"),
   type: z.nativeEnum(StoreType),
-  ownerId: z.number(),
+  subscriptionId: z.number(),
   domain: z.string().min(3).max(100),
+  logoUrl: z.string().url().optional(),
+  color: z.string().optional(),
 });
 
 export const UpdateStoreSchema = z.object({

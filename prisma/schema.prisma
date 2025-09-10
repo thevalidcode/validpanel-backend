@@ -12,8 +12,9 @@ datasource db {
 enum StoreStatus {
   ACTIVE   @map("active")
   PENDING  @map("pending")
-  INACTIVE @map("inactive")
+  CANCELED @map("canceled")
   DISABLED @map("disabled")
+  EXPIRED  @map("expired")
 }
 
 enum StoreType {
@@ -22,13 +23,18 @@ enum StoreType {
   DIGITAL @map("digital")
 }
 
+enum BillingInterval {
+  MONTHLY @map("monthly")
+  YEARLY  @map("yearly")
+}
+
 model Store {
-  storeId     Int         @id @map("store_id")
+  storeId     Int         @id @default(autoincrement()) @map("store_id")
   uid         String      @unique
   name        String
   description String?
   ssl         Boolean     @default(false)
-  plan        UserPlan    @default(FREE)
+  plan        String
   type        StoreType
   status      StoreStatus @default(PENDING)
   timestamp   DateTime    @default(now())
@@ -38,42 +44,107 @@ model Store {
   @@map("stores")
 }
 
+enum SubscriptionStatus {
+  ACTIVE   @map("active")
+  PENDING  @map("pending")
+  FAILED   @map("failed")
+  EXPIRED  @map("expired")
+  TRIAL    @map("trial")
+  CANCELED @map("canceled")
+}
+
+enum PaymentStatus {
+  PENDING @map("pending")
+  SUCCESS @map("success")
+  FAILED  @map("failed")
+}
+
+model SubscriptionPlan {
+  id        Int             @id @default(autoincrement())
+  uid       String          @unique @default(uuid())
+  name      String
+  price     Decimal
+  currency  String
+  features  Json
+  interval  BillingInterval
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+  Payment       Payment[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id        Int                @id @default(autoincrement())
+  uid       String             @unique @default(uuid())
+  userId    Int                @map("user_id")
+  planId    Int                @map("plan_id")
+  status    SubscriptionStatus
+  startedAt DateTime           @default(now()) @map("started_at")
+  expiresAt DateTime?          @map("expires_at")
+
+  user User             @relation(fields: [userId], references: [id])
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  uid           String        @unique @default(uuid())
+  userId        Int           @map("user_id")
+  planId        Int           @map("plan_id")
+  currency      String
+  amount        Decimal
+  chargedAmount Decimal       @map("charged_amount")
+  status        PaymentStatus
+  method        PaymentMethod
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user User             @relation(fields: [userId], references: [id])
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("payments")
+}
+
 enum UserStatus {
   ACTIVE   @map("active")
   INACTIVE @map("inactive")
   BANNED   @map("banned")
 }
 
-enum UserPlan {
-  FREE         @map("free")
-  STARTER      @map("starter")
-  ESSESENTIALS @map("essesentials")
-  PRO          @map("pro")
-  BUSINESS     @map("business")
-  EMPIRE       @map("empire")
+enum OnboardingStep {
+  PLAN          @map("plan")
+  PAYMENT       @map("payment")
+  STORE_DETAILS @map("store_details")
+  COMPLETE      @map("complete")
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  refCode   Int?       @unique @default(autoincrement()) @map("ref_code")
-  uid       String     @unique
-  email     String
-  fullName  String
-  image     String?
-  stores    Store[]
-  password  String
-  apiKey    String     @unique @map("api_key")
-  plan      UserPlan   @default(FREE)
-  status    UserStatus @default(ACTIVE)
-  balance   Decimal    @default(0.00) @db.Decimal(10, 2)
-  spent     Decimal    @default(0.00) @db.Decimal(10, 2)
-  timestamp DateTime   @default(now())
-  lastSeen  DateTime   @default(now()) @map("last_seen")
-  currency  String     @default("USD")
+  id             Int            @id @default(autoincrement())
+  refCode        Int?           @unique @default(autoincrement()) @map("ref_code")
+  uid            String         @unique
+  email          String
+  fullName       String
+  image          String?
+  onboardingStep OnboardingStep @default(PLAN) @map("onboarding_step")
+  password       String
+  apiKey         String         @unique @map("api_key")
+  status         UserStatus     @default(ACTIVE)
+  balance        Decimal        @default(0.00) @db.Decimal(10, 2)
+  spent          Decimal        @default(0.00) @db.Decimal(10, 2)
+  timestamp      DateTime       @default(now())
+  lastSeen       DateTime       @default(now()) @map("last_seen")
+  currency       String         @default("USD")
 
-  ref        Int?
-  referredBy User?  @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
-  referrals  User[] @relation("Referral")
+  ref           Int?
+  referredBy    User?          @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
+  referrals     User[]         @relation("Referral")
+  subscriptions Subscription[]
+  stores        Store[]
+  payments      Payment[]
 
   @@map("users")
 }
@@ -137,7 +208,7 @@ model Blog {
   description String     @default("")
   coverImage  String     @default("") @map("cover_image")
   status      BlogStatus @default(ACTIVE)
-  position    Int
+  position    Int        @default(autoincrement())
   slug        String
   uid         String     @unique
   timestamp   DateTime   @default(now())
@@ -179,7 +250,7 @@ model Faq {
   question  String
   answer    String
   status    FaqStatus @default(ACTIVE)
-  position  Int
+  position  Int       @default(autoincrement())
   slug      String
   uid       String    @unique
   timestamp DateTime  @default(now())
@@ -213,27 +284,27 @@ enum PaymentGatewayStatus {
   DISABLED @map("disabled")
 }
 
-enum PaymentGatewayPlatform {
+enum PaymentMethod {
   MANUAL      @map("manual")
   FLUTTERWAVE @map("flutterwave")
   PAYSTACK    @map("paystack")
-  REFERRAL    @map("referral")
 }
 
 model PaymentGateway {
-  id          Int                    @id @default(autoincrement())
-  uid         String                 @unique
-  platform    PaymentGatewayPlatform @default(MANUAL)
-  name        String
-  description String?
-  signature   String?
-  secretKey   Json?                  @map("secret_key")
-  image       String
-  status      PaymentGatewayStatus   @default(ACTIVE)
-  createdAt   DateTime               @default(now()) @map("created_at")
-  position    Int                    @map("position")
-  min         Decimal                @db.Decimal(10, 2)
-  max         Decimal                @db.Decimal(10, 2)
+  id                 Int                  @id @default(autoincrement())
+  uid                String               @unique
+  platform           PaymentMethod        @default(MANUAL)
+  name               String
+  description        String?
+  signature          String?
+  encryptedSecretKey String?              @map("encrypted_secret_key")
+  iv                 String?
+  image              String
+  status             PaymentGatewayStatus @default(ACTIVE)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  position           Int                  @default(autoincrement())
+  min                Decimal              @db.Decimal(10, 2)
+  max                Decimal              @db.Decimal(10, 2)
 
   @@map("payment_gateways")
 }
@@ -307,16 +378,27 @@ enum TransactionStatus {
   CANCELLED @map("cancelled")
 }
 
+enum TransactionType {
+  SUBSCRIPTION_PAYMENT @map("subscription_payment") // user pays for a plan
+  SUBSCRIPTION_RENEWAL @map("subscription_renewal") // auto/manual renewal
+  SUBSCRIPTION_REFUND  @map("subscription_refund") // refund to user
+
+  ADDON_PURCHASE @map("addon_purchase") // e.g. extra storage, extra feature
+  ADDON_REFUND   @map("addon_refund")
+
+  MANUAL_CREDIT @map("manual_credit") // admin tops up / compensates user
+  MANUAL_DEBIT  @map("manual_debit") // admin deducts
+}
+
 model Transaction {
-  id             Int                    @id @default(autoincrement())
-  uid            String                 @unique
-  amount         Decimal                @db.Decimal(10, 2)
-  timestamp      DateTime               @default(now())
-  status         TransactionStatus
-  currency       String                 @default("USD")
-  paymentGateway PaymentGatewayPlatform @default(MANUAL) @map("payment_gateway")
-  chargedAmount  Decimal                @map("charged_amount")
-  userUid        String                 @map("user_uid")
+  id        Int               @id @default(autoincrement())
+  uid       String            @unique
+  amount    Decimal           @db.Decimal(10, 2)
+  timestamp DateTime          @default(now())
+  status    TransactionStatus
+  type      TransactionType
+  currency  String            @default("USD")
+  userUid   String            @map("user_uid")
 
   @@map("transactions")
 }

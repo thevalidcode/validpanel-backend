@@ -8,7 +8,7 @@ import {
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
 
-export const getStores = async (req: Request, res: Response): Promise<void> => {
+export const getActiveStores = async (req: Request, res: Response): Promise<void> => {
   try {
     const stores = await prisma.store.findMany({
       where: { status: "ACTIVE" },
@@ -59,30 +59,44 @@ export const createStore = async (
     return;
   }
 
-  const { type, domain, name, description } = parsed.data;
+  const { type, domain, name, description, subscriptionId } = parsed.data;
   const { user } = authParsed.data;
+
+  // Check if domain already exists
+  const existingDomain = await prisma.store.findUnique({
+    where: { uid: domain },
+  });
+
+  if (existingDomain) {
+    res.status(400).json({ error: "Domain already taken" });
+    return;
+  }
+
+  // Check if subscription already exists
+  const existingSubscription = await prisma.subscription.findFirst({
+    where: { id: subscriptionId, status: "ACTIVE" },
+    include: { plan: true },
+    orderBy: {
+      expiresAt: "desc", // get latest subscription
+    },
+  });
+
+  if (!existingSubscription) {
+    res.status(400).json({ error: "Subscription not found" });
+    return;
+  }
 
   try {
     const store = await prisma.$transaction(async (tx) => {
-      const lastStore = await tx.store.findFirst({
-        orderBy: { storeId: "desc" },
-        select: { storeId: true },
-      });
-
-      const newStoreId = lastStore ? lastStore.storeId + 1 : 1;
-
       const store = await tx.store.create({
         data: {
           uid: domain,
           type,
           name,
           description,
-          plan: "FREE",
+          plan: existingSubscription.plan.name,
           status: "PENDING",
-          storeId: newStoreId,
-          owner: {
-            connect: { id: user.id },
-          },
+          ownerId: user.id,
         },
       });
 
@@ -125,7 +139,8 @@ export const updateStore = async (
     const store = await prisma.store.findUnique({ where: { uid } });
     if (!store) {
       res.status(404).json({ error: "Store not found" });
-      return;[]
+      return;
+      [];
     }
 
     if (store.ownerId !== user.id) {
@@ -138,7 +153,6 @@ export const updateStore = async (
       data: {
         name: name || store.name,
         description: description || store.description,
-        plan: user.plan,
       },
     });
 

@@ -43,7 +43,7 @@ export const checkAdminPermission = (requiredPermissions: string[]) => {
         userPermissions.includes(perm)
       );
 
-      if (!hasPermission) {
+      if (!hasPermission && !userPermissions.includes("ALL_ACCESS")) {
         return res.status(403).json({
           error: "You do not have permission to perform this action",
         });
