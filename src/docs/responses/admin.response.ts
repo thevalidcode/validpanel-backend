@@ -5,12 +5,34 @@ import {
   SuccessMessageSchema,
   AuthenticateAdminResponseSchema,
 } from "../../schemas/admin.schema";
+import { Decimal } from "@prisma/client/runtime/library";
+import { NotificationSchema } from "../../schemas/notification.schema";
+import { OrderSchema } from "../../schemas/order.schema";
 
 export const AuthenticateAdminResponse = {
   description: "Authenticated admin session object",
   content: {
     "application/json": {
       schema: AuthenticateAdminResponseSchema,
+    },
+  },
+};
+
+export const DashboardOverviewResponse = {
+  description: "Overview retrieved successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        totalUsers: z.number(),
+        totalStores: z.number(),
+        activeStores: z.number(),
+        totalRevenue: z.object({
+          currency: z.string().length(3),
+          amount: z.custom<Decimal>(),
+        }),
+        recentActivity: z.array(NotificationSchema),
+        recentOrders: z.array(OrderSchema),
+      }),
     },
   },
 };

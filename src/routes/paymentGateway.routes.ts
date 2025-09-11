@@ -17,7 +17,7 @@ router.get(
 );
 
 router.get(
-  "/:id",
+  "/:uid",
   authenticateUser,
   limittActions,
   paymentGateways.getPaymentGatewayByUidForUser
@@ -28,7 +28,6 @@ router.get(
  * ADMIN ROUTES FOR PAYMENT GATEWAYS
  *
  */
-
 
 router.patch(
   "/",
@@ -63,7 +62,7 @@ router.get(
 );
 
 router.get(
-  "/admin/:id",
+  "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["VIEW_PAYMENT_GATEWAYS"]),
   limittActions,

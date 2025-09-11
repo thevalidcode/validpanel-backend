@@ -5,6 +5,7 @@ import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { FlutterwaveWebhookData } from "../schemas/webhook.schema";
 import { Decimal } from "@prisma/client/runtime/library";
+import { buildNotification } from "../services/notification.services";
 
 export const initFlutterwavePayment = async (
   paymentData: any,
@@ -74,6 +75,7 @@ const processSuccess = async (
         startedAt: new Date(),
         expiresAt,
       },
+      include: { plan: true },
     });
 
     await tx.transaction.create({
@@ -96,6 +98,28 @@ const processSuccess = async (
         currency: data.currency,
         chargedAmount: data.charged_amount,
         userId: user.id,
+      },
+    });
+
+    const notificationDetails = buildNotification({
+      category: "PAYMENT",
+      type:
+        data.meta.type === "SUBSCRIPTION_RENEWAL"
+          ? "SUBSCRIPTION_RENEWAL"
+          : "SUBSCRIPTION_PAYMENT",
+      planName: subscription.plan.name,
+      expiresAt,
+      status: "success",
+      meta: { amount: data.amount },
+    });
+
+    await tx.notification.create({
+      data: {
+        category: notificationDetails.category,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
+        userId: user.id,
+        meta: notificationDetails.meta,
       },
     });
 
@@ -124,13 +148,14 @@ const processFailure = async (
   });
 
   if (!user) throw new Error("User not found");
-
+  const amountInDecimal = new Decimal(data.amount / 100);
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.update({
       where: { id: data.meta.subscriptionId },
       data: {
         status: "FAILED",
       },
+      include: { plan: true },
     });
     await tx.transaction.create({
       data: {
@@ -141,7 +166,7 @@ const processFailure = async (
             : data.status === "cancelled"
             ? "CANCELLED"
             : "FAILED",
-        amount: new Decimal(data.amount / 100),
+        amount: amountInDecimal,
         type: data.meta.type,
         currency: data.currency,
         userUid: user.uid,
@@ -153,11 +178,31 @@ const processFailure = async (
         uid: crypto.randomUUID(),
         status: "FAILED",
         planId: subscription.planId,
-        amount: new Decimal(data.amount / 100),
+        amount: amountInDecimal,
         method: "FLUTTERWAVE",
         currency: data.currency,
-        chargedAmount: new Decimal(data.amount / 100),
+        chargedAmount: amountInDecimal,
         userId: user.id,
+      },
+    });
+    const notificationDetails = buildNotification({
+      category: "PAYMENT",
+      type:
+        data.meta.type === "SUBSCRIPTION_RENEWAL"
+          ? "SUBSCRIPTION_RENEWAL"
+          : "SUBSCRIPTION_PAYMENT",
+      planName: subscription.plan.name,
+      status: "failed",
+      meta: { amount: amountInDecimal },
+    });
+
+    await tx.notification.create({
+      data: {
+        category: notificationDetails.category,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
+        userId: user.id,
+        meta: notificationDetails.meta,
       },
     });
   });

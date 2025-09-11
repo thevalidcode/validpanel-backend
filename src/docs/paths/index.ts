@@ -8,5 +8,9 @@ import "./serviceApiProvider.paths";
 import "./order.paths";
 import "./webhook.paths";
 import "./paymentGateway.paths";
+import "./notification.paths";
+import "./subscription.paths";
+import "./subscriptionPlan.paths";
+import "./setting.paths";
 
 export { registry };

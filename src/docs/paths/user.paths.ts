@@ -19,6 +19,7 @@ import {
   SelectPlanResponse,
   InitializeSubscriptionPaymentResponse,
   SetupStoreResponse,
+  DashboardOverviewResponse,
 } from "../responses/user.response";
 
 import {
@@ -190,6 +191,21 @@ registry.registerPath({
   },
   responses: {
     200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// User's dashboard overview
+registry.registerPath({
+  method: "get",
+  path: "/users/dashboard/overview",
+  summary: "User's dashboard overview",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: DashboardOverviewResponse,
     400: BadRequest,
     403: Forbidden,
     500: ServerError,

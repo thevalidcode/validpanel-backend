@@ -26,8 +26,8 @@ export const createSubscriptionPayment = async (
     throw new Error("Payment gateway not configured");
   }
 
-  const general = await prisma.general.findFirst({
-    select: { title: true, logoUrl: true },
+  const general = await prisma.setting.findFirst({
+    select: { siteName: true, logoUrl: true },
   });
 
   if (!general) throw new Error("Platform's general settings missing");
@@ -41,7 +41,7 @@ export const createSubscriptionPayment = async (
       email: user.email,
     },
     customizations: {
-      title: general.title,
+      title: general.siteName,
       description: gateway.description,
       logo: general.logoUrl,
     },

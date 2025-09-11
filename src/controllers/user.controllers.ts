@@ -16,6 +16,49 @@ import { prisma } from "../config/db.config";
 import { OnboardingStep } from "../../prisma/generated";
 import { InitializeSubscriptionPaymentSchema } from "../schemas/payment.schema";
 import * as paymentServices from "../services/payment.services";
+import { buildNotification } from "../services/notification.services";
+
+export const dashboardOverview = async (req: Request, res: Response) => {
+  const { user } = req.auth!;
+
+  try {
+    const [totalStores, activeStores, store, paymentAggregate, recentActivity] =
+      await Promise.all([
+        prisma.store.count({
+          where: { ownerId: user.id },
+        }),
+        prisma.store.count({
+          where: { ownerId: user.id, status: "ACTIVE" },
+        }),
+        prisma.store.findFirst({
+          where: { ownerId: user.id },
+        }),
+        prisma.payment.aggregate({
+          _sum: { amount: true },
+          where: { userId: user.id, status: "SUCCESS" },
+        }),
+        prisma.notification.findMany({
+          where: { userId: user.id },
+          take: 20,
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+    res.status(200).json({
+      totalStores,
+      activeStores,
+      activePlan: store?.plan,
+      totalSpent: {
+        currency: "USD",
+        amount: paymentAggregate._sum.amount ?? 0,
+      },
+      recentActivity,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch dashboard overview" });
+  }
+};
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -208,14 +251,33 @@ export const setupStore = async (req: Request, res: Response) => {
     }
 
     // Create store
-    const store = await prisma.store.create({
-      data: {
-        type,
-        name,
-        uid: domain,
-        plan: existingSubscription.plan.name,
-        ownerId: userId,
-      },
+    const { store } = await prisma.$transaction(async (tx) => {
+      const store = await tx.store.create({
+        data: {
+          type,
+          name,
+          uid: domain,
+          plan: existingSubscription.plan.name,
+          ownerId: userId,
+        },
+      });
+
+      const notificationDetails = buildNotification({
+        category: "STORE",
+        type: "STORE_CREATED",
+        status: "success",
+      });
+
+      await tx.notification.create({
+        data: {
+          category: notificationDetails.category,
+          title: notificationDetails.title,
+          message: notificationDetails.message,
+          userId: userId,
+          meta: notificationDetails.meta,
+        },
+      });
+      return { store };
     });
 
     // Update user onboarding step → move forward

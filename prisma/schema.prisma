@@ -59,16 +59,24 @@ enum PaymentStatus {
   FAILED  @map("failed")
 }
 
+enum SubscriptionPlanStatus {
+  ACTIVE   @map("active")
+  INACTIVE @map("inactive")
+  DRAFT    @map("draft")
+}
+
 model SubscriptionPlan {
-  id        Int             @id @default(autoincrement())
-  uid       String          @unique @default(uuid())
-  name      String
-  price     Decimal
-  currency  String
-  features  Json
-  interval  BillingInterval
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  id          Int                    @id @default(autoincrement())
+  uid         String                 @unique @default(uuid())
+  name        String
+  price       Decimal                @db.Decimal(10, 2)
+  currency    String
+  description String?
+  status      SubscriptionPlanStatus @default(ACTIVE)
+  features    Json
+  interval    BillingInterval
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
 
   subscriptions Subscription[]
   Payment       Payment[]
@@ -97,8 +105,8 @@ model Payment {
   userId        Int           @map("user_id")
   planId        Int           @map("plan_id")
   currency      String
-  amount        Decimal
-  chargedAmount Decimal       @map("charged_amount")
+  amount        Decimal       @db.Decimal(10, 2)
+  chargedAmount Decimal       @map("charged_amount") @db.Decimal(10, 2)
   status        PaymentStatus
   method        PaymentMethod
   createdAt     DateTime      @default(now()) @map("created_at")
@@ -145,6 +153,7 @@ model User {
   subscriptions Subscription[]
   stores        Store[]
   payments      Payment[]
+  Notification  Notification[]
 
   @@map("users")
 }
@@ -258,14 +267,57 @@ model Faq {
   @@map("faqs")
 }
 
-model General {
-  id         Int     @id @default(autoincrement())
-  uid        String  @unique
-  title      String  @default("Valid Panel")
-  logoUrl    String? @map("logo_url")
-  faviconUrl String? @map("favicon_url")
+enum MaintenanceStatus {
+  ENABLED  @map("enabled")
+  DISABLED @map("disabled")
+}
 
-  @@map("general")
+model Setting {
+  id  Int    @id @default(autoincrement())
+  uid String @unique @default(uuid())
+
+  // Site Information
+  siteName        String  @default("Valid Panel") @map("site_name")
+  siteDescription String? @map("site_description")
+  adminEmail      String? @map("admin_email")
+  logoUrl         String? @map("logo_url")
+  faviconUrl      String? @map("favicon_url")
+  defaultCurrency String  @default("USD") @map("default_currency")
+  timezone        String  @default("UTC")
+  defaultLanguage String  @default("English") @map("default_language")
+  dateFormat      String  @default("MM/DD/YYYY") @map("date_format")
+
+  // Maintenance Mode
+  maintenanceMode  MaintenanceStatus @default(DISABLED) @map("maintenance_mode")
+  maintenanceMsg   String?           @map("maintenance_msg")
+  maintenanceStart DateTime?         @map("maintenance_start")
+  maintenanceEnd   DateTime?         @map("maintenance_end")
+  allowedIps       Json?             @map("allowed_ips") // store as array of IPs
+
+  // API Rate Limits
+  requestsPerMinute Int @default(60) @map("requests_per_minute")
+  requestsPerHour   Int @default(1000) @map("requests_per_hour")
+  requestsPerDay    Int @default(10000) @map("requests_per_day")
+
+  // Login Limits
+  maxLoginAttempts Int @default(5) @map("max_login_attempts")
+  lockoutDuration  Int @default(15) @map("lockout_duration") // in minutes
+
+  // Upload Limits
+  maxFileSizeMb     Int @default(10) @map("max_file_size_mb")
+  uploadsPerHour    Int @default(20) @map("uploads_per_hour")
+  concurrentUploads Int @default(3) @map("concurrent_uploads")
+
+  // Throttling Options
+  progressiveDelays Boolean @default(true) @map("progressive_delays")
+  blockSuspiciousIp Boolean @default(true) @map("block_suspicious_ip")
+  sendEmailAlerts   Boolean @default(true) @map("send_email_alerts")
+  whitelistedIps    Json?   @map("whitelisted_ips") // array of IPs
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
 }
 
 model InternalApiSession {
@@ -461,4 +513,28 @@ model ServiceApiProvider {
   updatedAt DateTime              @updatedAt @map("updated_at")
 
   @@map("service_api_provders")
+}
+
+enum NotificationCategory {
+  SYSTEM       @map("system")
+  PAYMENT      @map("payment")
+  SUBSCRIPTION @map("subscription")
+  STORE        @map("store")
+  USER         @map("user")
+}
+
+model Notification {
+  id        Int                  @id @default(autoincrement())
+  uid       String               @unique @default(uuid())
+  userId    Int?                 @map("user_id")
+  category  NotificationCategory @map("category")
+  title     String
+  message   String
+  meta      Json? // Flexible details: { "status": "success", "txId": "xxx", "amount": 2000 }
+  isRead    Boolean              @default(false) @map("is_read")
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
 }

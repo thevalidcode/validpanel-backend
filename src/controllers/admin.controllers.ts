@@ -5,6 +5,9 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
 import { AuthenticateAdminSchema } from "../schemas/admin.schema";
+import { callInternalAPIForAdmins } from "../utils/internalApi";
+import { NormalizedOrder } from "../types/order.types";
+import { mapShopOrder, mapSocialOrder } from "../utils/mappers/order.mappers";
 
 export const authenticateAdmin = async (
   req: Request,
@@ -66,5 +69,61 @@ export const authenticateAdmin = async (
     });
   } catch (err: any) {
     res.status(500).json({ error: "Login failed " + err.message });
+  }
+};
+
+export const dashboardOverview = async (req: Request, res: Response) => {
+  const { uid } = req.auth!;
+
+  try {
+    const [
+      totalUsers,
+      totalStores,
+      activeStores,
+      paymentAggregate,
+      recentActivity,
+      socialMediaStoreOrders,
+      shopOrders,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.store.count(),
+      prisma.store.count({
+        where: { status: "ACTIVE" },
+      }),
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: { status: "SUCCESS" },
+      }),
+      prisma.notification.findMany({
+        take: 20,
+        orderBy: { createdAt: "desc" },
+      }),
+      callInternalAPIForAdmins("GET", `/orders?page=1&limit=20`, uid, "SOCIAL"),
+      callInternalAPIForAdmins("GET", `/orders?page=1&limit=20`, uid, "SHOP"),
+    ]);
+
+    const normalizedSocial: NormalizedOrder[] =
+      socialMediaStoreOrders.map(mapSocialOrder);
+    const normalizedShop: NormalizedOrder[] = shopOrders.map(mapShopOrder);
+
+    // Merge into one array
+    const recentOrders: NormalizedOrder[] = [
+      ...normalizedSocial,
+      ...normalizedShop,
+    ];
+    res.status(200).json({
+      totalUsers,
+      totalStores,
+      activeStores,
+      totalRevenue: {
+        currency: "USD",
+        amount: paymentAggregate._sum.amount ?? 0,
+      },
+      recentOrders,
+      recentActivity,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch dashboard overview" });
   }
 };

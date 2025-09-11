@@ -9,12 +9,6 @@ import {
 } from "../responses/order.response";
 import { BadRequest, ServerError } from "../responses/common.response";
 
-/**
- * =========================
- * ORDERS ROUTES
- * =========================
- */
-
 // Get orders for all stores with pagination for admins
 registry.registerPath({
   method: "get",

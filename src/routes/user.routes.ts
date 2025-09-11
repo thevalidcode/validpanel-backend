@@ -11,6 +11,7 @@ router.post("/", strictLimiter, users.createUser);
 router.get("/:uid", authenticateUser, users.getUserByUid);
 router.patch("/", authenticateUser, users.updateUser);
 router.delete("/", authenticateUser, users.deleteUser);
+router.get("/dashboard/overview", authenticateUser, users.dashboardOverview);
 
 // User onboarding routes (authenticated users)
 router.post("/onboarding/select-plan", authenticateUser, users.selectPlan);

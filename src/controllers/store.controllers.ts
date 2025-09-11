@@ -7,8 +7,12 @@ import {
   AdminActionSchema,
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
+import { buildNotification } from "../services/notification.services";
 
-export const getActiveStores = async (req: Request, res: Response): Promise<void> => {
+export const getActiveStores = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const stores = await prisma.store.findMany({
       where: { status: "ACTIVE" },
@@ -87,7 +91,7 @@ export const createStore = async (
   }
 
   try {
-    const store = await prisma.$transaction(async (tx) => {
+    const { store } = await prisma.$transaction(async (tx) => {
       const store = await tx.store.create({
         data: {
           uid: domain,
@@ -100,7 +104,22 @@ export const createStore = async (
         },
       });
 
-      return store;
+      const notificationDetails = buildNotification({
+        category: "STORE",
+        type: "STORE_CREATED",
+        status: "success",
+      });
+
+      await tx.notification.create({
+        data: {
+          category: notificationDetails.category,
+          title: notificationDetails.title,
+          message: notificationDetails.message,
+          userId: user.id,
+          meta: notificationDetails.meta,
+        },
+      });
+      return { store };
     });
 
     res.status(201).json({ success: "Store created successfully", store });
@@ -279,9 +298,27 @@ export const approveStore = async (
   const { uid } = parsed.data;
 
   try {
-    const updatedStore = await prisma.store.update({
-      where: { uid },
-      data: { status: "ACTIVE" },
+    const { updatedStore } = await prisma.$transaction(async (tx) => {
+      const updatedStore = await tx.store.update({
+        where: { uid },
+        data: { status: "ACTIVE" },
+      });
+      const notificationDetails = buildNotification({
+        category: "STORE",
+        type: "STORE_APPROVED",
+        status: "success",
+      });
+
+      await tx.notification.create({
+        data: {
+          category: notificationDetails.category,
+          title: notificationDetails.title,
+          message: notificationDetails.message,
+          userId: updatedStore.ownerId,
+          meta: notificationDetails.meta,
+        },
+      });
+      return { updatedStore };
     });
 
     res.status(200).json({ success: "Store approved", store: updatedStore });
@@ -303,11 +340,29 @@ export const suspendStore = async (
   const { uid } = parsed.data;
 
   try {
-    const updatedStore = await prisma.store.update({
-      where: { uid },
-      data: { status: "DISABLED" },
-    });
+    const { updatedStore } = await prisma.$transaction(async (tx) => {
+      const updatedStore = await prisma.store.update({
+        where: { uid },
+        data: { status: "CANCELED" },
+      });
 
+      const notificationDetails = buildNotification({
+        category: "STORE",
+        type: "STORE_REJECTED",
+        status: "success",
+      });
+
+      await tx.notification.create({
+        data: {
+          category: notificationDetails.category,
+          title: notificationDetails.title,
+          message: notificationDetails.message,
+          userId: updatedStore.ownerId,
+          meta: notificationDetails.meta,
+        },
+      });
+      return { updatedStore };
+    });
     res.status(200).json({ success: "Store suspended", store: updatedStore });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to suspend store " + err.message });

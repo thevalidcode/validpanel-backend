@@ -5,6 +5,7 @@ import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
+import { buildNotification } from "../services/notification.services";
 
 export const initPaystackPayment = async (
   paymentData: any,
@@ -50,7 +51,7 @@ const processSuccess = async (
 
   if (!user) throw new Error("User not found");
 
-  const amount = Number(data.amount) / 100; // Paystack uses kobo
+  const amount = new Decimal(data.amount / 100); // Paystack uses kobo
 
   // Calculate expiry date based on interval
   let expiresAt: Date;
@@ -82,6 +83,7 @@ const processSuccess = async (
         startedAt: new Date(),
         expiresAt,
       },
+      include: { plan: true },
     });
 
     await tx.transaction.create({
@@ -104,6 +106,28 @@ const processSuccess = async (
         currency: data.currency,
         chargedAmount: amount,
         userId: user.id,
+      },
+    });
+
+    const notificationDetails = buildNotification({
+      category: "PAYMENT",
+      type:
+        data.metadata.type === "SUBSCRIPTION_RENEWAL"
+          ? "SUBSCRIPTION_RENEWAL"
+          : "SUBSCRIPTION_PAYMENT",
+      planName: subscription.plan.name,
+      expiresAt,
+      status: "success",
+      meta: { amount },
+    });
+
+    await tx.notification.create({
+      data: {
+        category: notificationDetails.category,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
+        userId: user.id,
+        meta: notificationDetails.meta,
       },
     });
 
@@ -130,12 +154,14 @@ const processFailure = async (
   });
 
   if (!user) throw new Error("User not found");
+  const amountInDecimal = new Decimal(data.amount / 100);
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.update({
       where: { id: data.metadata.subscriptionId },
       data: {
         status: "FAILED",
       },
+      include: { plan: true },
     });
     await tx.transaction.create({
       data: {
@@ -146,7 +172,7 @@ const processFailure = async (
             : data.status === "cancelled"
             ? "CANCELLED"
             : "FAILED",
-        amount: new Decimal(data.amount / 100),
+        amount: amountInDecimal,
         type: data.metadata.type,
         currency: data.currency,
         userUid: user.uid,
@@ -158,11 +184,32 @@ const processFailure = async (
         uid: crypto.randomUUID(),
         status: "FAILED",
         planId: subscription.planId,
-        amount: new Decimal(data.amount / 100),
+        amount: amountInDecimal,
         method: "PAYSTACK",
         currency: data.currency,
-        chargedAmount: new Decimal(data.amount / 100),
+        chargedAmount: amountInDecimal,
         userId: user.id,
+      },
+    });
+
+    const notificationDetails = buildNotification({
+      category: "PAYMENT",
+      type:
+        data.metadata.type === "SUBSCRIPTION_RENEWAL"
+          ? "SUBSCRIPTION_RENEWAL"
+          : "SUBSCRIPTION_PAYMENT",
+      planName: subscription.plan.name,
+      status: "failed",
+      meta: { amount: amountInDecimal },
+    });
+
+    await tx.notification.create({
+      data: {
+        category: notificationDetails.category,
+        title: notificationDetails.title,
+        message: notificationDetails.message,
+        userId: user.id,
+        meta: notificationDetails.meta,
       },
     });
   });

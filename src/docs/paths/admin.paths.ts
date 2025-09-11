@@ -18,6 +18,7 @@ import {
   DeleteRoleResponse,
 } from "../responses/admin.response";
 import { BadRequest, ServerError } from "../responses/common.response";
+import { DashboardOverviewResponse } from "../responses/user.response";
 
 /**
  * =========================
@@ -47,6 +48,20 @@ registry.registerPath({
   },
 });
 
+// Dashboard overview
+registry.registerPath({
+  method: "get",
+  path: "/admins/dashboard/overview",
+  summary: "Dashboard overview",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: DashboardOverviewResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
 /**
  * =========================
  * ROLE ROUTES
@@ -59,6 +74,7 @@ registry.registerPath({
   path: "/admins/roles",
   summary: "Create a new role",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     body: {
       content: {
@@ -81,6 +97,7 @@ registry.registerPath({
   path: "/admins/roles",
   summary: "Get all roles",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   responses: {
     200: GetRolesResponse,
     500: ServerError,
@@ -93,6 +110,7 @@ registry.registerPath({
   path: "/admins/roles/{uid}",
   summary: "Get a role by UID",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     params: UidSchema,
   },
@@ -112,6 +130,7 @@ registry.registerPath({
   path: "/admins/roles/{uid}",
   summary: "Update a role",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     params: UidSchema,
     body: {
@@ -135,6 +154,7 @@ registry.registerPath({
   path: "/admins/roles/{uid}",
   summary: "Delete a role",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     params: UidSchema,
   },
@@ -151,6 +171,7 @@ registry.registerPath({
   path: "/admins/roles/{uid}/permissions",
   summary: "Assign a permission to a role",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     params: UidSchema,
     body: {
@@ -180,6 +201,7 @@ registry.registerPath({
   path: "/admins/permissions",
   summary: "Create a new permission",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     body: {
       content: {
@@ -202,6 +224,7 @@ registry.registerPath({
   path: "/admins/permissions",
   summary: "Get all permissions",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   responses: {
     200: GetPermissionsResponse,
     500: ServerError,
@@ -214,6 +237,7 @@ registry.registerPath({
   path: "/admins/permissions/{uid}",
   summary: "Delete a permission",
   tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
   request: {
     params: UidSchema,
   },

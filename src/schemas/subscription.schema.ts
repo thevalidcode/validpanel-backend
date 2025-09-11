@@ -16,3 +16,17 @@ export const SubscriptionSchema: z.ZodType<Subscription> = z
     status: z.nativeEnum(SubscriptionStatus),
   })
   .openapi("Subscription");
+
+export const SubscriptionCreateRequestSchema = z.object({
+  userId: z.number(),
+  planId: z.number(),
+});
+
+export const SubscriptionUpdateRequestSchema = z.object({
+  status: z.nativeEnum(SubscriptionStatus),
+  uid: z.string(),
+});
+
+export const SubscriptionUidSchema = z.object({
+  uid: z.string(),
+});

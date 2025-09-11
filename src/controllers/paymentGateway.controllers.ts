@@ -64,11 +64,11 @@ export const getPaymentGatewayByUid = async (
     return;
   }
 
-  const { id } = paramsParsed.data;
+  const { uid } = paramsParsed.data;
 
   try {
     const gateway = await prisma.paymentGateway.findUnique({
-      where: { id },
+      where: { uid },
       select: {
         createdAt: true,
         platform: true,
@@ -140,11 +140,11 @@ export const getPaymentGatewayByUidForUser = async (
     });
     return;
   }
-  const { id } = paramsParsed.data;
+  const { uid } = paramsParsed.data;
 
   try {
     const gateway = await prisma.paymentGateway.findUnique({
-      where: { id, status: "ACTIVE" },
+      where: { uid, status: "ACTIVE" },
       select: {
         createdAt: true,
         platform: true,
@@ -270,14 +270,14 @@ export const updatePaymentGateway = async (
     }
 
     await prisma.paymentGateway.update({
-      where: { id: reqData.id },
+      where: { uid: reqData.uid },
       data: {
         ...paymentGatewayData,
       },
     });
 
     const payment = await prisma.paymentGateway.findFirst({
-      where: { id: reqData.id },
+      where: { uid: reqData.uid },
     });
 
     res.status(200).json({
@@ -306,11 +306,11 @@ export const deletePaymentGateway = async (
     return;
   }
 
-  const { id } = parsed.data;
+  const { uid } = parsed.data;
 
   try {
     await prisma.paymentGateway.delete({
-      where: { id },
+      where: { uid },
     });
 
     res.status(200).json({ success: "Payment gateway deleted successfully." });

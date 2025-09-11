@@ -51,7 +51,7 @@ export const PaymentCreateRequestSchema = z.object({
 
 export const PaymentUpdateRequestSchema = z.object({
   platform: z.nativeEnum(PaymentMethod),
-  id: z.number(),
+  uid: z.string(),
   name: z.string(),
   min: z.coerce.number(),
   max: z.coerce.number(),
@@ -61,9 +61,9 @@ export const PaymentUpdateRequestSchema = z.object({
 });
 
 export const DeletePaymentGatewaySchema = z.object({
-  id: z.number(),
+  uid: z.string(),
 });
 
 export const GetPaymentGatewayByIdSchema = z.object({
-  id: z.number(),
+  uid: z.string(),
 });

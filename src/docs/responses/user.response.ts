@@ -7,6 +7,8 @@ import {
 } from "../../schemas/user.schema";
 import { SubscriptionSchema } from "../../schemas/subscription.schema";
 import { StoreSchema } from "../../schemas/store.schema";
+import { NotificationSchema } from "../../schemas/notification.schema";
+import { Decimal } from "@prisma/client/runtime/library";
 
 export const AuthenticateUserResponse = {
   description: "Authenticated user session object",
@@ -111,6 +113,24 @@ export const GoogleLoginResponse = {
       schema: z.object({
         token: z.string(),
         user: UserSchema,
+      }),
+    },
+  },
+};
+
+export const DashboardOverviewResponse = {
+  description: "Overview retrieved successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        totalStores: z.number(),
+        activeStores: z.number(),
+        activePlan: z.string(),
+        totalSpent: z.object({
+          currency: z.string().length(3),
+          amount: z.custom<Decimal>(),
+        }),
+        recentActivity: z.array(NotificationSchema),
       }),
     },
   },

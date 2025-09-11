@@ -10,14 +10,18 @@ import PrismaSessionStore from "./utils/PrismaSessionStore";
 import { corsOptions } from "./config/cors.config";
 
 // Routes
+import swaggerRouter from "./docs/swagger";
 import userRouter from "./routes/user.routes";
 import adminRouter from "./routes/admin.routes";
 import orderRouter from "./routes/order.routes";
 import storeRouter from "./routes/store.routes";
 import webhookRouter from "./routes/webhook.routes";
 import paymentGatewayRouter from "./routes/paymentGateway.routes";
-import swaggerRouter from "./docs/swagger";
+import notificationRouter from "./routes/notification.routes";
+import subscriptionPlanRouter from "./routes/subscriptionPlan.routes";
+import subscriptionRouter from "./routes/subscription.routes";
 import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
+import settingRouter from "./routes/setting.routes";
 
 const app = express();
 
@@ -60,6 +64,14 @@ app.use(
   cors(corsOptions),
   serviceApiProviderRouter
 );
+app.use("/api/v1/subscriptions", cors(corsOptions), subscriptionRouter);
+app.use(
+  "/api/v1/subscription-plans",
+  cors(corsOptions),
+  subscriptionPlanRouter
+);
+app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
+app.use("/api/v1/setting", cors(corsOptions), settingRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
