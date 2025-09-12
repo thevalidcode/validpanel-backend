@@ -74,8 +74,8 @@ app.use(
 );
 app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
 app.use("/api/v1/setting", cors(corsOptions), settingRouter);
-app.use("/api/v1/payment", cors(corsOptions), paymentRouter);
-app.use("/api/v1/transaction", cors(corsOptions), transactionRouter);
+app.use("/api/v1/payments", cors(corsOptions), paymentRouter);
+app.use("/api/v1/transactions", cors(corsOptions), transactionRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
