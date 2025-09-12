@@ -12,5 +12,7 @@ import "./notification.paths";
 import "./subscription.paths";
 import "./subscriptionPlan.paths";
 import "./setting.paths";
+import "./payment.paths";
+import "./transaction.paths";
 
 export { registry };

@@ -22,6 +22,8 @@ import subscriptionPlanRouter from "./routes/subscriptionPlan.routes";
 import subscriptionRouter from "./routes/subscription.routes";
 import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
 import settingRouter from "./routes/setting.routes";
+import paymentRouter from "./routes/payment.routes";
+import transactionRouter from "./routes/transaction.routes";
 
 const app = express();
 
@@ -72,6 +74,8 @@ app.use(
 );
 app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
 app.use("/api/v1/setting", cors(corsOptions), settingRouter);
+app.use("/api/v1/payment", cors(corsOptions), paymentRouter);
+app.use("/api/v1/transaction", cors(corsOptions), transactionRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { PaymentMethod, TransactionStatus } from "../../prisma/generated";
+import { Payment, PaymentMethod, PaymentStatus } from "../../prisma/generated";
+import { Decimal } from "@prisma/client/runtime/library";
 
 extendZodWithOpenApi(z);
 
@@ -11,18 +12,22 @@ export const InitializeSubscriptionPaymentSchema = z.object({
   redirect_url: z.string().url(),
 });
 
-export type CreateSubscriptionPaymentInput = z.infer<typeof InitializeSubscriptionPaymentSchema>;
+export type CreateSubscriptionPaymentInput = z.infer<
+  typeof InitializeSubscriptionPaymentSchema
+>;
 
-export const TransactionPublicSchema = z.object({
+export const PaymentPublicSchema = z.object({
   currency: z.string().toUpperCase(),
-  amount: z.number(),
-  chargedAmount: z.number(),
-  timestamp: z.coerce.date(),
-  status: z.nativeEnum(TransactionStatus),
-  paymentGateway: z.nativeEnum(PaymentMethod),
+  planId: z.number(),
+  id: z.number(),
+  amount: z.custom<Decimal>(),
+  chargedAmount: z.custom<Decimal>(),
+  createdAt: z.coerce.date(),
+  status: z.nativeEnum(PaymentStatus),
+  method: z.nativeEnum(PaymentMethod),
 });
 
-export const TransactionSchema = TransactionPublicSchema.extend({
-  userUid: z.string().uuid(),
+export const PaymentSchema: z.ZodType<Payment> = PaymentPublicSchema.extend({
+  userId: z.number(),
   uid: z.string().uuid(),
-}).openapi("Transaction");
+}).openapi("Payment");
