@@ -14,5 +14,6 @@ import "./subscriptionPlan.paths";
 import "./setting.paths";
 import "./payment.paths";
 import "./transaction.paths";
+import "./rate.paths";
 
 export { registry };

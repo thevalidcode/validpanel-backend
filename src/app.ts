@@ -24,6 +24,7 @@ import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
 import settingRouter from "./routes/setting.routes";
 import paymentRouter from "./routes/payment.routes";
 import transactionRouter from "./routes/transaction.routes";
+import rateRouter from "./routes/rate.routes";
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
 app.use("/api/v1/setting", cors(corsOptions), settingRouter);
 app.use("/api/v1/payments", cors(corsOptions), paymentRouter);
 app.use("/api/v1/transactions", cors(corsOptions), transactionRouter);
+app.use("/api/v1/rates", cors(corsOptions), rateRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);

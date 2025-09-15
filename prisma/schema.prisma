@@ -225,13 +225,14 @@ model Blog {
   @@map("blogs")
 }
 
-model Currency {
+model ExchangeRate {
   id        Int      @id @default(autoincrement())
-  uid       String   @unique
-  timestamp DateTime @default(now())
-  quotes    Json
+  uid       String   @unique @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  rates     Json
 
-  @@map("currencies")
+  @@map("exchange_rates")
 }
 
 model EmailLog {
