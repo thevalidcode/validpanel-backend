@@ -11,14 +11,14 @@ export const initFlutterwavePayment = async (
   paymentData: any,
   secretKey: { encrypted_key: string; iv: string }
 ) => {
-  const exchangeRates = await prisma.currency.findFirst({
-    select: { quotes: true },
+  const exchangeRates = await prisma.exchangeRate.findFirst({
+    select: { rates: true },
   });
   const convertedUSDAmount = convertCurrency(
     paymentData.amount,
     paymentData.currency,
     "NGN",
-    exchangeRates?.quotes!
+    exchangeRates?.rates!
   );
   const response = await axios.post(
     "https://api.flutterwave.com/v3/payments",
