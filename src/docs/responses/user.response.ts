@@ -34,6 +34,7 @@ export const CreateUserResponse = {
     "application/json": {
       schema: z.object({
         success: z.literal("User created successfully"),
+        user: UserSchema,
         nextStep: z
           .literal("PLAN")
           .describe(

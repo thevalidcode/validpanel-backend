@@ -123,8 +123,11 @@ export const createUser = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { password: pass, ...safeUser } = user;
+
     res.status(201).json({
       success: "Successfully created user",
+      user: safeUser,
       nextStep: "PLAN" as OnboardingStep,
     });
   } catch (err: any) {
@@ -328,13 +331,10 @@ export const me = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { password: pass, ...safeUser } = account;
     res.status(200).json({
       success: "Logged in successfully",
-      user: {
-        id: account.id,
-        email: account.email,
-        fullName: account.fullName,
-      },
+      user: safeUser,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
