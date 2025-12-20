@@ -9,11 +9,11 @@ import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
 
+router.get("/me", authenticateUser, stores.getMyStores);
 router.get("/:uid", authenticateUser, stores.getStoreByUid);
 router.post("/", authenticateUser, limittAdd, stores.createStore);
 router.put("/:uid", authenticateUser, limittActions, stores.updateStore);
 router.delete("/:uid", authenticateUser, limittActions, stores.deleteStore);
-router.get("/my/stores", authenticateUser, stores.getMyStores);
 
 /**
  *
@@ -22,9 +22,9 @@ router.get("/my/stores", authenticateUser, stores.getMyStores);
  */
 
 router.get(
-  "/",
-  authenticateAdmin,
+  "/admin/active",
   checkAdminPermission(["VIEW_STORES"]),
+  authenticateAdmin,
   stores.getActiveStores
 );
 router.get(

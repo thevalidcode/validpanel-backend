@@ -8,18 +8,19 @@ import { checkAdminPermission } from "../middleware/permission";
 router.post("/me", strictLimiter, users.me);
 router.post("/verify-session", users.verifySession);
 router.post("/", strictLimiter, users.createUser);
+router.post("/reset-password", strictLimiter, users.resetPassword);
+router.post("/forgot-password", strictLimiter, users.forgotPassword);
+
+// ✅ FIX: static route FIRST
+router.get("/analytics", authenticateUser, users.userAnalytics);
+
+// dynamic routes AFTER
 router.get("/:uid", authenticateUser, users.getUserByUid);
+
 router.patch("/", authenticateUser, users.updateUser);
 router.delete("/", authenticateUser, users.deleteUser);
-router.get("/dashboard/overview", authenticateUser, users.dashboardOverview);
 
 // User onboarding routes (authenticated users)
-router.post("/onboarding/select-plan", authenticateUser, users.selectPlan);
-router.post(
-  "/onboarding/initialize-payment",
-  authenticateUser,
-  users.initializeSubscriptionPayment
-);
 router.post("/onboarding/setup", authenticateUser, users.setupStore);
 
 // Admin routes

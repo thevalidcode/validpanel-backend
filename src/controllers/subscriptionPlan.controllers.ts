@@ -65,18 +65,10 @@ export const getSubscriptionPlansForUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-  const { user } = authParsed.data;
-
   try {
     const subscriptionPlans = await prisma.subscriptionPlan.findMany({
       where: { status: "ACTIVE" },
-      orderBy: { id: "desc" },
+      orderBy: { price: "asc" },
     });
 
     res.status(200).json(subscriptionPlans);
@@ -89,13 +81,10 @@ export const getSubscriptionPlanByUidForUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const paramsParsed = SubscriptionPlanUidSchema.safeParse(req.params);
-
-  if (!authParsed.success || !paramsParsed.success) {
+  if (!paramsParsed.success) {
     res.status(400).json({
       error: {
-        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
         params: !paramsParsed.success
           ? paramsParsed.error.flatten()
           : undefined,
@@ -104,7 +93,6 @@ export const getSubscriptionPlanByUidForUser = async (
     return;
   }
   const { uid } = paramsParsed.data;
-  const { user } = authParsed.data;
 
   try {
     const subscriptionPlan = await prisma.subscriptionPlan.findUnique({

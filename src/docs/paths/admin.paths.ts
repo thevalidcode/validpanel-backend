@@ -18,7 +18,7 @@ import {
   DeleteRoleResponse,
 } from "../responses/admin.response";
 import { BadRequest, ServerError } from "../responses/common.response";
-import { DashboardOverviewResponse } from "../responses/user.response";
+import { OverviewResponse } from "../responses/admin.response";
 
 /**
  * =========================
@@ -51,12 +51,12 @@ registry.registerPath({
 // Dashboard overview
 registry.registerPath({
   method: "get",
-  path: "/admins/dashboard/overview",
+  path: "/admins/overview",
   summary: "Dashboard overview",
   tags: ["Admins"],
   security: [{ CookieAuth: [] }],
   responses: {
-    200: DashboardOverviewResponse,
+    200: OverviewResponse,
     400: BadRequest,
     500: ServerError,
   },

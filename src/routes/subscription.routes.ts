@@ -21,6 +21,35 @@ router.get(
 );
 
 router.get(
+  "/active",
+  authenticateUser,
+  limittActions,
+  subscriptions.getActiveSubscriptionForUser
+);
+
+router.patch(
+  "/upgrade-plan",
+  authenticateUser,
+  limittAdd,
+  subscriptions.upgradePlan
+);
+
+router.patch(
+  "/downgrade-plan",
+  authenticateUser,
+  limittAdd,
+  subscriptions.downgradePlan
+);
+
+router.post("/", authenticateUser, limittAdd, subscriptions.createSubscription);
+router.post(
+  "/renew",
+  authenticateUser,
+  limittAdd,
+  subscriptions.renewSubscription
+);
+
+router.get(
   "/:uid",
   authenticateUser,
   limittActions,
@@ -37,14 +66,6 @@ router.patch(
   checkAdminPermission(["MANAGE_SUBSCRIPTIONS"]),
   limittActions,
   subscriptions.updateSubscription
-);
-
-router.post(
-  "/",
-  authenticateAdmin,
-  checkAdminPermission(["MANAGE_SUBSCRIPTIONS"]),
-  limittAdd,
-  subscriptions.addSubscription
 );
 
 router.get(

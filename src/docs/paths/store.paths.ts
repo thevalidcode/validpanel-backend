@@ -18,15 +18,16 @@ import {
   DeleteStoreResponse,
 } from "../responses/store.response";
 
-// GET /store
+// GET /stores/me
 registry.registerPath({
   method: "get",
-  path: "/stores",
-  summary: "Admin: Get all active stores",
+  path: "/stores/me",
+  summary: "Get all stores owned by the authenticated user",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
   responses: {
     200: GetStoresResponse,
+    400: BadRequest,
     500: ServerError,
   },
 });
@@ -117,21 +118,19 @@ registry.registerPath({
   },
 });
 
-// GET /stores/my/store
+// ========== ADMIN ROUTES ==========
+// GET /stores
 registry.registerPath({
   method: "get",
-  path: "/stores/my/store",
-  summary: "Get all stores owned by the authenticated user",
+  path: "/stores",
+  summary: "Admin: Get all active stores",
   security: [{ CookieAuth: [] }],
   tags: ["Stores"],
   responses: {
     200: GetStoresResponse,
-    400: BadRequest,
     500: ServerError,
   },
 });
-
-// ========== ADMIN ROUTES ==========
 
 // GET /stores/admin/all
 registry.registerPath({

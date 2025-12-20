@@ -7,8 +7,6 @@ import {
 } from "../../schemas/user.schema";
 import { SubscriptionSchema } from "../../schemas/subscription.schema";
 import { StoreSchema } from "../../schemas/store.schema";
-import { NotificationSchema } from "../../schemas/notification.schema";
-import { Decimal } from "@prisma/client/runtime/library";
 
 export const AuthenticateUserResponse = {
   description: "Authenticated user session object",
@@ -60,6 +58,7 @@ export const UpdateSuccess = {
     "application/json": {
       schema: z.object({
         success: z.literal("Updated user successfully"),
+        user: UserSchema,
       }),
     },
   },
@@ -119,53 +118,52 @@ export const GoogleLoginResponse = {
   },
 };
 
-export const DashboardOverviewResponse = {
-  description: "Overview retrieved successfully",
+export const AnalyticsResponse = {
+  description: "Analytics retrieved successfully",
   content: {
     "application/json": {
       schema: z.object({
-        totalStores: z.number(),
-        activeStores: z.number(),
-        activePlan: z.string(),
-        totalSpent: z.object({
-          currency: z.string().length(3),
-          amount: z.custom<Decimal>(),
+        stores: z.object({
+          total: z.object({
+            value: z.number(),
+            change: z.string(),
+          }),
+          active: z.object({
+            value: z.number(),
+            change: z.string(),
+          }),
         }),
-        recentActivity: z.array(NotificationSchema),
-      }),
-    },
-  },
-};
-
-export const SelectPlanResponse = {
-  description: "Plan selected successfully",
-  content: {
-    "application/json": {
-      schema: z.object({
-        success: z.literal("Plan selected successfully"),
-        subscription: SubscriptionSchema,
-        nextStep: z
-          .enum(["STORE_DETAILS", "PAYMENT"])
-          .describe(
-            "This shows the next step the user is suppose to take which is STORE_DETAILS if the plan's price is equal 0 and PAYMENT if the price isn't."
+        subscription: z.object({
+          currentPlan: z.string(),
+          nextBillingDate: z.date().nullable(),
+          features: z.array(
+            z.object({
+              name: z.string(),
+              value: z.number().nullable(),
+            })
           ),
-      }),
-    },
-  },
-};
-
-export const InitializeSubscriptionPaymentResponse = {
-  description: "Initialized payment successfully",
-  content: {
-    "application/json": {
-      schema: z.object({
-        status: z.literal("success"),
-        url: z
-          .string()
-          .url()
-          .describe(
-            "This is the url the user will be redirected to, to complete the payment for the subscription."
+        }),
+        platformEvents: z.object({
+          "Last 7 days": z.array(
+            z.object({
+              name: z.string(),
+              value: z.number(),
+            })
           ),
+          "Last 30 days": z.array(
+            z.object({
+              name: z.string(),
+              value: z.number(),
+            })
+          ),
+          "Last 90 days": z.array(
+            z.object({
+              name: z.string(),
+              value: z.number(),
+            })
+          ),
+        }),
+        allStores: z.array(StoreSchema),
       }),
     },
   },

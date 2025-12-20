@@ -13,16 +13,10 @@ const router = express.Router();
  * SUBSCRIPTIONS PLANS ROUTES FOR USERS AND ADMINS
  */
 
-router.get(
-  "/",
-  authenticateUser,
-  limittActions,
-  subscriptionPlans.getSubscriptionPlansForUser
-);
+router.get("/", limittActions, subscriptionPlans.getSubscriptionPlansForUser);
 
 router.get(
   "/:uid",
-  authenticateUser,
   limittActions,
   subscriptionPlans.getSubscriptionPlanByUidForUser
 );

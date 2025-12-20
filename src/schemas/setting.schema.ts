@@ -47,6 +47,8 @@ export const SettingSchema: z.ZodType<Setting> = z
     sendEmailAlerts: z.boolean(),
     whitelistedIps: z.array(z.string()).nullable(),
 
+    staleItemThreshold: z.number(),
+
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
   })

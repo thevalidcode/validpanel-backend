@@ -6,6 +6,7 @@ import { decryptKey } from "../utils/encrypt";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
 import { buildNotification } from "../services/notification.services";
+import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";
 
 export const initPaystackPayment = async (
   paymentData: any,
@@ -26,7 +27,7 @@ export const initPaystackPayment = async (
       email: paymentData.customer.email,
       amount: convertedNGNAmount * 100, // Paystack uses kobo
       currency: "NGN",
-      callback_url: paymentData.redirect_url,
+      callback_url: paymentData.redirectUrl,
       metadata: paymentData.meta,
     },
     {
@@ -48,77 +49,90 @@ const processSuccess = async (
   const user = await prisma.user.findFirst({
     where: { email: customer.email },
   });
-
   if (!user) throw new Error("User not found");
 
-  const amount = new Decimal(data.amount / 100); // Paystack uses kobo
-
-  // Calculate expiry date based on interval
-  let expiresAt: Date;
-  const now = new Date();
   const subscription = await prisma.subscription.findUnique({
     where: { id: data.metadata.subscriptionId },
     include: { plan: true },
   });
-
   if (!subscription || subscription.userId !== data.metadata.userId) {
     throw new Error("Subscription not found");
   }
 
   if (subscription.status !== "PENDING") {
-    throw new Error("Subscription is not pending");
+    return; // idempotency safeguard
   }
 
-  if (subscription.plan.interval === "MONTHLY") {
-    expiresAt = new Date(now.setMonth(now.getMonth() + 1));
-  } else if (subscription.plan.interval === "YEARLY") {
-    expiresAt = new Date(now.setFullYear(now.getFullYear() + 1));
+  const isUpgrade = data.metadata.type === "SUBSCRIPTION_UPGRADE";
+  const isDowngrade = data.metadata.type === "SUBSCRIPTION_DOWNGRADE";
+  const isRenewal =
+    data.metadata.type === "SUBSCRIPTION_RENEWAL" ||
+    data.metadata.type === "SUBSCRIPTION_PAYMENT";
+
+  let expiresAt = subscription.expiresAt;
+  let planId = subscription.planId;
+  let billingCycle = subscription.billingCycle;
+
+  if (isUpgrade) {
+    if (!data.metadata.newPlanId || !data.metadata.billingCycle) {
+      throw new Error("Upgrade metadata missing");
+    }
+
+    planId = data.metadata.newPlanId;
+    billingCycle = data.metadata.billingCycle;
+
+    expiresAt = calculateExpiryForUpgrade({
+      currentSubscription: subscription,
+      newBillingCycle: billingCycle,
+    });
   }
+
+  if (isRenewal) {
+    const now = new Date();
+    expiresAt =
+      data.metadata.billingCycle === "YEARLY"
+        ? new Date(now.setFullYear(now.getFullYear() + 1))
+        : new Date(now.setMonth(now.getMonth() + 1));
+  }
+
+  const amount = new Decimal(data.amount / 100); // Paystack uses kobo
+  // Downgrade success does NOT touch expiry or plan immediately
 
   await prisma.$transaction(async (tx) => {
-    const subscription = await tx.subscription.update({
-      where: { id: data.metadata.subscriptionId },
+    const updatedSubscription = await tx.subscription.update({
+      where: { id: subscription.id },
       data: {
         status: "ACTIVE",
-        startedAt: new Date(),
+        planId,
+        billingCycle,
         expiresAt,
+        pendingPlanId: isDowngrade ? subscription.pendingPlanId : null,
+        startedAt: isRenewal ? new Date() : subscription.startedAt,
       },
       include: { plan: true },
     });
 
-    await tx.transaction.create({
-      data: {
-        uid: uuidv4(),
-        status: "SUCCESS",
-        amount,
-        type: data.metadata.type,
-        currency: data.currency,
-        userUid: user.uid,
-      },
+    await tx.transaction.update({
+      where: { id: data.metadata.transactionId },
+      data: { status: "SUCCESS" },
     });
-    await tx.payment.create({
-      data: {
-        uid: uuidv4(),
-        status: "SUCCESS",
-        planId: subscription.planId,
-        amount,
-        method: "PAYSTACK",
-        currency: data.currency,
-        chargedAmount: amount,
-        userId: user.id,
-      },
+
+    await tx.payment.update({
+      where: { id: data.metadata.paymentId },
+      data: { status: "SUCCESS" },
     });
 
     const notificationDetails = buildNotification({
       category: "PAYMENT",
-      type:
-        data.metadata.type === "SUBSCRIPTION_RENEWAL"
-          ? "SUBSCRIPTION_RENEWAL"
-          : "SUBSCRIPTION_PAYMENT",
-      planName: subscription.plan.name,
+      type: data.metadata.type,
+      planName: updatedSubscription.plan.name,
       expiresAt,
       status: "success",
-      meta: { amount },
+      meta: {
+        amount,
+        previousPlanId: subscription.planId,
+        newPlanId: planId,
+      },
     });
 
     await tx.notification.create({
@@ -131,14 +145,12 @@ const processSuccess = async (
       },
     });
 
-    // Update user onboarding step → move forward
     if (
       user.onboardingStep !== "COMPLETE" &&
-      (data.metadata.type === "SUBSCRIPTION_PAYMENT" ||
-        data.metadata.type === "SUBSCRIPTION_RENEWAL")
+      (isRenewal || data.metadata.type === "SUBSCRIPTION_PAYMENT")
     ) {
       await tx.user.update({
-        where: { id: data.metadata.userId },
+        where: { id: user.id },
         data: { onboardingStep: "STORE_DETAILS" },
       });
     }
@@ -163,41 +175,28 @@ const processFailure = async (
       },
       include: { plan: true },
     });
-    await tx.transaction.create({
+    await tx.transaction.update({
+      where: { id: data.metadata.transactionId },
       data: {
-        uid: crypto.randomUUID(),
         status:
           data.status === "reversed"
             ? "REVERSED"
             : data.status === "cancelled"
             ? "CANCELLED"
             : "FAILED",
-        amount: amountInDecimal,
-        type: data.metadata.type,
-        currency: data.currency,
-        userUid: user.uid,
       },
     });
 
-    await tx.payment.create({
+    await tx.payment.update({
+      where: { id: data.metadata.paymentId },
       data: {
-        uid: crypto.randomUUID(),
         status: "FAILED",
-        planId: subscription.planId,
-        amount: amountInDecimal,
-        method: "PAYSTACK",
-        currency: data.currency,
-        chargedAmount: amountInDecimal,
-        userId: user.id,
       },
     });
 
     const notificationDetails = buildNotification({
       category: "PAYMENT",
-      type:
-        data.metadata.type === "SUBSCRIPTION_RENEWAL"
-          ? "SUBSCRIPTION_RENEWAL"
-          : "SUBSCRIPTION_PAYMENT",
+      type: data.metadata.type,
       planName: subscription.plan.name,
       status: "failed",
       meta: { amount: amountInDecimal },

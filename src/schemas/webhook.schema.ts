@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { TransactionType } from "../../prisma/generated";
+import { BillingInterval, TransactionType } from "../../prisma/generated";
 
 extendZodWithOpenApi(z);
 
@@ -27,7 +27,11 @@ export const FlutterwaveWebhookSchema = z.object({
       .object({
         subscriptionId: z.coerce.number(),
         type: z.nativeEnum(TransactionType),
+        billingCycle: z.nativeEnum(BillingInterval),
         userId: z.coerce.number(),
+        paymentId: z.coerce.number(),
+        newPlanId: z.coerce.number(),
+        transactionId: z.coerce.number(),
       })
       .passthrough(),
   }),
@@ -54,6 +58,10 @@ export const PaystackWebhookSchema = z.object({
         subscriptionId: z.coerce.number(),
         type: z.nativeEnum(TransactionType),
         userId: z.coerce.number(),
+        paymentId: z.coerce.number(),
+        billingCycle: z.nativeEnum(BillingInterval),
+        transactionId: z.coerce.number(),
+        newPlanId: z.coerce.number(),
       })
       .passthrough(),
     authorization: z

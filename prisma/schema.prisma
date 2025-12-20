@@ -30,8 +30,10 @@ enum BillingInterval {
 
 model Store {
   storeId     Int         @id @default(autoincrement()) @map("store_id")
-  uid         String      @unique
+  uid         String      @unique @default(uuid())
   name        String
+  logoUrl     String?     @map("logo_url")
+  color       String?
   description String?
   ssl         Boolean     @default(false)
   plan        String
@@ -66,35 +68,45 @@ enum SubscriptionPlanStatus {
 }
 
 model SubscriptionPlan {
-  id          Int                    @id @default(autoincrement())
-  uid         String                 @unique @default(uuid())
-  name        String
-  price       Decimal                @db.Decimal(10, 2)
-  currency    String
-  description String?
-  status      SubscriptionPlanStatus @default(ACTIVE)
-  features    Json
-  interval    BillingInterval
-  createdAt   DateTime               @default(now()) @map("created_at")
-  updatedAt   DateTime               @updatedAt @map("updated_at")
+  id                  Int                    @id @default(autoincrement())
+  uid                 String                 @unique @default(uuid())
+  name                String
+  price               Decimal                @db.Decimal(10, 2)
+  currency            String
+  description         String?
+  status              SubscriptionPlanStatus @default(ACTIVE)
+  features            Json
+  tax                 Int?
+  discountForAnnually Int?                   @map("discount_for_annually")
+  interval            BillingInterval
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  gracePeriod         Int?                   @map("grace_period") // number of days allowed for overdue subscription
 
-  subscriptions Subscription[]
-  Payment       Payment[]
+  subscriptions        Subscription[] @relation("ActivePlan") // active subscriptions
+  pendingSubscriptions Subscription[] @relation("PendingPlan") // scheduled downgrades
+  Payment              Payment[]
 
   @@map("subscription_plans")
 }
 
 model Subscription {
-  id        Int                @id @default(autoincrement())
-  uid       String             @unique @default(uuid())
-  userId    Int                @map("user_id")
-  planId    Int                @map("plan_id")
-  status    SubscriptionStatus
-  startedAt DateTime           @default(now()) @map("started_at")
-  expiresAt DateTime?          @map("expires_at")
+  id            Int                @id @default(autoincrement())
+  uid           String             @unique @default(uuid())
+  userId        Int                @map("user_id")
+  planId        Int                @map("plan_id")
+  pendingPlanId Int?               @map("pending_plan_id")
+  status        SubscriptionStatus
+  billingCycle  BillingInterval    @map("billing_cycle")
+  startedAt     DateTime           @default(now()) @map("started_at")
+  expiresAt     DateTime?          @map("expires_at")
 
-  user User             @relation(fields: [userId], references: [id])
-  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User              @relation(fields: [userId], references: [id])
+  plan        SubscriptionPlan  @relation("ActivePlan", fields: [planId], references: [id])
+  pendingPlan SubscriptionPlan? @relation("PendingPlan", fields: [pendingPlanId], references: [id])
 
   @@map("subscriptions")
 }
@@ -131,29 +143,36 @@ enum OnboardingStep {
 }
 
 model User {
-  id             Int            @id @default(autoincrement())
-  refCode        Int?           @unique @default(autoincrement()) @map("ref_code")
-  uid            String         @unique
-  email          String
-  fullName       String
-  image          String?
-  onboardingStep OnboardingStep @default(PLAN) @map("onboarding_step")
-  password       String
-  apiKey         String         @unique @map("api_key")
-  status         UserStatus     @default(ACTIVE)
-  balance        Decimal        @default(0.00) @db.Decimal(10, 2)
-  spent          Decimal        @default(0.00) @db.Decimal(10, 2)
-  timestamp      DateTime       @default(now())
-  lastSeen       DateTime       @default(now()) @map("last_seen")
-  currency       String         @default("USD")
+  id               Int            @id @default(autoincrement())
+  refCode          Int?           @unique @default(autoincrement()) @map("ref_code")
+  uid              String         @unique @default(uuid())
+  email            String
+  fullName         String
+  phoneNumber      String?        @map("phone_number")
+  image            String?
+  onboardingStep   OnboardingStep @default(PLAN) @map("onboarding_step")
+  password         String
+  apiKey           String         @unique @map("api_key")
+  status           UserStatus     @default(ACTIVE)
+  balance          Decimal        @default(0.00) @db.Decimal(10, 2)
+  spent            Decimal        @default(0.00) @db.Decimal(10, 2)
+  timestamp        DateTime       @default(now())
+  lastSeen         DateTime       @default(now()) @map("last_seen")
+  currency         String         @default("USD")
+  resetToken       String?        @map("reset_token")
+  resetTokenExpiry DateTime?      @map("reset_token_expiry")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   ref           Int?
-  referredBy    User?          @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
-  referrals     User[]         @relation("Referral")
+  referredBy    User?           @relation("Referral", fields: [ref], references: [refCode], onDelete: SetNull)
+  referrals     User[]          @relation("Referral")
   subscriptions Subscription[]
   stores        Store[]
   payments      Payment[]
   Notification  Notification[]
+  UploadLog     UploadLog[]
+  PlatformEvent PlatformEvent[]
 
   @@map("users")
 }
@@ -166,7 +185,7 @@ enum AdminStatus {
 
 model Admin {
   id        Int         @id @default(autoincrement())
-  uid       String      @unique
+  uid       String      @unique @default(uuid())
   email     String
   image     String?
   password  String
@@ -177,6 +196,8 @@ model Admin {
   status    AdminStatus @default(ACTIVE)
   timestamp DateTime    @default(now())
   lastSeen  DateTime    @default(now()) @map("last_seen")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("admins")
 }
@@ -193,7 +214,7 @@ enum OrderStatus {
 
 model Order {
   id        Int         @id @default(autoincrement())
-  uid       String      @unique
+  uid       String      @unique @default(uuid())
   timestamp DateTime    @default(now())
   userUid   String      @map("user_uid")
   currency  String      @default("USD")
@@ -219,7 +240,7 @@ model Blog {
   status      BlogStatus @default(ACTIVE)
   position    Int        @default(autoincrement())
   slug        String
-  uid         String     @unique
+  uid         String     @unique @default(uuid())
   timestamp   DateTime   @default(now())
 
   @@map("blogs")
@@ -235,19 +256,37 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
+enum EmailStatus {
+  SUCCESS @map("success")
+  ERROR   @map("error")
+}
+
 model EmailLog {
-  id        Int      @id @default(autoincrement())
-  uid       String   @unique
+  id        Int         @id @default(autoincrement())
+  uid       String      @unique @default(uuid())
   sender    String
   receiver  String
   subject   String
   html      String
-  status    String
-  messageId String?  @map("message_id")
+  status    EmailStatus
+  messageId String?     @map("message_id")
   response  String?
-  timestamp DateTime @default(now())
+  timestamp DateTime    @default(now())
 
   @@map("email_logs")
+}
+
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  uid       String   @unique @default(uuid())
+  type      String // e.g., "PASSWORD_RESET", "WELCOME_USER"
+  name      String? // human-readable name
+  subject   String // optional default subject
+  content   String // HTML template with {{variables}}
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_templates")
 }
 
 enum FaqStatus {
@@ -262,7 +301,7 @@ model Faq {
   status    FaqStatus @default(ACTIVE)
   position  Int       @default(autoincrement())
   slug      String
-  uid       String    @unique
+  uid       String    @unique @default(uuid())
   timestamp DateTime  @default(now())
 
   @@map("faqs")
@@ -315,8 +354,9 @@ model Setting {
   sendEmailAlerts   Boolean @default(true) @map("send_email_alerts")
   whitelistedIps    Json?   @map("whitelisted_ips") // array of IPs
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  staleItemThreshold Int?     @default(7) @map("stale_item_threshold") // number of days before marking items as failed
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
 }
@@ -341,17 +381,19 @@ enum PaymentMethod {
   MANUAL      @map("manual")
   FLUTTERWAVE @map("flutterwave")
   PAYSTACK    @map("paystack")
+  CRON        @map("cron")
 }
 
 model PaymentGateway {
   id                 Int                  @id @default(autoincrement())
-  uid                String               @unique
+  uid                String               @unique @default(uuid())
   platform           PaymentMethod        @default(MANUAL)
   name               String
   description        String?
   signature          String?
   encryptedSecretKey String?              @map("encrypted_secret_key")
   iv                 String?
+  content            String?
   image              String
   status             PaymentGatewayStatus @default(ACTIVE)
   createdAt          DateTime             @default(now()) @map("created_at")
@@ -425,6 +467,7 @@ model TicketMessage {
 
 enum TransactionStatus {
   SUCCESS   @map("success")
+  PENDING   @map("pending")
   FAILED    @map("failed")
   COMPLETED @map("completed")
   REVERSED  @map("reversed")
@@ -432,12 +475,10 @@ enum TransactionStatus {
 }
 
 enum TransactionType {
-  SUBSCRIPTION_PAYMENT @map("subscription_payment") // user pays for a plan
-  SUBSCRIPTION_RENEWAL @map("subscription_renewal") // auto/manual renewal
-  SUBSCRIPTION_REFUND  @map("subscription_refund") // refund to user
-
-  ADDON_PURCHASE @map("addon_purchase") // e.g. extra storage, extra feature
-  ADDON_REFUND   @map("addon_refund")
+  SUBSCRIPTION_PAYMENT   @map("subscription_payment") // user pays for a plan
+  SUBSCRIPTION_RENEWAL   @map("subscription_renewal") // auto/manual renewal
+  SUBSCRIPTION_UPGRADE   @map("subscription_upgrade")
+  SUBSCRIPTION_DOWNGRADE @map("subscription_downgrade")
 
   MANUAL_CREDIT @map("manual_credit") // admin tops up / compensates user
   MANUAL_DEBIT  @map("manual_debit") // admin deducts
@@ -445,7 +486,7 @@ enum TransactionType {
 
 model Transaction {
   id        Int               @id @default(autoincrement())
-  uid       String            @unique
+  uid       String            @unique @default(uuid())
   amount    Decimal           @db.Decimal(10, 2)
   timestamp DateTime          @default(now())
   status    TransactionStatus
@@ -457,13 +498,17 @@ model Transaction {
 }
 
 model UploadLog {
-  id        Int      @id @default(autoincrement())
-  uid       String   @unique
-  size      Int
-  url       String
-  filename  String
-  mimetype  String
-  timestamp DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  uid        String   @unique @default(uuid())
+  size       Int
+  url        String
+  filename   String
+  userId     Int
+  collection String
+  mimetype   String
+  timestamp  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 
   @@map("upload_logs")
 }
@@ -538,4 +583,28 @@ model Notification {
   user User? @relation(fields: [userId], references: [id])
 
   @@map("notifications")
+}
+
+enum PlatformEventCategory {
+  STORE
+  USER
+  SUBSCRIPTION
+  PAYMENT
+  SYSTEM
+}
+
+model PlatformEvent {
+  id        Int                    @id @default(autoincrement())
+  uid       String                 @unique @default(uuid())
+  userId    Int?                   @map("user_id")
+  event     String // e.g. STORE_CREATED, USER_LOGIN
+  category  PlatformEventCategory?
+  entityUid String?                @map("entity_uid") // e.g transaction or payment or user uid
+  createdAt DateTime               @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([event])
+  @@index([createdAt])
+  @@map("platform_events")
 }

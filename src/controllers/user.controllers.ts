@@ -8,55 +8,211 @@ import {
   createUserRequestSchema,
   AuthenticateUserSchema,
   updateUserSchema,
-  selectPlanSchema,
-  paymentSchema,
   setupStoreSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
 import { OnboardingStep } from "../../prisma/generated";
-import { InitializeSubscriptionPaymentSchema } from "../schemas/payment.schema";
-import * as paymentServices from "../services/payment.services";
 import { buildNotification } from "../services/notification.services";
+import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
+import { sendUserEmail } from "../emails";
 
-export const dashboardOverview = async (req: Request, res: Response) => {
-  const { user } = req.auth!;
+function getMonthRange(date: Date) {
+  return {
+    start: new Date(date.getFullYear(), date.getMonth(), 1),
+    end: new Date(date.getFullYear(), date.getMonth() + 1, 1),
+  };
+}
+type TimeRange = "Last 7 days" | "Last 30 days" | "Last 90 days";
+
+export const userAnalytics = async (req: Request, res: Response) => {
+  if (!req.auth?.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const { user } = req.auth;
 
   try {
-    const [totalStores, activeStores, store, paymentAggregate, recentActivity] =
-      await Promise.all([
-        prisma.store.count({
-          where: { ownerId: user.id },
-        }),
-        prisma.store.count({
-          where: { ownerId: user.id, status: "ACTIVE" },
-        }),
-        prisma.store.findFirst({
-          where: { ownerId: user.id },
-        }),
-        prisma.payment.aggregate({
-          _sum: { amount: true },
-          where: { userId: user.id, status: "SUCCESS" },
-        }),
-        prisma.notification.findMany({
-          where: { userId: user.id },
-          take: 20,
-          orderBy: { createdAt: "desc" },
-        }),
-      ]);
+    const now = new Date();
 
-    res.status(200).json({
+    const thisMonth = getMonthRange(now);
+    const lastMonth = getMonthRange(
+      new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    );
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const [
       totalStores,
       activeStores,
-      activePlan: store?.plan,
-      totalSpent: {
-        currency: "USD",
-        amount: paymentAggregate._sum.amount ?? 0,
+      storesThisMonth,
+      storesLastMonth,
+      activeThisMonth,
+      activeLastMonth,
+      subscription,
+      stores,
+      weeklyEvents,
+    ] = await Promise.all([
+      prisma.store.count({ where: { ownerId: user.id } }),
+      prisma.store.count({
+        where: { ownerId: user.id, status: "ACTIVE" },
+      }),
+      prisma.store.count({
+        where: {
+          ownerId: user.id,
+          timestamp: { gte: thisMonth.start, lt: thisMonth.end },
+        },
+      }),
+      prisma.store.count({
+        where: {
+          ownerId: user.id,
+          timestamp: { gte: lastMonth.start, lt: lastMonth.end },
+        },
+      }),
+      prisma.store.count({
+        where: {
+          ownerId: user.id,
+          status: "ACTIVE",
+          timestamp: { gte: thisMonth.start, lt: thisMonth.end },
+        },
+      }),
+      prisma.store.count({
+        where: {
+          ownerId: user.id,
+          status: "ACTIVE",
+          timestamp: { gte: lastMonth.start, lt: lastMonth.end },
+        },
+      }),
+      prisma.subscription.findFirst({
+        where: { userId: user.id, status: "ACTIVE" },
+        include: { plan: true },
+      }),
+      prisma.store.findMany({
+        where: { ownerId: user.id },
+        take: 5,
+        orderBy: { timestamp: "desc" },
+      }),
+      prisma.platformEvent.findMany({
+        where: {
+          userId: user.id,
+          createdAt: { gte: sevenDaysAgo },
+        },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    // ---- Store changes
+    const totalStoreChange = storesThisMonth - storesLastMonth;
+    const activeStoreChange = activeThisMonth - activeLastMonth;
+
+    // ---- Platform events aggregation for multiple ranges
+    const timeRanges: TimeRange[] = [
+      "Last 7 days",
+      "Last 30 days",
+      "Last 90 days",
+    ];
+    const platformEventsByRange: Record<
+      TimeRange,
+      { name: string; value: number }[]
+    > = {
+      "Last 7 days": [],
+      "Last 30 days": [],
+      "Last 90 days": [],
+    };
+
+    const getRangeStart = (range: TimeRange) => {
+      const date = new Date();
+      switch (range) {
+        case "Last 7 days":
+          date.setDate(date.getDate() - 6);
+          break;
+        case "Last 30 days":
+          date.setDate(date.getDate() - 29);
+          break;
+        case "Last 90 days":
+          date.setDate(date.getDate() - 89);
+          break;
+      }
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+    timeRanges.forEach((range) => {
+      const start = getRangeStart(range);
+      const filteredEvents = weeklyEvents.filter(
+        (e) => new Date(e.createdAt) >= start
+      );
+
+      const map = new Map<string, number>();
+      const daysCount =
+        range === "Last 7 days" ? 7 : range === "Last 30 days" ? 30 : 90;
+
+      for (let i = 0; i < daysCount; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        const label = d.toLocaleDateString("en-US", { weekday: "short" });
+        map.set(label, 0);
+      }
+
+      filteredEvents.forEach((event) => {
+        const d = new Date(event.createdAt);
+        const label = d.toLocaleDateString("en-US", { weekday: "short" });
+        map.set(label, (map.get(label) || 0) + 1);
+      });
+
+      platformEventsByRange[range] = Array.from(map.entries()).map(
+        ([name, value]) => ({
+          name,
+          value,
+        })
+      );
+    });
+
+    const features = subscription?.plan.features as SubscriptionPlanFeatures;
+    const formattedFeatures = features
+      ? [
+          { name: "Stores", value: features.stores },
+          { name: "Products", value: features.products ?? 0 },
+          { name: "API Calls", value: features.api_access ? 1 : 0 },
+          { name: "Staff Accounts", value: features.staff_accounts },
+          { name: "Available Templates", value: features.available_templates },
+        ]
+      : [];
+
+    return res.status(200).json({
+      stores: {
+        total: {
+          value: totalStores,
+          change:
+            totalStoreChange === 0
+              ? "No change this month"
+              : totalStoreChange > 0
+              ? `+${totalStoreChange} this month`
+              : `${totalStoreChange} this month`,
+        },
+        active: {
+          value: activeStores,
+          change:
+            activeStoreChange === 0
+              ? "No change this month"
+              : activeStoreChange > 0
+              ? `+${activeStoreChange} this month`
+              : `${activeStoreChange} this month`,
+        },
       },
-      recentActivity,
+      subscription: {
+        currentPlan: subscription?.plan.name ?? "Free",
+        nextBillingDate: subscription?.expiresAt ?? null,
+        features: formattedFeatures,
+      },
+      platformEvents: platformEventsByRange,
+      allStores: stores,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch dashboard overview" });
+    return res.status(500).json({ error: "Failed to fetch analytics" });
   }
 };
 
@@ -107,7 +263,14 @@ export const createUser = async (req: Request, res: Response) => {
         apiKey: uuidv4(),
       },
     });
-
+    await prisma.platformEvent.create({
+      data: {
+        event: "USER_CREATED",
+        category: "USER",
+        entityUid: user.uid,
+        userId: user.id,
+      },
+    });
     const token = jwt.sign(
       { email, apiKey: user.apiKey, role: "user" },
       env.JWT_SECRET,
@@ -123,7 +286,7 @@ export const createUser = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const { password: pass, ...safeUser } = user;
+    const { password: pass, resetToken, resetTokenExpiry, ...safeUser } = user;
 
     res.status(201).json({
       success: "Successfully created user",
@@ -132,89 +295,6 @@ export const createUser = async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
-  }
-};
-
-export const selectPlan = async (req: Request, res: Response) => {
-  try {
-    const parsed = selectPlanSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
-      return;
-    }
-
-    const { planId } = parsed.data;
-    const userId = req.auth?.user.id!;
-
-    // Check if plan exists
-    const plan = await prisma.subscriptionPlan.findUnique({
-      where: { id: planId },
-    });
-
-    if (!plan) {
-      res.status(404).json({ error: "Subscription plan not found" });
-      return;
-    }
-
-    // Create subscription (status depends on price)
-    const status = plan.price.equals(0) ? "ACTIVE" : "PENDING";
-
-    const subscription = await prisma.subscription.create({
-      data: {
-        userId,
-        planId,
-        status,
-        startedAt: new Date(),
-        expiresAt: plan.price.equals(0)
-          ? new Date(new Date().setFullYear(new Date().getFullYear() + 100)) // basically never expires
-          : null,
-      },
-    });
-
-    // Update user onboarding step
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        onboardingStep: plan.price.equals(0) ? "STORE_DETAILS" : "PAYMENT",
-      },
-    });
-
-    res.status(201).json({
-      message: "Plan selected successfully",
-      subscription,
-      nextStep: plan.price.equals(0) ? "STORE_DETAILS" : "PAYMENT",
-    });
-  } catch (error: any) {
-    console.error("Error selecting plan:", error);
-    res.status(500).json({ error: error.message || "Internal server error" });
-  }
-};
-
-export const initializeSubscriptionPayment = async (
-  req: Request,
-  res: Response
-) => {
-  const parsed = InitializeSubscriptionPaymentSchema.safeParse(req.body);
-  const authParsed = AuthSchema.safeParse(req.auth);
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  const { user } = authParsed.data;
-  if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() });
-    return;
-  }
-
-  try {
-    const result = await paymentServices.createSubscriptionPayment(
-      user,
-      parsed.data
-    );
-    res.status(200).json({ status: "success", ...result });
-  } catch (err: any) {
-    res.status(500).json({ status: "error", error: err.message });
   }
 };
 
@@ -249,7 +329,9 @@ export const setupStore = async (req: Request, res: Response) => {
     });
 
     if (!existingSubscription) {
-      res.status(400).json({ error: "Subscription not found" });
+      res
+        .status(400)
+        .json({ error: "Subscription not found, please click on back." });
       return;
     }
 
@@ -259,6 +341,8 @@ export const setupStore = async (req: Request, res: Response) => {
         data: {
           type,
           name,
+          logoUrl,
+          color,
           uid: domain,
           plan: existingSubscription.plan.name,
           ownerId: userId,
@@ -278,6 +362,15 @@ export const setupStore = async (req: Request, res: Response) => {
           message: notificationDetails.message,
           userId: userId,
           meta: notificationDetails.meta,
+        },
+      });
+
+      await tx.platformEvent.create({
+        data: {
+          event: "USER_LOGIN",
+          category: "USER",
+          entityUid: req.auth?.uid,
+          userId: userId,
         },
       });
       return { store };
@@ -309,10 +402,20 @@ export const me = async (req: Request, res: Response) => {
 
   try {
     const account = await prisma.user.findFirst({ where: { email } });
+
     if (!account)
       return res.status(400).json({ error: "Incorrect login details" });
     if (account.status === "BANNED")
       return res.status(403).json({ error: "Account is banned." });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "USER_LOGIN",
+        category: "USER",
+        entityUid: account.uid,
+        userId: account.id,
+      },
+    });
 
     const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch)
@@ -331,7 +434,12 @@ export const me = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const { password: pass, ...safeUser } = account;
+    const {
+      password: pass,
+      resetToken,
+      resetTokenExpiry,
+      ...safeUser
+    } = account;
     res.status(200).json({
       success: "Logged in successfully",
       user: safeUser,
@@ -392,19 +500,111 @@ export const deleteUsers = async (req: Request, res: Response) => {
 };
 
 export const updateUser = async (req: Request, res: Response) => {
+  const { uid } = req.auth!;
   const input = updateUserSchema.safeParse(req.body);
   if (!input.success)
     return res.status(400).json({ error: input.error.flatten() });
 
-  const { uid, ...fields } = input.data;
+  const { ...fields } = input.data;
 
   try {
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { uid },
       data: fields,
     });
-    res.status(200).json({ success: "Successfully updated user" });
+    const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
+    res
+      .status(200)
+      .json({ success: "Successfully updated user", user: safeUser });
   } catch {
     res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const input = forgotPasswordSchema.safeParse(req.body);
+  if (!input.success) {
+    return res.status(400).json({ error: input.error.flatten() });
+  }
+
+  const { email } = input.data;
+
+  try {
+    // Find user by email
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User with this email not found." });
+    }
+
+    // Generate reset token and expiry
+    const resetToken = uuidv4();
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Save token to user record
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken, resetTokenExpiry },
+    });
+
+    // Send password reset email
+    await sendUserEmail(user.email, "FORGOT_PASSWORD", {
+      email: user.email,
+      token: resetToken,
+    });
+
+    return res.status(200).json({
+      success: "A password reset link has been sent to your email.",
+    });
+  } catch (err: any) {
+    console.error("forgotPassword error:", err);
+    return res.status(500).json({ error: "Failed to process password reset." });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const input = resetPasswordSchema.safeParse(req.body);
+  if (!input.success)
+    return res.status(400).json({ error: input.error.flatten() });
+
+  const { password, token, email } = input.data;
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "User not found." });
+    }
+
+    if (!user.resetToken || user.resetToken !== token) {
+      return res.status(400).json({ error: "Invalid reset token." });
+    }
+
+    if (
+      !user.resetTokenExpiry ||
+      new Date(user.resetTokenExpiry) < new Date()
+    ) {
+      return res.status(400).json({ error: "Token expired." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    // Send password changed email
+    await sendUserEmail(user.email, "PASSWORD_CHANGED");
+    res.status(200).json({ success: "Password updated successfully." });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to update password: " + err.message });
   }
 };

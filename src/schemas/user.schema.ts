@@ -7,7 +7,6 @@ import {
   UserStatus,
 } from "../../prisma/generated";
 import { Decimal } from "@prisma/client/runtime/library";
-import { AdminSchema } from "./admin.schema";
 
 extendZodWithOpenApi(z);
 
@@ -16,10 +15,11 @@ export const UserSchema: z.ZodType<User> = z
     id: z.number(),
     email: z.string().email(),
     uid: z.string().uuid(),
+    phoneNumber: z.string(),
     apiKey: z.string().uuid(),
-    ref: z.number(),
+    ref: z.number().nullable(),
     refCode: z.number(),
-    image: z.string().url(),
+    image: z.string().url().nullable(),
     password: z.string(),
     currency: z.string().toUpperCase().length(3),
     fullName: z.string(),
@@ -27,30 +27,40 @@ export const UserSchema: z.ZodType<User> = z
     balance: z.custom<Decimal>(),
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
+    updatedAt: z.coerce.date(),
+    resetToken: z.string(),
+    resetTokenExpiry: z.coerce.date(),
     status: z.nativeEnum(UserStatus),
     onboardingStep: z.nativeEnum(OnboardingStep),
   })
   .openapi("User");
 
-export const AuthSchema = z.object({
-  uid: z.string().uuid(),
-  user: UserSchema || AdminSchema,
-});
-
 export const UserPublicSchema = z
   .object({
     id: z.number(),
+    ref: z.number().nullable(),
+    refCode: z.number(),
     email: z.string().email(),
+    uid: z.string().uuid(),
     fullName: z.string(),
-    image: z.string().url(),
+    image: z.string().url().nullable(),
+    lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
     currency: z.string().toUpperCase().length(3),
     status: z.nativeEnum(UserStatus),
-    spent: z.custom<Decimal>(),
-    balance: z.custom<Decimal>(),
-    lastSeen: z.coerce.date(),
+    spent: z.coerce.string(),
+    balance: z.coerce.string(),
+    onboardingStep: z.nativeEnum(OnboardingStep),
   })
   .openapi("UserPublic");
+
+export type UserPublic = z.infer<typeof UserPublicSchema>;
+
+export const AuthSchema = z.object({
+  uid: z.string().uuid(),
+  type: z.literal("user"),
+  user: UserPublicSchema,
+});
 
 export const AuthenticateUserResponseSchema = z.object({
   success: z.literal("Logged in successfully"),
@@ -79,8 +89,10 @@ export const createUserRequestSchema = z.object({
 });
 
 export const updateUserSchema = z.object({
-  uid: z.string(),
   username: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  email: z.string().email().optional(),
+  image: z.string().optional(),
   fullName: z.string().optional(),
 });
 
@@ -88,10 +100,6 @@ export const tokenPayloadSchema = z.object({
   email: z.string().email(),
   apiKey: z.string(),
   uid: z.string(),
-});
-
-export const selectPlanSchema = z.object({
-  planId: z.number(),
 });
 
 export const paymentSchema = z.object({
@@ -106,4 +114,14 @@ export const setupStoreSchema = z.object({
   domain: z.string(),
   logoUrl: z.string().url().optional(),
   color: z.string().optional(),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  email: z.string().email(),
+  password: z.string(),
 });

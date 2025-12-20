@@ -95,6 +95,24 @@ export const DeleteRoleResponse = {
   },
 };
 
+export const OverviewResponse = {
+  description: "Overview retrieved successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        totalStores: z.number(),
+        activeStores: z.number(),
+        activePlan: z.string(),
+        totalSpent: z.object({
+          currency: z.string().length(3),
+          amount: z.custom<Decimal>(),
+        }),
+        recentActivity: z.array(NotificationSchema),
+      }),
+    },
+  },
+};
+
 export const AssignPermissionToRoleResponse = {
   description: "Successfully assigned permission to a role",
   content: {

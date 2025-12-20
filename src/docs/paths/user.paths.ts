@@ -3,7 +3,8 @@ import { z } from "zod";
 import {
   AuthenticateUserSchema,
   createUserRequestSchema,
-  selectPlanSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   setupStoreSchema,
   updateUserSchema,
 } from "../../schemas/user.schema";
@@ -16,10 +17,8 @@ import {
   VerifySessionResponse,
   GetUserByUidResponse,
   CreateUserResponse,
-  SelectPlanResponse,
-  InitializeSubscriptionPaymentResponse,
   SetupStoreResponse,
-  DashboardOverviewResponse,
+  AnalyticsResponse,
 } from "../responses/user.response";
 
 import {
@@ -28,7 +27,6 @@ import {
   ServerError,
   SuccessResponse,
 } from "../responses/common.response";
-import { InitializeSubscriptionPaymentSchema } from "../../schemas/payment.schema";
 
 // Authenticate user
 registry.registerPath({
@@ -197,15 +195,63 @@ registry.registerPath({
   },
 });
 
-// User's dashboard overview
+// User's analytics
 registry.registerPath({
   method: "get",
-  path: "/users/dashboard/overview",
-  summary: "User's dashboard overview",
+  path: "/users/analytics",
+  summary: "User's analytics",
   tags: ["Users"],
   security: [{ CookieAuth: [] }],
   responses: {
-    200: DashboardOverviewResponse,
+    200: AnalyticsResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// User's forgot password
+registry.registerPath({
+  method: "post",
+  path: "/users/forgot-password",
+  summary: "Send password reset link to user's email",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: forgotPasswordSchema,
+        },
+      },
+    },
+  },
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// User's reset password
+registry.registerPath({
+  method: "post",
+  path: "/users/reset-password",
+  summary: "Reset user's password",
+  tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: resetPasswordSchema,
+        },
+      },
+    },
+  },
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: SuccessResponse,
     400: BadRequest,
     403: Forbidden,
     500: ServerError,
@@ -217,48 +263,6 @@ registry.registerPath({
  * ROUTES FOR ONBOARDING USERS
  *
  */
-
-registry.registerPath({
-  method: "post",
-  path: "/users/onboarding/select-plan",
-  summary: "Select Plan for onboarding users",
-  tags: ["Users"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: selectPlanSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: SelectPlanResponse,
-    400: BadRequest,
-    500: ServerError,
-  },
-});
-
-registry.registerPath({
-  method: "post",
-  path: "/users/onboarding/initialize-payment",
-  summary: "Initialze payment for onboarding users",
-  tags: ["Users"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: InitializeSubscriptionPaymentSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    200: InitializeSubscriptionPaymentResponse,
-    400: BadRequest,
-    500: ServerError,
-  },
-});
 
 registry.registerPath({
   method: "post",

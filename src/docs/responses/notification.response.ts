@@ -22,3 +22,14 @@ export const GetAUserNotificationsResponse = {
     },
   },
 };
+
+export const GetNotificationUnreadCountResponse = {
+  description: "Unread notification count for a specific user",
+  content: {
+    "application/json": {
+      schema: z.object({
+        unreadCount: z.number(),
+      }),
+    },
+  },
+};

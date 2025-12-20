@@ -3,11 +3,11 @@ import rateLimit from "express-rate-limit";
 export const limittAdd = rateLimit({
   windowMs: 30 * 60 * 1000, // 30 mins
   max: 3,
-  message: "Too many import attempts. Please try again later.",
+  message: "Too many attempts. Please try again later.",
 });
 
 export const limittActions = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 mins
-  max: 10,
+  max: 20,
   message: "Too many actions. Please slow down.",
 });

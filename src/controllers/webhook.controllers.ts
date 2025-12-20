@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import paymentService from "../services/payment.services";
+import paymentService from "../services/subscription/payment.services";
 import {
   verifyPaystackSignature,
   verifyFlutterwaveSignature,

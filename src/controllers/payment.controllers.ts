@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { PaymentPublicSchema, PaymentSchema } from "../schemas/payment.schema";
 import { AuthSchema } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
 
@@ -19,12 +18,10 @@ export const getPaymentsForUsers = async (
     const payments = await prisma.payment.findMany({
       where: { userId: user.id },
       orderBy: { id: "desc" },
+      include: { plan: true },
     });
 
-    const parsedPayments = payments.map(
-      (o) => PaymentPublicSchema.safeParse(o).data
-    );
-    res.status(200).json(parsedPayments);
+    res.status(200).json(payments);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -41,14 +38,12 @@ export const getPaymentsForAdmins = async (
   }
 
   try {
-    const payment = await prisma.payment.findMany({
+    const payments = await prisma.payment.findMany({
       orderBy: { id: "desc" },
+      include: { plan: true },
     });
 
-    const parsedPayments = payment.map(
-      (o) => PaymentSchema.safeParse(o).data
-    );
-    res.status(200).json(parsedPayments);
+    res.status(200).json(payments);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

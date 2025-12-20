@@ -7,11 +7,15 @@ extendZodWithOpenApi(z);
 
 export const NotificationTypeEnum = z.enum([
   "SUBSCRIPTION_PAYMENT",
+  "SUBSCRIPTION_UPGRADE",
+  "SUBSCRIPTION_DOWNGRADE",
   "SUBSCRIPTION_RENEWAL",
+  "SUBSCRIPTION_EXPIRED",
   "STORE_APPROVED",
   "STORE_REJECTED",
-  "SUBSCRIPTION_EXPIRED",
   "STORE_CREATED",
+  "MANUAL_CREDIT",
+  "MANUAL_DEBIT",
 ]);
 
 export type NotificationType = z.infer<typeof NotificationTypeEnum>;
@@ -38,4 +42,8 @@ export const NotificationSchema: z.ZodType<Notification> = z
 export const GetNotificationsSchema = z.object({
   page: z.coerce.number().default(1),
   limit: z.coerce.number().default(20),
+});
+
+export const NotificationsUidSchema = z.object({
+  uid: z.string().uuid(),
 });

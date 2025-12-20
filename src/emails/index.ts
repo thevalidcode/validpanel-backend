@@ -1,153 +1,145 @@
-// import nodemailer from "nodemailer";
-// import { getTemplate } from "./templates";
+import nodemailer from "nodemailer";
+import { prisma } from "../config/db.config";
+import { EmailTemplateVars, getTemplate } from "./templates";
 
-// const transporter = nodemailer.createTransport({
-//   sendmail: true,
-//   newline: "unix",
-//   path: "/usr/sbin/sendmail",
-// });
+interface DispatchEmailParams {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+}
 
-// function interpolate(template: string, variables: Record<string, any>): string {
-//   return template.replace(
-//     /\{\{(.*?)\}\}/g,
-//     (_, key) => variables[key.trim()] ?? ""
-//   );
-// }
+interface BuildTemplateResult {
+  subject: string;
+  html: string;
+}
 
-// async function loadGeneralSettings(store_id: number) {
-//   const general = await getDocs("general", store_id);
-//   return general[0];
-// }
+// ----------------------------
+// Transporter Setup
+// ----------------------------
+const transporter = nodemailer.createTransport({
+  sendmail: true,
+  newline: "unix",
+  path: "/usr/sbin/sendmail",
+});
 
-// async function loadAdminEmails(store_id: number): Promise<string[]> {
-//   const docs = await getDocs("admin_emails", store_id);
-//   return docs.map((doc: any) => doc.emails);
-// }
+// ----------------------------
+// Utility: Interpolation
+// ----------------------------
+function interpolate(template: string, variables: Record<string, any>): string {
+  return template.replace(
+    /\{\{(.*?)\}\}/g,
+    (_, key) => variables[key.trim()] ?? ""
+  );
+}
 
-// async function buildEmailTemplate(
-//   type: string,
-//   data: Record<string, any>,
-//   logo_url: string,
-//   store_id: number
-// ): Promise<{ subject: string; html: string }> {
-//   const template = await getDocs("email_templates", store_id, {
-//     find: { type },
-//   });
+// ----------------------------
+// Load General Settings
+// ----------------------------
+async function loadGeneralSettings(): Promise<{ logoUrl: string }> {
+  const setting = await prisma.setting.findFirst();
+  return { logoUrl: setting?.logoUrl ?? "" };
+}
 
-//   const variables = { logo: logo_url || "", ...data };
-//   const htmlFromDb = interpolate(template?.content || "", variables);
-//   const fallbackHtml = getTemplate(type as any, variables);
+// ----------------------------
+// Build Email Template
+// ----------------------------
+export async function buildEmailTemplate(
+  type: keyof EmailTemplateVars,
+  data: Record<string, any>,
+  logoUrl: string
+): Promise<{ subject: string; html: string }> {
+  const template = await prisma.emailTemplate.findFirst({ where: { type } });
+  const variables = { logo: logoUrl, ...data };
 
-//   const subject =
-//     type
-//       .replace(/([A-Z])/g, " $1")
-//       .replace(/^./, (s) => s.toUpperCase())
-//       .trim() + " Notification";
+  const htmlFromDb = template ? interpolate(template.content, variables) : "";
+  const fallback = getTemplate(type, variables);
+  const newSubject = template?.subject || fallback.subject;
 
-//   return {
-//     subject,
-//     html: htmlFromDb || fallbackHtml,
-//   };
-// }
+  return {
+    subject: newSubject,
+    html: htmlFromDb || fallback.html,
+  };
+}
 
-// async function dispatchEmail({
-//   from,
-//   to,
-//   subject,
-//   html,
-//   store_id,
-// }: {
-//   from: string;
-//   to: string;
-//   subject: string;
-//   html: string;
-//   store_id: number;
-// }): Promise<boolean> {
-//   try {
-//     const result = await transporter.sendMail({ from, to, subject, html });
+// ----------------------------
+// Dispatch Email & Log
+// ----------------------------
+async function dispatchEmail({
+  from,
+  to,
+  subject,
+  html,
+}: DispatchEmailParams): Promise<boolean> {
+  try {
+    const result = await transporter.sendMail({ from, to, subject, html });
 
-//     await addDoc(
-//       "email_logs",
-//       {
-//         sender: from,
-//         receiver: to,
-//         subject,
-//         html,
-//         status: "success",
-//         timestamp: new Date(),
-//         message_id: result.messageId,
-//         response: result.response,
-//       },
-//       store_id
-//     );
+    await prisma.emailLog.create({
+      data: {
+        sender: from,
+        receiver: to,
+        subject,
+        html,
+        status: "SUCCESS",
+        messageId: result.messageId,
+        response: result.response,
+        timestamp: new Date(),
+      },
+    });
 
-//     return true;
-//   } catch (err: any) {
-//     await addDoc(
-//       "email_logs",
-//       {
-//         sender: from,
-//         receiver: to,
-//         subject,
-//         html,
-//         status: "error",
-//         timestamp: new Date(),
-//         response: err.message,
-//       },
-//       store_id
-//     );
-//     return false;
-//   }
-// }
+    return true;
+  } catch (err: any) {
+    await prisma.emailLog.create({
+      data: {
+        sender: from,
+        receiver: to,
+        subject,
+        html,
+        status: "ERROR",
+        response: err.message,
+        timestamp: new Date(),
+      },
+    });
 
-// export async function sendEmail(
-//   from = '"Skip Talking Stage" <contact@validpanel.com>',
-//   type: string,
-//   data: Record<string, any>,
-//   store_id: number
-// ): Promise<void> {
-//   try {
-//     if (type === "new_order" && data.price <= 0) return;
+    console.error(`Failed to send email to ${to}:`, err.message);
+    return false;
+  }
+}
 
-//     const [logo, recipients] = await Promise.all([
-//       loadGeneralSettings(store_id).then((g) => g.logo_url),
-//       loadAdminEmails(store_id),
-//     ]);
+// ----------------------------
+// Send Email to Admins
+// ----------------------------
+export async function sendEmailToAdmins(
+  type: keyof EmailTemplateVars,
+  data: Record<string, any>,
+  from = '"Valid Panel" <contact@validpanel.com>'
+): Promise<void> {
+  try {
+    const { logoUrl } = await loadGeneralSettings();
+    const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
 
-//     const { subject, html } = await buildEmailTemplate(
-//       type,
-//       data,
-//       logo,
-//       store_id
-//     );
+    const adminEmail = "backend@validpanel.com"; // Could be multiple emails later
+    await dispatchEmail({ from, to: adminEmail, subject, html });
+  } catch (err: any) {
+    console.error(`sendEmailToAdmins error: ${err.message}`);
+  }
+}
 
-//     await Promise.all(
-//       recipients.map((to) =>
-//         dispatchEmail({ from, to, subject, html, store_id })
-//       )
-//     );
-//   } catch (err: any) {
-//     console.error({ error: err.message });
-//   }
-// }
+// ----------------------------
+// Send Email to a User
+// ----------------------------
+export async function sendUserEmail(
+  to: string,
+  type: keyof EmailTemplateVars,
+  data: Record<string, any> = {},
+  from = '"Valid Panel" <notifications@validpanel.com>'
+): Promise<void> {
+  try {
+    const { logoUrl } = await loadGeneralSettings();
+    const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
 
-// export async function sendUserEmail(
-//   from = '"Store" <notifications@validpanel.com>',
-//   to: string,
-//   type: string,
-//   data: Record<string, any>,
-//   store_id: number
-// ): Promise<void> {
-//   try {
-//     const logo = (await loadGeneralSettings(store_id)).logo_url;
-//     const { subject, html } = await buildEmailTemplate(
-//       type,
-//       data,
-//       logo,
-//       store_id
-//     );
-//     await dispatchEmail({ from, to, subject, html, store_id });
-//   } catch (err: any) {
-//     console.error({ error: err.message });
-//   }
-// }
+    await dispatchEmail({ from, to, subject, html });
+  } catch (err: any) {
+    console.error(`sendUserEmail error for ${to}: ${err.message}`);
+  }
+}

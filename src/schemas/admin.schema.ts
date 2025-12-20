@@ -21,6 +21,7 @@ export const AdminSchema: z.ZodType<Admin> = z
     fullName: z.string(),
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
+    updatedAt: z.coerce.date(),
     status: z.nativeEnum(AdminStatus),
     roleId: z.number(),
   })
@@ -89,4 +90,10 @@ export const UidSchema = z.object({
 
 export const SuccessMessageSchema = z.object({
   success: z.string().describe("Admin operation was successful"),
+});
+
+export const AdminAuthSchema = z.object({
+  uid: z.string(),
+  type: z.literal("admin"),
+  user: AdminSchema,
 });

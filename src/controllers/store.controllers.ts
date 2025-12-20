@@ -7,6 +7,7 @@ import {
   AdminActionSchema,
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
+import { AdminAuthSchema } from "../schemas/admin.schema";
 import { buildNotification } from "../services/notification.services";
 
 export const getActiveStores = async (
@@ -63,7 +64,8 @@ export const createStore = async (
     return;
   }
 
-  const { type, domain, name, description, subscriptionId } = parsed.data;
+  const { type, domain, name, description, subscriptionId, logoUrl, color } =
+    parsed.data;
   const { user } = authParsed.data;
 
   // Check if domain already exists
@@ -97,6 +99,8 @@ export const createStore = async (
           uid: domain,
           type,
           name,
+          logoUrl,
+          color,
           description,
           plan: existingSubscription.plan.name,
           status: "PENDING",
@@ -117,6 +121,15 @@ export const createStore = async (
           message: notificationDetails.message,
           userId: user.id,
           meta: notificationDetails.meta,
+        },
+      });
+
+      await tx.platformEvent.create({
+        data: {
+          event: "STORE_CREATED",
+          category: "STORE",
+          entityUid: store.uid,
+          userId: user.id,
         },
       });
       return { store };
@@ -151,19 +164,23 @@ export const updateStore = async (
   }
 
   const { uid } = uidParsed.data;
-  const { name, description } = bodyParsed.data;
+  const { name, description, logoUrl, color, status } = bodyParsed.data;
   const { user } = authParsed.data;
 
   try {
-    const store = await prisma.store.findUnique({ where: { uid } });
+    const store = await prisma.store.findUnique({
+      where: { uid, ownerId: user.id },
+    });
+
     if (!store) {
-      res.status(404).json({ error: "Store not found" });
+      res.status(404).json({ error: "No store was found for this update" });
       return;
-      [];
     }
 
-    if (store.ownerId !== user.id) {
-      res.status(403).json({ error: "Unauthorized to update this store" });
+    if (store.status === "PENDING") {
+      res.status(400).json({
+        error: "Cannot update a store while it's on pending approval.",
+      });
       return;
     }
 
@@ -171,6 +188,9 @@ export const updateStore = async (
       where: { uid },
       data: {
         name: name || store.name,
+        color: color || store.color,
+        logoUrl: logoUrl || store.logoUrl,
+        status: status || store.status,
         description: description || store.description,
       },
     });

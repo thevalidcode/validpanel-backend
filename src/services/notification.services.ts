@@ -9,7 +9,7 @@ export function buildNotification(params: {
   category: NotificationCategory;
   type: NotificationType;
   planName?: string;
-  expiresAt?: Date;
+  expiresAt?: Date | null;
   status?: "success" | "failed";
   meta?: NotificationMeta;
 }): {
@@ -38,6 +38,14 @@ export function buildNotification(params: {
             title = "Subscription Activated";
             message = `Your ${planName} plan is active until ${expiresAt?.toLocaleDateString()}.`;
             break;
+          case "SUBSCRIPTION_UPGRADE":
+            title = "Subscription Upgrade Successful";
+            message = `Your ${planName} plan is active until ${expiresAt?.toLocaleDateString()}.`;
+            break;
+          case "SUBSCRIPTION_DOWNGRADE":
+            title = "Subscription Downgrade Successful";
+            message = `Your ${planName} plan is active until ${expiresAt?.toLocaleDateString()}.`;
+            break;
           case "SUBSCRIPTION_RENEWAL":
             title = "Subscription Renewed";
             message = `Your ${planName} plan has been renewed until ${expiresAt?.toLocaleDateString()}.`;
@@ -55,6 +63,14 @@ export function buildNotification(params: {
           case "SUBSCRIPTION_RENEWAL":
             title = "Subscription Renewal Failed";
             message = `Your renewal payment for ${planName} failed.`;
+            break;
+          case "SUBSCRIPTION_UPGRADE":
+            title = "Subscription Upgrade Failed";
+            message = `Your upgrade payment for ${planName} failed.`;
+            break;
+          case "SUBSCRIPTION_DOWNGRADE":
+            title = "Subscription Downgrade Failed";
+            message = `Your downgrade for ${planName} failed.`;
             break;
           default:
             title = "Payment Failed";
@@ -89,6 +105,10 @@ export function buildNotification(params: {
         case "SUBSCRIPTION_EXPIRED":
           title = "Subscription Expired";
           message = `Your ${planName} subscription expired on ${expiresAt?.toLocaleDateString()}.`;
+          break;
+        case "SUBSCRIPTION_RENEWAL":
+          title = "Subscription Renewal Failed";
+          message = `Your renewal for ${planName} was successful.`;
           break;
         default:
           title = "Subscription Notice";

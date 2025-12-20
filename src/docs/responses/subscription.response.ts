@@ -19,24 +19,11 @@ export const SubscriptionForUsersListResponse = {
   },
 };
 
-export const SubscriptionAdminsObject = {
+export const SubscriptionObject = {
   description: "Single subscription object",
   content: {
     "application/json": {
-      schema: z.object({
-        SubscriptionSchema,
-      }),
-    },
-  },
-};
-
-export const SubscriptionUsersObject = {
-  description: "Single subscription object",
-  content: {
-    "application/json": {
-      schema: z.object({
-        SubscriptionSchema,
-      }),
+      schema: SubscriptionSchema,
     },
   },
 };
@@ -46,7 +33,7 @@ export const SubscriptionCreatedResponse = {
   content: {
     "application/json": {
       schema: z.object({
-        success: z.literal("Subscription added successfully.")
+        success: z.literal("Subscription added successfully."),
       }),
     },
   },
@@ -57,7 +44,26 @@ export const SubscriptionUpdatedResponse = {
   content: {
     "application/json": {
       schema: z.object({
-        success: z.literal("Subscription updated successfully.")
+        success: z.literal("Subscription updated successfully."),
+      }),
+    },
+  },
+};
+
+export const SubscriptionPaymentResponse = {
+  description: "Initialized payment successfully",
+  content: {
+    "application/json": {
+      schema: z.object({
+        status: z.literal("success"),
+        url: z
+          .string()
+          .url()
+          .describe(
+            "This is the url the user will be redirected to, to complete the payment for the subscription."
+          )
+          .optional(),
+        message: z.string().optional(),
       }),
     },
   },

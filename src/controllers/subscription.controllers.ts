@@ -3,9 +3,13 @@ import { prisma } from "../config/db.config";
 import { AuthSchema } from "../schemas/user.schema";
 import {
   SubscriptionUidSchema,
-  SubscriptionCreateRequestSchema,
   SubscriptionUpdateRequestSchema,
+  UpgradePlanSchema,
+  DowngradePlanSchema,
+  SubscriptionPaymentSchema,
+  RenewSubscriptionPaymentSchema,
 } from "../schemas/subscription.schema";
+import * as paymentServices from "../services/subscription/payment.services";
 
 export const getSubscriptions = async (
   req: Request,
@@ -21,9 +25,34 @@ export const getSubscriptions = async (
   try {
     const subscriptions = await prisma.subscription.findMany({
       orderBy: { id: "desc" },
+      include: { plan: true },
     });
 
     res.status(200).json(subscriptions);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getActiveSubscriptionForUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AuthSchema.safeParse(req.auth);
+
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const subscription = await prisma.subscription.findFirst({
+      where: { status: "ACTIVE" },
+      orderBy: { id: "desc" },
+      include: { plan: true },
+    });
+
+    res.status(200).json(subscription);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -53,6 +82,7 @@ export const getSubscriptionByUid = async (
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { uid },
+      include: { plan: true },
     });
 
     res.status(200).json(subscription);
@@ -77,6 +107,7 @@ export const getSubscriptionsForUser = async (
     const subscriptions = await prisma.subscription.findMany({
       where: { status: "ACTIVE", userId: user.id },
       orderBy: { id: "desc" },
+      include: { plan: true },
     });
 
     res.status(200).json(subscriptions);
@@ -117,41 +148,250 @@ export const getSubscriptionByUidForUser = async (
   }
 };
 
-export const addSubscription = async (
+export const upgradePlan = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
-  const bodyParsed = SubscriptionCreateRequestSchema.safeParse(req.body);
+  const parsed = UpgradePlanSchema.safeParse(req.body);
 
-  if (!authParsed.success || !bodyParsed.success) {
+  if (!parsed.success || !authParsed.success) {
     res.status(400).json({
       error: {
-        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
-        body: !bodyParsed.success ? bodyParsed.error.flatten() : undefined,
+        auth: authParsed.error?.flatten(),
+        body: parsed.error?.flatten(),
       },
     });
     return;
   }
 
-  const { planId, userId } = bodyParsed.data;
+  const { planId } = parsed.data;
+  const { user } = authParsed.data;
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.subscription.create({
-        data: {
-          status: "PENDING",
-          userId,
-          planId,
-        },
-      });
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId, status: "ACTIVE" },
+    });
+
+    if (!plan) {
+      res.status(404).json({ error: "Subscription plan not found" });
+      return;
+    }
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId: user.id, status: "ACTIVE" },
+    });
+
+    if (!subscription) {
+      res
+        .status(404)
+        .json({ error: "You don't have any active subscription." });
+      return;
+    }
+
+    const result = await paymentServices.upgradePlan(user, {
+      ...parsed.data,
+      subscriptionId: subscription.id,
+    });
+
+    res.status(200).json({ status: "success", ...result });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+export const downgradePlan = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  // Validate auth and request body
+  const authParsed = AuthSchema.safeParse(req.auth);
+  const parsed = DowngradePlanSchema.safeParse(req.body);
+
+  if (!authParsed.success || !parsed.success) {
+    res.status(400).json({
+      error: {
+        auth: authParsed.error?.flatten(),
+        body: parsed.error?.flatten(),
+      },
+    });
+    return;
+  }
+
+  const { user } = authParsed.data;
+  const { planId } = parsed.data;
+
+  try {
+    // Check target plan exists and is active
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId, status: "ACTIVE" },
+    });
+
+    if (!plan) {
+      res.status(404).json({ error: "Target subscription plan not found." });
+      return;
+    }
+
+    // Fetch user's active subscription
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId: user.id, status: "ACTIVE" },
+    });
+
+    if (!subscription) {
+      res
+        .status(404)
+        .json({ error: "You don't have any active subscription." });
+      return;
+    }
+
+    // Schedule the downgrade by updating pendingPlanId
+    if (subscription.planId === plan.id) {
+      res.status(400).json({ error: "You are already on this plan." });
+      return;
+    }
+
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        pendingPlanId: plan.id, // only update what is necessary
+      },
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "SUBSCRIPTION_DOWNGRADE",
+        category: "SUBSCRIPTION",
+        entityUid: subscription.uid,
+        userId: user.id,
+      },
     });
 
     res.status(200).json({
-      success: "Subscription created successfully",
+      success:
+        "Downgrade scheduled successfully. It will apply after the current plan expires.",
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error("Error scheduling downgrade:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+export const createSubscription = async (req: Request, res: Response) => {
+  const parsed = SubscriptionPaymentSchema.safeParse(req.body);
+  const authParsed = AuthSchema.safeParse(req.auth);
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  const { user } = authParsed.data;
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { planId, billingCycle } = parsed.data;
+
+  try {
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId, status: "ACTIVE" },
+    });
+
+    if (!plan) {
+      res.status(404).json({ error: "Subscription plan not found" });
+      return;
+    }
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: user.id,
+        planId,
+        billingCycle,
+        status: "PENDING",
+      },
+    });
+
+    const result = await paymentServices.createSubscriptionPayment(
+      user,
+      "SUBSCRIPTION_PAYMENT",
+      {
+        ...parsed.data,
+        subscriptionId: subscription.id,
+      }
+    );
+    res.status(200).json({ status: "success", ...result });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+};
+
+export const renewSubscription = async (req: Request, res: Response) => {
+  const parsed = RenewSubscriptionPaymentSchema.safeParse(req.body);
+  const authParsed = AuthSchema.safeParse(req.auth);
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  const { user } = authParsed.data;
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { planId } = parsed.data;
+
+  try {
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId, status: "ACTIVE" },
+    });
+
+    if (!plan) {
+      res.status(404).json({ error: "Subscription plan not found" });
+      return;
+    }
+
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId: user.id, status: "ACTIVE" },
+    });
+
+    if (!subscription) {
+      res
+        .status(404)
+        .json({ error: "You don't have any active subscription to renew." });
+      return;
+    }
+
+    const RENEWAL_WINDOW_DAYS = 7; // allow renewal up to 7 days before expiry
+
+    if (!subscription.expiresAt) {
+      return res.status(400).json({ error: "Invalid subscription." });
+    }
+
+    const now = new Date();
+    const renewalWindowStart = new Date(subscription.expiresAt);
+    renewalWindowStart.setDate(
+      renewalWindowStart.getDate() - RENEWAL_WINDOW_DAYS
+    );
+
+    if (now < renewalWindowStart) {
+      return res.status(400).json({
+        error: `You can renew your subscription only within ${RENEWAL_WINDOW_DAYS} days of expiry.`,
+      });
+    }
+
+    const result = await paymentServices.createSubscriptionPayment(
+      user,
+      "SUBSCRIPTION_RENEWAL",
+      {
+        ...parsed.data,
+        subscriptionId: subscription.id,
+        billingCycle: subscription.billingCycle,
+      }
+    );
+    res.status(200).json({ status: "success", ...result });
+  } catch (err: any) {
+    res.status(500).json({ status: "error", error: err.message });
   }
 };
 

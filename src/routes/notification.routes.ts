@@ -3,6 +3,7 @@ const router = express.Router();
 import * as notifications from "../controllers/notification.controllers";
 import { authenticateUser, authenticateAdmin } from "../middleware/auth";
 import { checkAdminPermission } from "../middleware/permission";
+import { limittAdd } from "../middleware/ratelimit/common.ratelimit";
 
 /**
  * =========================
@@ -10,6 +11,17 @@ import { checkAdminPermission } from "../middleware/permission";
  * =========================
  */
 router.get("/me", authenticateUser, notifications.getMyNotification);
+router.get(
+  "/unread-count",
+  authenticateUser,
+  notifications.getUnreadNotificationCount
+);
+router.patch(
+  "/:uid/mark-as-read",
+  authenticateUser,
+  limittAdd,
+  notifications.markAsRead
+);
 
 /**
  * =========================

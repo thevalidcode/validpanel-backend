@@ -9,6 +9,8 @@ export const StoreSchema: z.ZodType<Store> = z
     storeId: z.number(),
     uid: z.string(),
     name: z.string(),
+    logoUrl: z.string(),
+    color: z.string(),
     description: z.string(),
     ssl: z.boolean(),
     status: z.nativeEnum(StoreStatus),
@@ -25,12 +27,15 @@ export const CreateStoreSchema = z.object({
   type: z.nativeEnum(StoreType),
   subscriptionId: z.number(),
   domain: z.string().min(3).max(100),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().optional(),
   color: z.string().optional(),
 });
 
 export const UpdateStoreSchema = z.object({
   description: z.string().min(3).max(500).optional(),
+  logoUrl: z.string().optional(),
+  color: z.string().optional(),
+  status: z.nativeEnum(StoreStatus).optional(),
   name: z
     .string()
     .min(3, "Store name must be at least 3 characters long")
@@ -38,9 +43,9 @@ export const UpdateStoreSchema = z.object({
 });
 
 export const StoreUidSchema = z.object({
-  uid: z.string().uuid(),
+  uid: z.string(),
 });
 
 export const AdminActionSchema = z.object({
-  uid: z.string().uuid(),
+  uid: z.string(),
 });

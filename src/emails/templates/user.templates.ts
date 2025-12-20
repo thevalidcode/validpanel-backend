@@ -1,112 +1,72 @@
-interface VerificationCodeVars {
-  username: string;
-  verification_code: string;
-  company: string;
-  logo: string;
-}
+import { Layout, LogoVars, TemplateResult } from "../components/EmailLayout";
 
-interface NewUserVars {
-  username: string;
+export interface ForgotPasswordVars {
   email: string;
-  id: number | string;
+  token: string;
   logo: string;
 }
 
-interface FundsAddedVars {
-  username: string;
-  amount: number;
-  currency: string;
-  method: string;
-  logo: string;
-}
-
-const verificationCode = ({
-  username,
-  verification_code,
-  company,
+export const forgotPassword = ({
+  email,
+  token,
   logo,
-}: VerificationCodeVars): string => `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>...</head>
-  <body>...</body>
-  </html>
-`;
+}: ForgotPasswordVars): TemplateResult => {
+  const resetLink = `https://validpanel.com/reset-password?email=${encodeURIComponent(
+    email
+  )}&token=${encodeURIComponent(token)}`;
 
-const newUser = ({ username, email, id, logo }: NewUserVars): string => `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>...</head>
-  <body>...</body>
-  </html>
-`;
+  const bodyContent = `
+    <p style="font-size:16px; margin-bottom:20px;">Hello,</p>
+    <p style="font-size:16px; margin-bottom:20px;">
+      We received a request to reset your password. Click the button below to set a new password.
+    </p>
+    <p style="text-align:center; margin-bottom:30px;">
+      <a href="${resetLink}" style="
+        background:#7C3AED;
+        color:#fff;
+        text-decoration:none;
+        padding:12px 25px;
+        border-radius:6px;
+        font-weight:bold;
+        display:inline-block;
+      ">Reset Password</a>
+    </p>
+    <p style="font-size:14px; color:#666;">
+      If you did not request a password reset, you can safely ignore this email.
+    </p>
+  `;
 
-const fundsAdded = ({
-  username,
-  amount,
-  currency,
-  method,
-  logo,
-}: FundsAddedVars): string => `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Funds Added to Account</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f4f4;
-        margin: 0;
-        padding: 0;
-      }
-      .container {
-        max-width: 600px;
-        margin: 20px auto;
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .header img {
-        max-width: 150px;
-      }
-      .content {
-        line-height: 1.6;
-      }
-      .funds-details {
-        background-color: #f9f9f9;
-        padding: 10px;
-        border-radius: 8px;
-        margin-top: 20px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <img src="${logo}" alt="Company Logo">
-      </div>
-      <div class="content">
-        <h1>Dear Admin,</h1>
-        <p>Funds have been added to a user's account. Here are the details:</p>
-        <div class="funds-details">
-          <p><strong>Username:</strong> ${username}</p>
-          <p><strong>Amount:</strong> $${amount}</p>
-          <p><strong>Method:</strong> ${method}</p>
-          <p><strong>User Currency:</strong> ${currency}</p>
-        </div>
-        <p>Please verify the transaction in the admin store.</p>
-        <p>Thank you!</p>
-      </div>
-    </div>
-  </body>
-  </html>
-`;
+  return Layout({
+    subject: "Reset Your Password",
+    children: bodyContent,
+    logoUrl: logo,
+  });
+};
 
-export { verificationCode, newUser, fundsAdded };
+export const passwordChanged = ({ logo }: LogoVars): TemplateResult => {
+  const bodyContent = `
+    <p style="font-size:16px; margin-bottom:20px;">Hello,</p>
+
+    <p style="font-size:16px; margin-bottom:20px;">
+      Your password has been successfully changed. If you initiated this change, no further action is needed.
+    </p>
+
+    <table role="presentation" style="width:100%; margin:20px 0; border-collapse:collapse;">
+      <tr>
+        <td style="background:#EDE9FE; padding:15px; border-radius:8px; text-align:center;">
+          <span style="color:#7C3AED; font-weight:bold; font-size:16px;">Password Changed Successfully</span>
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size:14px; color:#666;">
+      If you did NOT change your password, please <a href="https://validpanel.com/contact" style="color:#7C3AED; text-decoration:none;">contact support immediately</a>.
+    </p>
+  `;
+
+  return Layout({
+    subject: "Your Password Has Been Changed",
+    children: bodyContent,
+    logoUrl: logo,
+  });
+};

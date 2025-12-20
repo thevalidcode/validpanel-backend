@@ -5,7 +5,7 @@ export const SuccessResponse = {
   content: {
     "application/json": {
       schema: z.object({
-        success: z.literal("Operation completed successfully."),
+        success: z.string().describe("Operation completed successfully."),
       }),
     },
   },
@@ -57,7 +57,9 @@ export const ServerError = {
   content: {
     "application/json": {
       schema: z.object({
-        error: z.literal("Something went wrong. Please try again later."),
+        error: z
+          .string()
+          .describe("Something went wrong. Please try again later."),
       }),
     },
   },
