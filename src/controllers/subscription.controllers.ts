@@ -316,6 +316,7 @@ export const createSubscription = async (req: Request, res: Response) => {
       "SUBSCRIPTION_PAYMENT",
       {
         ...parsed.data,
+        redirectUrl: `${parsed.data.redirectUrl}?subscriptionId=${subscription.id}`,
         subscriptionId: subscription.id,
       }
     );
