@@ -48,11 +48,11 @@ registry.registerPath({
   },
 });
 
-// Dashboard overview
+// Overview
 registry.registerPath({
   method: "get",
   path: "/admins/overview",
-  summary: "Dashboard overview",
+  summary: "Admin overview",
   tags: ["Admins"],
   security: [{ CookieAuth: [] }],
   responses: {

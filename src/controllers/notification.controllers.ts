@@ -97,8 +97,7 @@ export const getNotificationsForAdmins = async (
   try {
     const queryParsed = GetNotificationsSchema.safeParse(req.query);
     if (!queryParsed.success) {
-      res.json({ error: queryParsed.error.flatten() });
-      return;
+      return res.status(400).json({ error: queryParsed.error.flatten() });
     }
 
     const { page, limit } = queryParsed.data;
@@ -106,12 +105,55 @@ export const getNotificationsForAdmins = async (
     const notifications = await prisma.notification.findMany({
       skip: (page - 1) * limit,
       take: limit,
+      orderBy: { createdAt: "desc" },
     });
 
-    res.status(200).json({ notifications });
+    const adminNotifications = notifications.map((notif) => {
+      // Safely parse meta
+      const meta = (notif.meta as Record<string, any>) || {};
+
+      let title = notif.title;
+      let message = notif.message;
+
+      switch (notif.category) {
+        case "PAYMENT":
+          title = `Payment ${meta.status?.toUpperCase() || "UNKNOWN"}`;
+          message = `A payment of ${meta.amount ?? "N/A"} ${
+            meta.currency ?? ""
+          } was ${meta.status === "success" ? "completed" : "failed"}.`;
+          break;
+        case "STORE":
+          title = `Store Update: ${notif.title}`;
+          message = notif.message;
+          break;
+        case "SUBSCRIPTION":
+          title = `Subscription Alert`;
+          message = notif.message;
+          break;
+        case "SYSTEM":
+          title = notif.title;
+          message = notif.message;
+          break;
+        default:
+          title = notif.title;
+          message = notif.message;
+      }
+
+      return {
+        uid: notif.uid,
+        title,
+        message,
+        category: notif.category,
+        isRead: notif.isRead,
+        createdAt: notif.createdAt,
+        meta: notif.meta,
+      };
+    });
+
+    return res.status(200).json({ notifications: adminNotifications });
   } catch (err: any) {
-    res
+    return res
       .status(500)
-      .json({ error: "Failed to fetch all notifcations " + err.message });
+      .json({ error: "Failed to fetch notifications: " + err.message });
   }
 };

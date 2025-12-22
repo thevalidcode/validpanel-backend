@@ -122,6 +122,7 @@ export const processSuccess = async (
       status: "success",
       meta: {
         amount: data.amount,
+        currency: data.currency,
         previousPlanId: subscription.planId,
         newPlanId: planId,
       },
@@ -181,7 +182,7 @@ const processFailure = async (
       type: data.meta.type,
       planName: subscription.plan.name,
       status: "failed",
-      meta: { amount: amountInDecimal },
+      meta: { amount: amountInDecimal, currency: data.currency },
     });
 
     await tx.notification.create({

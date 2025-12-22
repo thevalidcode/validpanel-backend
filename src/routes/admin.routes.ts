@@ -26,7 +26,7 @@ const router = express.Router();
  */
 
 router.post("/me", admins.authenticateAdmin);
-router.get("/dashboard/overview", authenticateAdmin, admins.dashboardOverview);
+router.get("/overview", authenticateAdmin, admins.overview);
 
 /**
  * =========================

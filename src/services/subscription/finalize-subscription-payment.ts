@@ -111,6 +111,7 @@ const finalizeSubscriptionPaymentInternal = async (
     status: "success",
     meta: {
       amount,
+      currency: "USD",
       previousPlanId: subscription.planId,
       newPlanId: planId,
     },

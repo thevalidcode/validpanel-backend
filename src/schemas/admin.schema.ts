@@ -22,6 +22,8 @@ export const AdminSchema: z.ZodType<Admin> = z
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
     updatedAt: z.coerce.date(),
+    resetToken: z.string(),
+    resetTokenExpiry: z.coerce.date(),
     status: z.nativeEnum(AdminStatus),
     roleId: z.number(),
   })
@@ -42,16 +44,6 @@ export const PermissionSchema: z.ZodType<AdminPermission> = z
     uid: z.string().uuid(),
   })
   .openapi("AdminPermission");
-
-export const AuthenticateAdminResponseSchema = z.object({
-  success: z.literal("Logged in successfully"),
-  role: z.string(),
-  user: z.object({
-    id: z.coerce.number().describe("Admin id"),
-    email: z.string().email().describe("Admin email"),
-    fullName: z.string().describe("Admin full name"),
-  }),
-});
 
 export const GoogleAuthRequestSchema = z
   .object({

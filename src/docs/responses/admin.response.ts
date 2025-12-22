@@ -3,35 +3,80 @@ import {
   RoleSchema,
   PermissionSchema,
   SuccessMessageSchema,
-  AuthenticateAdminResponseSchema,
+  AdminSchema,
 } from "../../schemas/admin.schema";
 import { Decimal } from "@prisma/client/runtime/library";
 import { NotificationSchema } from "../../schemas/notification.schema";
-import { OrderSchema } from "../../schemas/order.schema";
 
 export const AuthenticateAdminResponse = {
   description: "Authenticated admin session object",
   content: {
     "application/json": {
-      schema: AuthenticateAdminResponseSchema,
+      schema: z.object({
+        success: z.literal("Logged in successfully"),
+        role: z.string(),
+        admin: AdminSchema,
+      }),
     },
   },
 };
+
+const MetricChangeSchema = z.object({
+  value: z.string(),
+  up: z.boolean().optional(),
+});
+
+const MetricValueSchema = z.object({
+  value: z.string(),
+});
+
+const SubscriptionHealthSchema = z.object({
+  mrrGrowth: MetricChangeSchema,
+  churnRate: MetricValueSchema,
+  arpu: MetricValueSchema,
+  netRevenueRetention: MetricValueSchema,
+});
+
+const RevenueChartSchema = z.object({
+  labels: z.array(z.string()),
+  data: z.array(z.number()),
+});
+
+const StatItemSchema = z.object({
+  title: z.string(),
+  value: z.string(),
+  change: z.string(),
+  up: z.boolean(),
+});
 
 export const DashboardOverviewResponse = {
   description: "Overview retrieved successfully",
   content: {
     "application/json": {
       schema: z.object({
-        totalUsers: z.number(),
-        totalStores: z.number(),
-        activeStores: z.number(),
-        totalRevenue: z.object({
-          currency: z.string().length(3),
-          amount: z.custom<Decimal>(),
-        }),
-        recentActivity: z.array(NotificationSchema),
-        recentOrders: z.array(OrderSchema),
+        stats: z.array(StatItemSchema),
+
+        revenueChart: RevenueChartSchema,
+
+        subscriptionHealth: SubscriptionHealthSchema,
+
+        recentActivities: z.array(
+          z.object({
+            name: z.string(),
+            img: z.string().url(),
+            message: z.string(),
+            time: z.date(),
+          })
+        ),
+        topSubscriptions: z.array(
+          z.object({
+            planName: z.string(),
+            billingCycle: z.string(),
+            subscribers: z.number(),
+            revenue: z.string(),
+            isTrending: z.boolean().optional(),
+          })
+        ),
       }),
     },
   },

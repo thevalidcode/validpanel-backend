@@ -5,9 +5,6 @@ import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
 import { AuthenticateAdminSchema } from "../schemas/admin.schema";
-import { callInternalAPIForAdmins } from "../utils/internalApi";
-import { NormalizedOrder } from "../types/order.types";
-import { mapShopOrder, mapSocialOrder } from "../utils/mappers/order.mappers";
 
 export const authenticateAdmin = async (
   req: Request,
@@ -25,7 +22,15 @@ export const authenticateAdmin = async (
     const account = await prisma.admin.findFirst({
       where: { email },
       include: {
-        role: true,
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -34,7 +39,7 @@ export const authenticateAdmin = async (
       return;
     }
 
-    if ("status" in account && account.status === "BANNED") {
+    if (account.status === "BANNED") {
       res.status(403).json({ error: "You’ve been banned. Contact support." });
       return;
     }
@@ -46,9 +51,9 @@ export const authenticateAdmin = async (
     }
 
     const apiKey = account.apiKey || uuidv4();
-    const role = account.role.name;
+    const uid = account.uid;
 
-    const token = jwt.sign({ email, apiKey, role }, env.JWT_SECRET, {
+    const token = jwt.sign({ email, apiKey, uid }, env.JWT_SECRET, {
       expiresIn: "7d",
     });
     res.cookie("auth_token", token, {
@@ -58,72 +63,283 @@ export const authenticateAdmin = async (
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    const { password: _, ...safeAdmin } = account;
     res.status(200).json({
       success: "Logged in successfully",
-      role,
-      user: {
-        id: account.id,
-        email: account.email,
-        fullName: account.fullName,
-      },
+      role: account.role.name,
+      admin: safeAdmin,
     });
   } catch (err: any) {
     res.status(500).json({ error: "Login failed " + err.message });
   }
 };
 
-export const dashboardOverview = async (req: Request, res: Response) => {
-  const { uid } = req.auth!;
+const percentageChange = (current: number, previous: number) => {
+  if (previous === 0) return { value: 0, up: true };
+  const diff = ((current - previous) / previous) * 100;
+  return {
+    value: Number(diff.toFixed(2)),
+    up: diff >= 0,
+  };
+};
 
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+const months = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+export const overview = async (req: Request, res: Response) => {
   try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    /* ---------------------------------------
+       BASIC COUNTS & REVENUE
+    ---------------------------------------- */
+
     const [
-      totalUsers,
-      totalStores,
-      activeStores,
-      paymentAggregate,
-      recentActivity,
-      socialMediaStoreOrders,
-      shopOrders,
+      activeUsersLastMonth,
+      activeUsersThisMonth,
+      activeSubscriptions,
+      revenueThisMonth,
+      revenueLastMonth,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.store.count(),
-      prisma.store.count({
+      prisma.user.count({
+        where: {
+          timestamp: { lte: endOfLastMonth },
+        },
+      }),
+
+      prisma.user.count({
+        where: {
+          timestamp: { lte: now },
+        },
+      }),
+
+      prisma.subscription.count({
         where: { status: "ACTIVE" },
       }),
+
       prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: { status: "SUCCESS" },
+        _sum: { chargedAmount: true },
+        where: {
+          status: "SUCCESS",
+          createdAt: { gte: startOfMonth },
+        },
       }),
-      prisma.notification.findMany({
-        take: 20,
-        orderBy: { createdAt: "desc" },
+
+      prisma.payment.aggregate({
+        _sum: { chargedAmount: true },
+        where: {
+          status: "SUCCESS",
+          createdAt: {
+            gte: startOfLastMonth,
+            lte: endOfLastMonth,
+          },
+        },
       }),
-      callInternalAPIForAdmins("GET", `/orders?page=1&limit=20`, uid, "SOCIAL"),
-      callInternalAPIForAdmins("GET", `/orders?page=1&limit=20`, uid, "SHOP"),
     ]);
 
-    const normalizedSocial: NormalizedOrder[] =
-      socialMediaStoreOrders.map(mapSocialOrder);
-    const normalizedShop: NormalizedOrder[] = shopOrders.map(mapShopOrder);
+    const currentRevenue = Number(revenueThisMonth._sum.chargedAmount ?? 0);
+    const previousRevenue = Number(revenueLastMonth._sum.chargedAmount ?? 0);
 
-    // Merge into one array
-    const recentOrders: NormalizedOrder[] = [
-      ...normalizedSocial,
-      ...normalizedShop,
-    ];
-    res.status(200).json({
-      totalUsers,
-      totalStores,
-      activeStores,
-      totalRevenue: {
-        currency: "USD",
-        amount: paymentAggregate._sum.amount ?? 0,
+    const revenueChange = percentageChange(currentRevenue, previousRevenue);
+    const userChange = percentageChange(
+      activeUsersThisMonth,
+      activeUsersLastMonth
+    );
+
+    /* ---------------------------------------
+       CONVERSION RATE
+    ---------------------------------------- */
+
+    const signupsThisMonth = await prisma.user.count({
+      where: { timestamp: { gte: startOfMonth } },
+    });
+
+    const convertedUsers = await prisma.subscription.count({
+      where: {
+        status: "ACTIVE",
+        startedAt: { gte: startOfMonth },
       },
-      recentOrders,
-      recentActivity,
+    });
+
+    const conversionRate =
+      signupsThisMonth === 0
+        ? 0
+        : Number(((convertedUsers / signupsThisMonth) * 100).toFixed(2));
+
+    /* ---------------------------------------
+       STAT CARDS (DIRECT UI MAPPING)
+    ---------------------------------------- */
+
+    const stats = [
+      {
+        title: "Total Revenue",
+        value: formatCurrency(currentRevenue),
+        change: `${revenueChange.up ? "+" : ""}${
+          revenueChange.value
+        }% from last month`,
+        up: revenueChange.up,
+      },
+      {
+        title: "Active Users",
+        value: activeUsersThisMonth.toLocaleString(),
+        change: `${userChange.up ? "+" : ""}${
+          userChange.value
+        }% from last month`,
+        up: userChange.up,
+      },
+      {
+        title: "Conversion Rate",
+        value: `${conversionRate}%`,
+        change: "-2.1% from last week",
+        up: conversionRate >= 0,
+      },
+      {
+        title: "Active Subscriptions",
+        value: activeSubscriptions.toLocaleString(),
+        change: "+3 from last month",
+        up: true,
+      },
+    ];
+
+    /* ---------------------------------------
+       REVENUE CHART (MONTHLY)
+    ---------------------------------------- */
+
+    const paymentsByMonth = await prisma.payment.groupBy({
+      by: ["createdAt"],
+      _sum: { chargedAmount: true },
+      where: { status: "SUCCESS" },
+    });
+
+    const monthlyRevenue = Array(12).fill(0);
+
+    paymentsByMonth.forEach((p) => {
+      const month = new Date(p.createdAt).getMonth();
+      monthlyRevenue[month] += Number(p._sum.chargedAmount ?? 0);
+    });
+
+    const revenueChart = {
+      labels: months,
+      data: monthlyRevenue,
+    };
+
+    /* ---------------------------------------
+       SUBSCRIPTION HEALTH
+    ---------------------------------------- */
+
+    const churnedThisMonth = await prisma.subscription.count({
+      where: {
+        status: "CANCELED",
+        updatedAt: { gte: startOfMonth },
+      },
+    });
+
+    const churnRate =
+      activeSubscriptions === 0
+        ? 0
+        : Number(((churnedThisMonth / activeSubscriptions) * 100).toFixed(2));
+
+    const arpu =
+      activeSubscriptions === 0
+        ? 0
+        : Number((currentRevenue / activeSubscriptions).toFixed(2));
+
+    const subscriptionHealth = {
+      mrrGrowth: {
+        value: `${revenueChange.value}%`,
+        up: revenueChange.up,
+      },
+      churnRate: {
+        value: `${churnRate}%`,
+      },
+      arpu: {
+        value: formatCurrency(arpu),
+      },
+      netRevenueRetention: {
+        value: "118%",
+      },
+    };
+
+    /* ---------------------------------------
+       RECENT ACTIVITY
+    ---------------------------------------- */
+
+    const recentActivities = await prisma.platformEvent.findMany({
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      include: { user: true },
+    });
+
+    const activities = recentActivities.map((e) => ({
+      name: e.user?.fullName ?? "System",
+      img: e.user?.image,
+      message: e.event.replace(/_/g, " ").toLowerCase(),
+      time: e.createdAt,
+    }));
+
+    /* ---------------------------------------
+       TOP SUBSCRIPTIONS
+    ---------------------------------------- */
+
+    const topSubscriptionsRaw = await prisma.subscription.groupBy({
+      by: ["planId"],
+      _count: { planId: true },
+      where: { status: "ACTIVE" },
+      orderBy: { _count: { planId: "desc" } },
+      take: 3,
+    });
+
+    const plans = await prisma.subscriptionPlan.findMany({
+      where: {
+        id: { in: topSubscriptionsRaw.map((s) => s.planId) },
+      },
+    });
+
+    const topSubscriptions = plans.map((plan) => {
+      const count =
+        topSubscriptionsRaw.find((s) => s.planId === plan.id)?._count.planId ??
+        0;
+
+      return {
+        planName: plan.name,
+        billingCycle: plan.interval,
+        subscribers: count,
+        revenue: formatCurrency(count * Number(plan.price)),
+        isTrending: count > 500,
+      };
+    });
+
+    /* ---------------------------------------
+       FINAL RESPONSE
+    ---------------------------------------- */
+
+    res.status(200).json({
+      stats,
+      revenueChart,
+      subscriptionHealth,
+      recentActivities: activities,
+      topSubscriptions,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch dashboard overview" });
+    res.status(500).json({ error: "Failed to fetch overview" });
   }
 };

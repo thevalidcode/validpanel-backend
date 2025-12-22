@@ -19,7 +19,7 @@ export const checkAdminPermission = (requiredPermissions: string[]) => {
         include: {
           role: {
             include: {
-              permissions: {
+              permissions: { 
                 include: {
                   permission: true, // Access AdminPermission model
                 },

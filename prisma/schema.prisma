@@ -184,18 +184,20 @@ enum AdminStatus {
 }
 
 model Admin {
-  id        Int         @id @default(autoincrement())
-  uid       String      @unique @default(uuid())
-  email     String
-  image     String?
-  password  String
-  fullName  String
-  apiKey    String      @unique @map("api_key")
-  roleId    Int
-  role      AdminRole   @relation(fields: [roleId], references: [id])
-  status    AdminStatus @default(ACTIVE)
-  timestamp DateTime    @default(now())
-  lastSeen  DateTime    @default(now()) @map("last_seen")
+  id               Int         @id @default(autoincrement())
+  uid              String      @unique @default(uuid())
+  email            String
+  image            String?
+  password         String
+  fullName         String
+  apiKey           String      @unique @map("api_key")
+  roleId           Int
+  role             AdminRole   @relation(fields: [roleId], references: [id])
+  status           AdminStatus @default(ACTIVE)
+  timestamp        DateTime    @default(now())
+  lastSeen         DateTime    @default(now()) @map("last_seen")
+  resetToken       String?     @map("reset_token")
+  resetTokenExpiry DateTime?   @map("reset_token_expiry")
 
   updatedAt DateTime @updatedAt @map("updated_at")
 
