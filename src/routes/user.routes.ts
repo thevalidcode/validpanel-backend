@@ -36,5 +36,17 @@ router.delete(
   checkAdminPermission(["MANAGE_USERS"]),
   users.deleteUsers
 );
+router.patch(
+  "/ban-multiple",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_USERS"]),
+  users.banUsers
+);
+router.patch(
+  "/activate-multiple",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_USERS"]),
+  users.activateMultipleUsers
+);
 
 export default router;

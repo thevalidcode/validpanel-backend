@@ -6,6 +6,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   setupStoreSchema,
+  UidsSchema,
   updateUserSchema,
 } from "../../schemas/user.schema";
 
@@ -180,9 +181,55 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: z.object({
-            uids: z.array(z.string()),
-          }),
+          schema: UidsSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// Ban multiple users
+registry.registerPath({
+  method: "patch",
+  path: "/users/ban-multiple",
+  summary: "Ban multiple users",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: UidsSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// Activate multiple users
+registry.registerPath({
+  method: "patch",
+  path: "/users/activate-multiple",
+  summary: "Activate multiple users",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: UidsSchema,
         },
       },
     },

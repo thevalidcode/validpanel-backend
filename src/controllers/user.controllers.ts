@@ -11,6 +11,7 @@ import {
   setupStoreSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  UidsSchema,
 } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
 import { OnboardingStep } from "../../prisma/generated";
@@ -222,12 +223,25 @@ export const getUsers = async (req: Request, res: Response) => {
       select: {
         id: true,
         uid: true,
+        image: true,
         email: true,
         fullName: true,
         status: true,
+        _count: {
+          select: {
+            stores: true, // returns number of stores per user
+          },
+        },
       },
     });
-    res.status(200).json(users);
+
+    // Optionally map to a cleaner format
+    const formattedUsers = users.map((user) => ({
+      ...user,
+      storesCount: user._count.stores,
+    }));
+
+    res.status(200).json(formattedUsers);
   } catch {
     res.status(500).json({ error: "Failed to fetch users" });
   }
@@ -489,7 +503,11 @@ export const deleteUser = async (req: Request, res: Response) => {
 };
 
 export const deleteUsers = async (req: Request, res: Response) => {
-  const { uids } = req.body;
+  const input = UidsSchema.safeParse(req.body);
+  if (!input.success)
+    return res.status(400).json({ error: input.error.flatten() });
+
+  const uids = input.data.uids;
 
   try {
     await prisma.user.deleteMany({ where: { uid: { in: uids } } });
@@ -606,5 +624,41 @@ export const resetPassword = async (req: Request, res: Response) => {
     res
       .status(500)
       .json({ error: "Failed to update password: " + err.message });
+  }
+};
+
+export const banUsers = async (req: Request, res: Response) => {
+  const input = UidsSchema.safeParse(req.body);
+  if (!input.success)
+    return res.status(400).json({ error: input.error.flatten() });
+
+  const uids = input.data.uids;
+
+  try {
+    await prisma.user.updateMany({
+      where: { uid: { in: uids } },
+      data: { status: "BANNED" },
+    });
+    res.status(200).json({ success: "Banned users successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to ban users" });
+  }
+};
+
+export const activateMultipleUsers = async (req: Request, res: Response) => {
+  const input = UidsSchema.safeParse(req.body);
+  if (!input.success)
+    return res.status(400).json({ error: input.error.flatten() });
+
+  const uids = input.data.uids;
+
+  try {
+    await prisma.user.updateMany({
+      where: { uid: { in: uids } },
+      data: { status: "ACTIVE" },
+    });
+    res.status(200).json({ success: "Activated users successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to activate users" });
   }
 };

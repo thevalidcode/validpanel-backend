@@ -125,3 +125,7 @@ export const resetPasswordSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
+
+export const UidsSchema = z.object({
+  uids: z.array(z.string().uuid()),
+});
