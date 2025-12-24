@@ -57,3 +57,19 @@ export const DeleteStoreResponse = {
     },
   },
 };
+
+export const StoreStatsResponse = {
+  description: "Store statistics data",
+  content: {
+    "application/json": {
+      schema: z.object({
+        count: z.object({
+          total: z.number(),
+          active: z.number(),
+          paused: z.number(),
+          createdThisMonth: z.number(),
+        }),
+      }),
+    },
+  },
+};

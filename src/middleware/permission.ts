@@ -8,7 +8,7 @@ import { Request, Response, NextFunction } from "express";
 export const checkAdminPermission = (requiredPermissions: string[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const admin = req?.auth?.user; // set by authenticateAdmin middleware
+      const admin = req?.auth?.user;
       if (!admin) {
         return res.status(401).json({ error: "Unauthorized user" });
       }

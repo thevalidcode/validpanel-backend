@@ -23,14 +23,20 @@ router.delete("/:uid", authenticateUser, limittActions, stores.deleteStore);
 
 router.get(
   "/admin/active",
-  checkAdminPermission(["VIEW_STORES"]),
   authenticateAdmin,
+  checkAdminPermission(["VIEW_STORES"]),
   stores.getActiveStores
 );
 router.get(
-  "/admin/all",
-  checkAdminPermission(["VIEW_STORES"]),
+  "/admin/stats",
   authenticateAdmin,
+  checkAdminPermission(["VIEW_STORES"]),
+  stores.getStoreStats
+);
+router.get(
+  "/admin/all",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_STORES"]),
   stores.adminGetAllStores
 );
 router.get(
@@ -46,10 +52,16 @@ router.put(
   stores.approveStore
 );
 router.put(
-  "/admin/:uid/suspend",
+  "/admin/:uid/pause",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_STORES"]),
-  stores.suspendStore
+  stores.pauseStore
+);
+router.put(
+  "/admin/:uid",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_STORES"]),
+  stores.adminUpdateStore
 );
 router.delete(
   "/admin/:uid",

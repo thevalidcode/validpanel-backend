@@ -16,6 +16,7 @@ import {
   CreateStoreResponse,
   UpdateStoreResponse,
   DeleteStoreResponse,
+  StoreStatsResponse,
 } from "../responses/store.response";
 
 // GET /stores/me
@@ -145,6 +146,19 @@ registry.registerPath({
   },
 });
 
+// GET /stores/admin/stats
+registry.registerPath({
+  method: "get",
+  path: "/stores/admin/stats",
+  summary: "Admin: Get store statistics",
+  security: [{ CookieAuth: [] }],
+  tags: ["Stores"],
+  responses: {
+    200: StoreStatsResponse,
+    500: ServerError,
+  },
+});
+
 // GET /stores/admin/{uid}
 registry.registerPath({
   method: "get",
@@ -180,11 +194,11 @@ registry.registerPath({
   },
 });
 
-// PUT /stores/admin/{uid}/suspend
+// PUT /stores/admin/{uid}/pause
 registry.registerPath({
   method: "put",
-  path: "/stores/admin/{uid}/suspend",
-  summary: "Admin: Suspend store",
+  path: "/stores/admin/{uid}/pause",
+  summary: "Admin: Pause store",
   tags: ["Stores"],
   security: [{ CookieAuth: [] }],
   request: {

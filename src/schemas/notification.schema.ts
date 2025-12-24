@@ -14,6 +14,7 @@ export const NotificationTypeEnum = z.enum([
   "STORE_APPROVED",
   "STORE_REJECTED",
   "STORE_CREATED",
+  "STORE_PAUSED",
   "MANUAL_CREDIT",
   "MANUAL_DEBIT",
 ]);

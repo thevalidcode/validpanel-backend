@@ -10,21 +10,6 @@ import { AuthSchema } from "../schemas/user.schema";
 import { AdminAuthSchema } from "../schemas/admin.schema";
 import { buildNotification } from "../services/notification.services";
 
-export const getActiveStores = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const stores = await prisma.store.findMany({
-      where: { status: "ACTIVE" },
-      orderBy: { timestamp: "desc" },
-    });
-    res.status(200).json({ stores });
-  } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch stores " + err.message });
-  }
-};
-
 export const getStoreByUid = async (
   req: Request,
   res: Response
@@ -264,6 +249,22 @@ export const getMyStores = async (
   }
 };
 
+// Admin Controllers
+
+export const getActiveStores = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const stores = await prisma.store.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { timestamp: "desc" },
+    });
+    res.status(200).json({ stores });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch stores " + err.message });
+  }
+};
 export const adminGetAllStores = async (
   req: Request,
   res: Response
@@ -271,12 +272,64 @@ export const adminGetAllStores = async (
   try {
     const stores = await prisma.store.findMany({
       orderBy: { timestamp: "desc" },
+      include: { owner: true },
     });
     res.status(200).json({ stores });
   } catch (err: any) {
     res
       .status(500)
       .json({ error: "Failed to fetch all stores " + err.message });
+  }
+};
+
+export const getStoreStats = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    );
+
+    const [allStores, activeStores, pausedStores, storesThisMonth] =
+      await Promise.all([
+        prisma.store.findMany({
+          orderBy: { timestamp: "desc" },
+          include: { owner: true },
+        }),
+
+        prisma.store.findMany({
+          where: { status: "ACTIVE" },
+        }),
+
+        prisma.store.findMany({
+          where: { status: "DISABLED" },
+        }),
+
+        prisma.store.findMany({
+          where: {
+            timestamp: {
+              gte: startOfMonth,
+            },
+          },
+        }),
+      ]);
+
+    res.status(200).json({
+      counts: {
+        total: allStores.length,
+        active: activeStores.length,
+        paused: pausedStores.length,
+        createdThisMonth: storesThisMonth.length,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      error: "Failed to fetch store statistics",
+      message: err.message,
+    });
   }
 };
 
@@ -347,7 +400,7 @@ export const approveStore = async (
   }
 };
 
-export const suspendStore = async (
+export const pauseStore = async (
   req: Request,
   res: Response
 ): Promise<void> => {
@@ -361,14 +414,13 @@ export const suspendStore = async (
 
   try {
     const { updatedStore } = await prisma.$transaction(async (tx) => {
-      const updatedStore = await prisma.store.update({
+      const updatedStore = await tx.store.update({
         where: { uid },
-        data: { status: "CANCELED" },
+        data: { status: "DISABLED" },
       });
-
       const notificationDetails = buildNotification({
         category: "STORE",
-        type: "STORE_REJECTED",
+        type: "STORE_PAUSED",
         status: "success",
       });
 
@@ -383,9 +435,58 @@ export const suspendStore = async (
       });
       return { updatedStore };
     });
-    res.status(200).json({ success: "Store suspended", store: updatedStore });
+
+    res.status(200).json({ success: "Store paused", store: updatedStore });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to suspend store " + err.message });
+    res.status(500).json({ error: "Failed to approve store " + err.message });
+  }
+};
+
+export const adminUpdateStore = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const uidParsed = StoreUidSchema.safeParse(req.params);
+  if (!uidParsed.success) {
+    res.status(400).json({ error: uidParsed.error.flatten() });
+    return;
+  }
+
+  const bodyParsed = UpdateStoreSchema.safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: bodyParsed.error.flatten() });
+    return;
+  }
+
+  const { uid } = uidParsed.data;
+  const { name, description, logoUrl, color, status } = bodyParsed.data;
+
+  try {
+    const store = await prisma.store.findUnique({
+      where: { uid },
+    });
+
+    if (!store) {
+      res.status(404).json({ error: "No store was found for this update" });
+      return;
+    }
+
+    const updatedStore = await prisma.store.update({
+      where: { uid },
+      data: {
+        name: name || store.name,
+        color: color || store.color,
+        logoUrl: logoUrl || store.logoUrl,
+        status: status || store.status,
+        description: description || store.description,
+      },
+    });
+
+    res
+      .status(200)
+      .json({ success: "Store updated successfully", store: updatedStore });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update store " + err.message });
   }
 };
 

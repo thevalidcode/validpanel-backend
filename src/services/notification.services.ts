@@ -93,6 +93,10 @@ export function buildNotification(params: {
           title = "Store Rejected";
           message = `Your store submission was rejected.`;
           break;
+        case "STORE_PAUSED":
+          title = "Store Paused";
+          message = `Your store has been paused.`;
+          break;
         default:
           title = "Store Update";
           message = `There’s an update regarding your store.`;
