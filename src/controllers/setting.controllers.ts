@@ -44,9 +44,10 @@ export const updateSettings = async (req: Request, res: Response) => {
     return res.status(400).json({ error: parsed.error.flatten() });
 
   try {
-    await prisma.setting.update({
+    await prisma.setting.upsert({
       where: { id: 1 },
-      data: { ...parsed.data },
+      update: { ...parsed.data },
+      create: { ...parsed.data },
     });
     res.status(200).json({ success: "Settings updated successfully" });
   } catch {

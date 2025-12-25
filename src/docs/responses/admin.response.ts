@@ -1,12 +1,15 @@
 import { z } from "zod";
 import {
   RoleSchema,
+  RoleWithPermissionsSchema,
   PermissionSchema,
   SuccessMessageSchema,
   AdminSchema,
 } from "../../schemas/admin.schema";
 import { Decimal } from "@prisma/client/runtime/library";
 import { NotificationSchema } from "../../schemas/notification.schema";
+import { PlatformEvent } from "../../../prisma/generated";
+import { PlatformEventSchema } from "../../schemas/platformEvent.schema";
 
 export const AuthenticateAdminResponse = {
   description: "Authenticated admin session object",
@@ -17,6 +20,24 @@ export const AuthenticateAdminResponse = {
         role: z.string(),
         admin: AdminSchema,
       }),
+    },
+  },
+};
+
+export const AdminListResponse = {
+  description: "Admin list retrieved successfully",
+  content: {
+    "application/json": {
+      schema: z.array(AdminSchema),
+    },
+  },
+};
+
+export const PlatformEventsListResponse = {
+  description: "Platform events retrieved successfully",
+  content: {
+    "application/json": {
+      schema: z.array(PlatformEventSchema),
     },
   },
 };
@@ -91,7 +112,7 @@ export const CreateRoleResponse = {
     "application/json": {
       schema: z.object({
         success: z.string(),
-        role: RoleSchema,
+        role: RoleWithPermissionsSchema,
       }),
     },
   },
@@ -102,7 +123,7 @@ export const GetRolesResponse = {
   content: {
     "application/json": {
       schema: z.object({
-        roles: z.array(RoleSchema),
+        roles: z.array(RoleWithPermissionsSchema),
       }),
     },
   },
@@ -113,7 +134,7 @@ export const GetRoleByUidResponse = {
   content: {
     "application/json": {
       schema: z.object({
-        role: RoleSchema,
+        role: RoleWithPermissionsSchema,
       }),
     },
   },
@@ -125,7 +146,7 @@ export const UpdateRoleResponse = {
     "application/json": {
       schema: z.object({
         success: z.string(),
-        role: RoleSchema,
+        role: RoleWithPermissionsSchema,
       }),
     },
   },

@@ -1,5 +1,7 @@
 import { prisma } from "../config/db.config";
 
+const ADMIN_EMAIL = "ibeprecious49@gmail.com";
+
 async function main() {
   /* 1. Ensure permission exists */
   const allAccessPermission = await prisma.adminPermission.upsert({
@@ -12,14 +14,14 @@ async function main() {
 
   /* 2. Ensure role exists */
   const adminRole = await prisma.adminRole.upsert({
-    where: { name: "ADMIN" },
+    where: { name: "Super Admin" },
     update: {},
     create: {
-      name: "ADMIN",
+      name: "Super Admin",
     },
   });
 
-  /* 3. Link role to permission */
+  /* 3. Ensure role has ALL_ACCESS permission */
   await prisma.adminRolePermission.upsert({
     where: {
       roleId_permissionId: {
@@ -34,10 +36,28 @@ async function main() {
     },
   });
 
-  /* 4. Create admin user */
+  /* 4. Check if admin exists */
+  const existingAdmin = await prisma.admin.findUnique({
+    where: { email: ADMIN_EMAIL },
+  });
+
+  if (existingAdmin) {
+    /* 5a. Admin exists, ensure correct role */
+    if (existingAdmin.roleId !== adminRole.id) {
+      await prisma.admin.update({
+        where: { id: existingAdmin.id },
+        data: { roleId: adminRole.id },
+      });
+    }
+
+    console.log("Admin already exists. Access verified.");
+    return;
+  }
+
+  /* 5b. Admin does not exist, create */
   const admin = await prisma.admin.create({
     data: {
-      email: "ibeprecious49@gmail.com",
+      email: ADMIN_EMAIL,
       password: "$2a$12$99/qDtAOKaVraV/ViF9CL..4xEgC6icI0CmylMI5fXuMpRgjRsKL2", // bcrypt hash
       fullName: "Super Admin",
       apiKey: "default_admin_api_key",

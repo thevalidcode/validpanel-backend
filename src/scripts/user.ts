@@ -1,7 +1,10 @@
 import { prisma } from "../config/db.config";
 
 async function main() {
-  const user = await prisma.user.findMany();
+  const user = await prisma.user.update({
+    where: { email: "ibeprecious49@gmail.com" },
+    data: { onboardingStep: "COMPLETE" },
+  });
   console.log(user);
 }
 

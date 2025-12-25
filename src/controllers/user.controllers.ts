@@ -390,15 +390,17 @@ export const setupStore = async (req: Request, res: Response) => {
       return { store };
     });
 
-    // Update user onboarding step → move forward
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: { onboardingStep: "COMPLETE" },
     });
 
+    const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
+
     res.status(201).json({
       message: "Store setup successful",
       store,
+      user: safeUser,
       onboardingStep: "COMPLETE" as OnboardingStep,
     });
   } catch (err: any) {
@@ -422,15 +424,6 @@ export const me = async (req: Request, res: Response) => {
     if (account.status === "BANNED")
       return res.status(403).json({ error: "Account is banned." });
 
-    await prisma.platformEvent.create({
-      data: {
-        event: "USER_LOGIN",
-        category: "USER",
-        entityUid: account.uid,
-        userId: account.id,
-      },
-    });
-
     const isMatch = await bcrypt.compare(password, account.password);
     if (!isMatch)
       return res.status(400).json({ error: "Incorrect login details" });
@@ -446,6 +439,15 @@ export const me = async (req: Request, res: Response) => {
       secure: env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "USER_LOGIN",
+        category: "USER",
+        entityUid: account.uid,
+        userId: account.id,
+      },
     });
 
     const {

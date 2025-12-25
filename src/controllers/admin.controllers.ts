@@ -4,7 +4,39 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import type { Request, Response } from "express";
-import { AuthenticateAdminSchema } from "../schemas/admin.schema";
+import {
+  AuthenticateAdminSchema,
+  createAdminRequestSchema,
+  UidSchema,
+  updateAdminSchema,
+} from "../schemas/admin.schema";
+
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+const months = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const percentageChange = (current: number, previous: number) => {
+  if (previous === 0) return { value: 0, up: true };
+  const diff = ((current - previous) / previous) * 100;
+  return {
+    value: Number(diff.toFixed(2)),
+    up: diff >= 0,
+  };
+};
 
 export const authenticateAdmin = async (
   req: Request,
@@ -63,6 +95,15 @@ export const authenticateAdmin = async (
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    await prisma.platformEvent.create({
+      data: {
+        event: "ADMIN_LOGIN",
+        category: "ADMIN",
+        entityUid: account.uid,
+        adminId: account.id,
+      },
+    });
+
     const { password: _, ...safeAdmin } = account;
     res.status(200).json({
       success: "Logged in successfully",
@@ -73,33 +114,6 @@ export const authenticateAdmin = async (
     res.status(500).json({ error: "Login failed " + err.message });
   }
 };
-
-const percentageChange = (current: number, previous: number) => {
-  if (previous === 0) return { value: 0, up: true };
-  const diff = ((current - previous) / previous) * 100;
-  return {
-    value: Number(diff.toFixed(2)),
-    up: diff >= 0,
-  };
-};
-
-const formatCurrency = (value: number) =>
-  `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-
-const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 
 export const overview = async (req: Request, res: Response) => {
   try {
@@ -341,5 +355,207 @@ export const overview = async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch overview" });
+  }
+};
+
+export const getAdmins = async (req: Request, res: Response) => {
+  try {
+    const admins = await prisma.admin.findMany({
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    res.status(200).json(admins);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch admins" });
+  }
+};
+
+export const getPlatformEvents = async (req: Request, res: Response) => {
+  try {
+    const platformEvents = await prisma.platformEvent.findMany({
+      include: {
+        user: true,
+        admin: true,
+      },
+      take: 10,
+    });
+    res.status(200).json(platformEvents);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch platform-events" });
+  }
+};
+
+export const updateAdmin = async (req: Request, res: Response) => {
+  const parsed = updateAdminSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const paramsParsed = UidSchema.safeParse(req.params);
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: paramsParsed.error.flatten() });
+    return;
+  }
+  const { uid } = paramsParsed.data;
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { uid },
+    });
+
+    if (!admin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    const account = await prisma.admin.update({
+      where: { uid },
+      data: {
+        ...parsed.data,
+      },
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "ADMIN_UPDATED",
+        category: "ADMIN",
+        entityUid: account.uid,
+        adminId: account.id,
+      },
+    });
+
+    res.status(200).json({ success: "Admin updated successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to update admin" });
+  }
+};
+
+export const deleteAdmin = async (req: Request, res: Response) => {
+  const paramsParsed = UidSchema.safeParse(req.params);
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: paramsParsed.error.flatten() });
+    return;
+  }
+  const { uid } = paramsParsed.data;
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { uid },
+    });
+
+    if (!admin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    const account = await prisma.admin.delete({
+      where: { uid },
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "ADMIN_DELETED",
+        category: "ADMIN",
+        entityUid: account.uid,
+        adminId: account.id,
+      },
+    });
+
+    res.status(200).json({ success: "Admin deleted successfully" });
+  } catch {
+    res.status(500).json({ error: "Failed to delete admin" });
+  }
+};
+
+export const updateMe = async (req: Request, res: Response) => {
+  const parsed = updateAdminSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const { uid } = req.auth!;
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { uid },
+    });
+
+    if (!admin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    const account = await prisma.admin.update({
+      where: { uid },
+      data: {
+        ...parsed.data,
+      },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "ADMIN_UPDATE",
+        category: "ADMIN",
+        entityUid: account.uid,
+        adminId: account.id,
+      },
+    });
+
+    res
+      .status(200)
+      .json({ success: "Admin updated successfully", admin: account });
+  } catch {
+    res.status(500).json({ error: "Failed to update admin" });
+  }
+};
+
+export const createAdmin = async (req: Request, res: Response) => {
+  const parsed = createAdminRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const account = await prisma.admin.create({
+      data: {
+        ...parsed.data,
+        password: await bcrypt.hash(parsed.data.password, 10),
+        apiKey: uuidv4(),
+      },
+    });
+
+    await prisma.platformEvent.create({
+      data: {
+        event: "ADMIN_LOGIN",
+        category: "ADMIN",
+        entityUid: account.uid,
+        adminId: account.id,
+      },
+    });
+
+    res.status(200).json({ success: "Admin created successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create admin" + error.message });
   }
 };

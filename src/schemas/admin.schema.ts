@@ -29,7 +29,7 @@ export const AdminSchema: z.ZodType<Admin> = z
   })
   .openapi("Admin");
 
-export const RoleSchema: z.ZodType<AdminRole> = z
+export const RoleSchema = z
   .object({
     id: z.number(),
     name: z.string(),
@@ -45,6 +45,14 @@ export const PermissionSchema: z.ZodType<AdminPermission> = z
   })
   .openapi("AdminPermission");
 
+export const RoleWithPermissionsSchema = RoleSchema.extend({
+  permissions: z.array(
+    z.object({
+      permission: PermissionSchema,
+    })
+  ),
+});
+
 export const GoogleAuthRequestSchema = z
   .object({
     id_token: z.string().describe("Google OAuth ID token"),
@@ -58,13 +66,17 @@ export const AuthenticateAdminSchema = z.object({
 
 export const createAdminRequestSchema = z.object({
   email: z.string().email(),
+  roleId: z.number(),
   fullName: z.string(),
+  image: z.string().optional(),
   password: z.string().min(6),
 });
 
 export const updateAdminSchema = z.object({
-  uid: z.string(),
-  username: z.string().optional(),
+  email: z.string().email().optional(),
+  roleId: z.number().optional(),
+  image: z.string().optional(),
+  status: z.nativeEnum(AdminStatus).optional(),
   fullName: z.string().optional(),
 });
 
@@ -74,6 +86,11 @@ export const CreatePermissionSchema = z.object({
 
 export const NameSchema = z.object({
   name: z.string(),
+});
+
+export const RoleFormSchema = z.object({
+  name: z.string(),
+  permissionIds: z.array(z.number()),
 });
 
 export const UidSchema = z.object({

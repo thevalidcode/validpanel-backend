@@ -60,7 +60,7 @@ export const uploadImage = async (
           uid: uuidv4(),
           collection,
           filename: safeName,
-          userId: user.id,
+          adminId: user.id,
           url: s3Url,
           mimetype: req.file?.mimetype || "application/octet-stream",
           size: req.file?.size || 0,

@@ -146,7 +146,7 @@ model User {
   id               Int            @id @default(autoincrement())
   refCode          Int?           @unique @default(autoincrement()) @map("ref_code")
   uid              String         @unique @default(uuid())
-  email            String
+  email            String         @unique
   fullName         String
   phoneNumber      String?        @map("phone_number")
   image            String?
@@ -186,7 +186,7 @@ enum AdminStatus {
 model Admin {
   id               Int         @id @default(autoincrement())
   uid              String      @unique @default(uuid())
-  email            String
+  email            String      @unique
   image            String?
   password         String
   fullName         String
@@ -199,7 +199,9 @@ model Admin {
   resetToken       String?     @map("reset_token")
   resetTokenExpiry DateTime?   @map("reset_token_expiry")
 
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  PlatformEvent PlatformEvent[]
+  UploadLog     UploadLog[]
 
   @@map("admins")
 }
@@ -505,12 +507,14 @@ model UploadLog {
   size       Int
   url        String
   filename   String
-  userId     Int
+  userId     Int?
+  adminId    Int?
   collection String
   mimetype   String
   timestamp  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id])
+  admin Admin? @relation(fields: [adminId], references: [id])
 
   @@map("upload_logs")
 }
@@ -588,23 +592,26 @@ model Notification {
 }
 
 enum PlatformEventCategory {
-  STORE
-  USER
-  SUBSCRIPTION
-  PAYMENT
-  SYSTEM
+  STORE        @map("store")
+  USER         @map("user")
+  ADMIN        @map("admin")
+  SUBSCRIPTION @map("subscription")
+  PAYMENT      @map("payment")
+  SYSTEM       @map("system")
 }
 
 model PlatformEvent {
   id        Int                    @id @default(autoincrement())
   uid       String                 @unique @default(uuid())
   userId    Int?                   @map("user_id")
+  adminId   Int?                   @map("admin_id")
   event     String // e.g. STORE_CREATED, USER_LOGIN
   category  PlatformEventCategory?
   entityUid String?                @map("entity_uid") // e.g transaction or payment or user uid
   createdAt DateTime               @default(now()) @map("created_at")
 
-  user User? @relation(fields: [userId], references: [id])
+  user  User?  @relation(fields: [userId], references: [id])
+  admin Admin? @relation(fields: [adminId], references: [id])
 
   @@index([event])
   @@index([createdAt])

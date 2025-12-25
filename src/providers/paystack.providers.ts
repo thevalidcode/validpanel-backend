@@ -145,16 +145,6 @@ const processSuccess = async (
         meta: notificationDetails.meta,
       },
     });
-
-    if (
-      user.onboardingStep !== "COMPLETE" &&
-      (isRenewal || data.metadata.type === "SUBSCRIPTION_PAYMENT")
-    ) {
-      await tx.user.update({
-        where: { id: user.id },
-        data: { onboardingStep: "STORE_DETAILS" },
-      });
-    }
   });
 };
 

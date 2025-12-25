@@ -12,6 +12,7 @@ import {
   createPermission,
   getPermissions,
   deletePermission,
+  updatePermission,
 } from "../controllers/adminPermission.controllers";
 
 import { authenticateAdmin } from "../middleware/auth";
@@ -26,7 +27,43 @@ const router = express.Router();
  */
 
 router.post("/me", admins.authenticateAdmin);
-router.get("/overview", authenticateAdmin, admins.overview);
+router.get(
+  "/",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_ADMINS"]),
+  admins.getAdmins
+);
+router.get(
+  "/platform-events",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_ADMINS"]),
+  admins.getPlatformEvents
+);
+router.put("/me", authenticateAdmin, admins.updateMe);
+router.post(
+  "/",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_ADMINS"]),
+  admins.createAdmin
+);
+router.put(
+  "/:uid",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_ADMINS"]),
+  admins.updateAdmin
+);
+router.delete(
+  "/:uid",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_ADMINS"]),
+  admins.deleteAdmin
+);
+router.get(
+  "/overview",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_ADMINS_OVERVIEW"]),
+  admins.overview
+);
 
 /**
  * =========================
@@ -100,6 +137,13 @@ router.delete(
   authenticateAdmin,
   checkAdminPermission(["MANAGE_PERMISSIONS"]),
   deletePermission
+);
+
+router.patch(
+  "/permissions/:uid",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_PERMISSIONS"]),
+  updatePermission
 );
 
 export default router;

@@ -4,6 +4,9 @@ import {
   NameSchema,
   UidSchema,
   CreatePermissionSchema,
+  updateAdminSchema,
+  createAdminRequestSchema,
+  RoleFormSchema,
 } from "../../schemas/admin.schema";
 import {
   AuthenticateAdminResponse,
@@ -16,8 +19,14 @@ import {
   GetRoleByUidResponse,
   UpdateRoleResponse,
   DeleteRoleResponse,
+  AdminListResponse,
+  PlatformEventsListResponse,
 } from "../responses/admin.response";
-import { BadRequest, ServerError } from "../responses/common.response";
+import {
+  BadRequest,
+  ServerError,
+  SuccessResponse,
+} from "../responses/common.response";
 import { OverviewResponse } from "../responses/admin.response";
 
 /**
@@ -62,6 +71,115 @@ registry.registerPath({
   },
 });
 
+registry.registerPath({
+  method: "get",
+  path: "/admins",
+  summary: "Admin list",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: AdminListResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/admins/platform-events",
+  summary: "Platform events",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: PlatformEventsListResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/admins/me",
+  summary: "Update my admin profile",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: updateAdminSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "put",
+  path: "/admins/{uid}",
+  summary: "Update an admin",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: UidSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: updateAdminSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/admins/{uid}",
+  summary: "Delete an admin",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: UidSchema,
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/admins",
+  summary: "Create an admin",
+  tags: ["Admins"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: createAdminRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
 /**
  * =========================
  * ROLE ROUTES
@@ -79,7 +197,7 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: NameSchema,
+          schema: RoleFormSchema,
         },
       },
     },
@@ -136,7 +254,7 @@ registry.registerPath({
     body: {
       content: {
         "application/json": {
-          schema: NameSchema,
+          schema: RoleFormSchema,
         },
       },
     },
@@ -243,6 +361,30 @@ registry.registerPath({
   },
   responses: {
     200: DeletePermissionResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// update a permission
+registry.registerPath({
+  method: "patch",
+  path: "/admins/permissions/{uid}",
+  summary: "Update a permission",
+  tags: ["Admin Roles & Permissions"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: UidSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: CreatePermissionSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
     400: BadRequest,
     500: ServerError,
   },

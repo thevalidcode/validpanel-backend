@@ -5,7 +5,6 @@ import {
   AuthenticateUserResponseSchema,
   VerifySessionResponseSchema,
 } from "../../schemas/user.schema";
-import { SubscriptionSchema } from "../../schemas/subscription.schema";
 import { StoreSchema } from "../../schemas/store.schema";
 
 export const AuthenticateUserResponse = {
@@ -176,6 +175,7 @@ export const SetupStoreResponse = {
       schema: z.object({
         message: z.string(),
         store: StoreSchema,
+        user: UserSchema,
         onboardingStep: z
           .literal("COMPLETE")
           .describe(

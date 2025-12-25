@@ -1,10 +1,6 @@
 import { prisma } from "../config/db.config";
 import type { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
-import {
-  NameSchema,
-  UidSchema,
-} from "../schemas/admin.schema";
+import { NameSchema, UidSchema, RoleFormSchema } from "../schemas/admin.schema";
 
 /**
  * Create a new Role
@@ -13,12 +9,12 @@ export const createRole = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = NameSchema.safeParse(req.body);
+  const parsed = RoleFormSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { name } = parsed.data;
+  const { name, permissionIds } = parsed.data;
 
   try {
     const existingRole = await prisma.adminRole.findFirst({ where: { name } });
@@ -29,12 +25,40 @@ export const createRole = async (
 
     const role = await prisma.adminRole.create({
       data: {
-        uid: uuidv4(),
         name,
       },
     });
 
-    res.status(201).json({ success: "Role created successfully", role });
+    // Assign permissions
+    if (permissionIds.length > 0) {
+      const permissions = await prisma.adminPermission.findMany({
+        where: { id: { in: permissionIds } },
+      });
+      if (permissions.length !== permissionIds.length) {
+        // Some permissions not found, but continue or error?
+        // For now, assign only existing ones
+      }
+      await prisma.adminRolePermission.createMany({
+        data: permissions.map((p) => ({ roleId: role.id, permissionId: p.id })),
+      });
+    }
+
+    // Fetch role with permissions
+    const roleWithPermissions = await prisma.adminRole.findUnique({
+      where: { id: role.id },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
+    });
+
+    res
+      .status(201)
+      .json({
+        success: "Role created successfully",
+        role: roleWithPermissions,
+      });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to create role: " + err.message });
   }
@@ -107,12 +131,12 @@ export const updateRole = async (
     return;
   }
   const { uid } = paramsParsed.data;
-  const parsed = NameSchema.safeParse(req.body);
+  const parsed = RoleFormSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { name } = parsed.data;
+  const { name, permissionIds } = parsed.data;
 
   try {
     const role = await prisma.adminRole.update({
@@ -120,7 +144,37 @@ export const updateRole = async (
       data: { name },
     });
 
-    res.status(200).json({ success: "Role updated successfully", role });
+    // Remove existing permissions
+    await prisma.adminRolePermission.deleteMany({
+      where: { roleId: role.id },
+    });
+
+    // Assign new permissions
+    if (permissionIds.length > 0) {
+      const permissions = await prisma.adminPermission.findMany({
+        where: { id: { in: permissionIds } },
+      });
+      await prisma.adminRolePermission.createMany({
+        data: permissions.map((p) => ({ roleId: role.id, permissionId: p.id })),
+      });
+    }
+
+    // Fetch updated role with permissions
+    const roleWithPermissions = await prisma.adminRole.findUnique({
+      where: { id: role.id },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
+    });
+
+    res
+      .status(200)
+      .json({
+        success: "Role updated successfully",
+        role: roleWithPermissions,
+      });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to update role: " + err.message });
   }
@@ -133,18 +187,57 @@ export const deleteRole = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const parsed = UidSchema.safeParse(req.body);
+  const parsed = UidSchema.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
+
   const { uid } = parsed.data;
 
   try {
-    await prisma.adminRole.delete({ where: { uid } });
+    const role = await prisma.adminRole.findUnique({
+      where: { uid },
+      select: { id: true, name: true },
+    });
+
+    if (!role) {
+      res.status(404).json({ error: "Role not found" });
+      return;
+    }
+
+    // Protect system roles
+    if (
+      role.name === "ADMIN" ||
+      role.name === "SUPER_ADMIN" ||
+      role.name === "Super Admin"
+    ) {
+      res.status(403).json({ error: "System roles cannot be deleted" });
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.adminRolePermission.deleteMany({
+        where: {
+          roleId: role.id,
+        },
+      });
+
+      await tx.adminRole.delete({
+        where: {
+          uid,
+        },
+      });
+    });
+
     res.status(200).json({ success: "Role deleted successfully" });
+    return;
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to delete role: " + err.message });
+    res.status(500).json({
+      error: "Failed to delete role",
+      details: err.message,
+    });
+    return;
   }
 };
 
