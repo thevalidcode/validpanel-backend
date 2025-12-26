@@ -18,6 +18,7 @@ import { OnboardingStep } from "../../prisma/generated";
 import { buildNotification } from "../services/notification.services";
 import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
 import { sendUserEmail } from "../emails";
+import { CreateStore } from "../services/store";
 
 function getMonthRange(date: Date) {
   return {
@@ -350,7 +351,7 @@ export const setupStore = async (req: Request, res: Response) => {
     }
 
     // Create store
-    const { store } = await prisma.$transaction(async (tx) => {
+    const { store, user } = await prisma.$transaction(async (tx) => {
       const store = await tx.store.create({
         data: {
           type,
@@ -387,13 +388,15 @@ export const setupStore = async (req: Request, res: Response) => {
           userId: userId,
         },
       });
-      return { store };
+
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { onboardingStep: "COMPLETE" },
+      });
+      return { store, user };
     });
 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { onboardingStep: "COMPLETE" },
-    });
+    await CreateStore(user, store, existingSubscription);
 
     const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
 

@@ -7,8 +7,8 @@ import {
   AdminActionSchema,
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
-import { AdminAuthSchema } from "../schemas/admin.schema";
 import { buildNotification } from "../services/notification.services";
+import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
 
 export const getStoreByUid = async (
   req: Request,
@@ -80,6 +80,7 @@ export const createStore = async (
   try {
     const { store } = await prisma.$transaction(async (tx) => {
       const store = await tx.store.create({
+        include: { owner: true },
         data: {
           uid: domain,
           type,
@@ -119,6 +120,8 @@ export const createStore = async (
       });
       return { store };
     });
+
+    await CreateStore(store.owner, store, existingSubscription);
 
     res.status(201).json({ success: "Store created successfully", store });
   } catch (err: any) {
@@ -171,6 +174,7 @@ export const updateStore = async (
 
     const updatedStore = await prisma.store.update({
       where: { uid },
+      include: { owner: true },
       data: {
         name: name || store.name,
         color: color || store.color,
@@ -179,6 +183,8 @@ export const updateStore = async (
         description: description || store.description,
       },
     });
+
+    await UpdateStore(updatedStore.owner, updatedStore);
 
     res
       .status(200)
@@ -207,7 +213,10 @@ export const deleteStore = async (
   const { user } = authParsed.data;
 
   try {
-    const store = await prisma.store.findUnique({ where: { uid } });
+    const store = await prisma.store.findUnique({
+      where: { uid },
+      include: { owner: true },
+    });
     if (!store) {
       res.status(404).json({ error: "Store not found" });
       return;
@@ -218,6 +227,7 @@ export const deleteStore = async (
       return;
     }
 
+    await DeleteStore(store.owner, store);
     await prisma.store.delete({ where: { uid } });
     res.status(200).json({ success: "Store deleted successfully" });
   } catch (err: any) {
@@ -374,6 +384,7 @@ export const approveStore = async (
     const { updatedStore } = await prisma.$transaction(async (tx) => {
       const updatedStore = await tx.store.update({
         where: { uid },
+        include: { owner: true },
         data: { status: "ACTIVE" },
       });
       const notificationDetails = buildNotification({
@@ -393,6 +404,7 @@ export const approveStore = async (
       });
       return { updatedStore };
     });
+    await UpdateStore(updatedStore.owner, updatedStore);
 
     res.status(200).json({ success: "Store approved", store: updatedStore });
   } catch (err: any) {
@@ -416,6 +428,7 @@ export const pauseStore = async (
     const { updatedStore } = await prisma.$transaction(async (tx) => {
       const updatedStore = await tx.store.update({
         where: { uid },
+        include: { owner: true },
         data: { status: "DISABLED" },
       });
       const notificationDetails = buildNotification({
@@ -436,6 +449,7 @@ export const pauseStore = async (
       return { updatedStore };
     });
 
+    await UpdateStore(updatedStore.owner, updatedStore);
     res.status(200).json({ success: "Store paused", store: updatedStore });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to approve store " + err.message });
@@ -473,6 +487,7 @@ export const adminUpdateStore = async (
 
     const updatedStore = await prisma.store.update({
       where: { uid },
+      include: { owner: true },
       data: {
         name: name || store.name,
         color: color || store.color,
@@ -482,6 +497,7 @@ export const adminUpdateStore = async (
       },
     });
 
+    await UpdateStore(updatedStore.owner, updatedStore);
     res
       .status(200)
       .json({ success: "Store updated successfully", store: updatedStore });
@@ -503,6 +519,17 @@ export const adminDeleteStore = async (
   const { uid } = parsed.data;
 
   try {
+    const store = await prisma.store.findUnique({
+      where: { uid },
+      include: { owner: true },
+    });
+
+    if (!store) {
+      res.status(404).json({ error: "No store was found for this delete" });
+      return;
+    }
+
+    await DeleteStore(store.owner, store);
     await prisma.store.delete({ where: { uid } });
     res.status(200).json({ success: "Store deleted successfully" });
   } catch (err: any) {

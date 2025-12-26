@@ -11,11 +11,11 @@ import { StoreType } from "../../prisma/generated";
 function getBaseUrl(storeType: StoreType): string {
   switch (storeType) {
     case "SOCIAL":
-      return "https://validpanel.com/social-media-store/backend/internal";
+      return env.SOCIAL_MEDIA_STORE_BACKEND_URL;
     case "DIGITAL":
-      return "https://validpanel.com/digital/backend/internal";
+      return env.DIGITAL_BACKEND_URL;
     case "SHOP":
-      return "https://validpanel.com/shop/backend/internal";
+      return env.SHOP_BACKEND_URL;
     default:
       throw new Error("Invalid store type");
   }
@@ -88,13 +88,13 @@ async function getAdminScopedToken(
  * Internal API call for user-scoped requests
  * Example: A user’s orders, balance, or transactions inside a specific store.
  */
-export async function callInternalAPIForUsers(
+export async function callInternalAPIForUsers<T = any>(
   method: Method, // GET, POST, PUT, DELETE
   endpoint: string, // e.g. "/orders"
   uid: string, // user ID
   storeId: number, // store ID
   data?: any // optional POST/PUT body
-) {
+): Promise<{ storeType: StoreType; data: T }> {
   try {
     // Validate store
     const store = await prisma.store.findUnique({ where: { storeId } });
@@ -105,14 +105,13 @@ export async function callInternalAPIForUsers(
 
     // Build request
     const baseUrl = getBaseUrl(store.type);
-    const url = `${baseUrl}/internal${endpoint}`;
+    const url = `${baseUrl}${endpoint}`;
 
-    const response = await axios.request({
+    const response = await axios.request<T>({
       url,
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        Origin: "https://validpanel.com",
       },
       data,
     });
@@ -131,13 +130,13 @@ export async function callInternalAPIForUsers(
  * Internal API call for admin/global requests
  * Example: Fetching all stores, analytics across the system, etc.
  */
-export async function callInternalAPIForAdmins(
+export async function callInternalAPIForAdmins<T = any>(
   method: Method,
   endpoint: string, // e.g. "/orders"
   uid: string, // e.g. Admin's Uid
   storeType: StoreType, // which service backend to hit
   data?: any
-) {
+): Promise<T> {
   try {
     // Get admin-scoped token
     const token = await getAdminScopedToken(uid, "core-platform");
@@ -146,12 +145,11 @@ export async function callInternalAPIForAdmins(
     const baseUrl = getBaseUrl(storeType);
     const url = `${baseUrl}${endpoint}`;
 
-    const response = await axios.request({
+    const response = await axios.request<T>({
       url,
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        Origin: "https://validpanel.com",
       },
       data,
     });
