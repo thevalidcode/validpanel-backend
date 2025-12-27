@@ -74,7 +74,7 @@ export const getAllServiceProviders = async (
 
     res.status(200).json({
       success: true,
-      data: providers,
+      providers,
       pagination: {
         total,
         page,
@@ -85,6 +85,53 @@ export const getAllServiceProviders = async (
     res
       .status(500)
       .json({ error: "Failed to fetch providers: " + err.message });
+  }
+};
+
+/**
+ * Get all Service API Providers (with filters, pagination)
+ */
+export const getActiveServiceProviders = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const parsed = GetAllServiceProvidersQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { page = 1, limit = 20, search } = parsed.data;
+  const skip = (page - 1) * limit;
+
+  try {
+    const where: any = {};
+    if (search) where.name = { contains: search, mode: "insensitive" };
+    where.status = "ACTIVE";
+
+    const [providers, total] = await Promise.all([
+      prisma.serviceApiProvider.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.serviceApiProvider.count({ where }),
+    ]);
+
+    res.status(200).json({
+      success: "Successfully fetched active service-api-providers",
+      providers,
+      pagination: {
+        total,
+        page,
+        limit,
+      },
+    });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to fetch active providers: " + err.message });
   }
 };
 

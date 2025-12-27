@@ -62,6 +62,23 @@ registry.registerPath({
   },
 });
 
+// Get active providers (filters, pagination)
+registry.registerPath({
+  method: "get",
+  path: "/service-api-providers/active",
+  summary: "Get active Service API Providers with filters & pagination",
+  security: [{ CookieAuth: [] }],
+  tags: ["Service API Providers"],
+  request: {
+    query: GetAllServiceProvidersQuerySchema,
+  },
+  responses: {
+    200: GetAllServiceProvidersResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
 // Get provider by UID
 registry.registerPath({
   method: "get",

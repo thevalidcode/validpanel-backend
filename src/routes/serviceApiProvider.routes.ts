@@ -14,15 +14,18 @@ const router = express.Router();
 
 // Create new provider
 router.post(
-  "/service-api-providers",
+  "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SERVICE_API_PROVIDERS"]),
   createServiceProvider
 );
 
+// Get active providers (with filters, pagination)
+router.get("/active", getAllServiceProviders);
+
 // Get all providers (with filters, pagination)
 router.get(
-  "/service-api-providers",
+  "/",
   authenticateAdmin,
   checkAdminPermission(["VIEW_SERVICE_API_PROVIDERS"]),
   getAllServiceProviders
@@ -30,7 +33,7 @@ router.get(
 
 // Get provider by UID
 router.get(
-  "/service-api-providers/:uid",
+  "/:uid",
   authenticateAdmin,
   checkAdminPermission(["VIEW_SERVICE_API_PROVIDERS"]),
   getServiceProviderByUid
@@ -38,7 +41,7 @@ router.get(
 
 // Update provider details
 router.put(
-  "/service-api-providers/:uid",
+  "/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SERVICE_API_PROVIDERS"]),
   updateServiceProvider
@@ -46,7 +49,7 @@ router.put(
 
 // Update provider status
 router.patch(
-  "/service-api-providers/:uid/status",
+  "/:uid/status",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SERVICE_API_PROVIDERS"]),
   updateServiceProviderStatus
@@ -54,7 +57,7 @@ router.patch(
 
 // Delete provider
 router.delete(
-  "/service-api-providers/:uid",
+  "/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SERVICE_API_PROVIDERS"]),
   deleteServiceProvider

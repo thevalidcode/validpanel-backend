@@ -19,7 +19,7 @@ export const GetAllServiceProvidersResponse = {
     "application/json": {
       schema: z.object({
         success: z.boolean(),
-        data: z.array(ServiceApiProviderSchema),
+        providers: z.array(ServiceApiProviderSchema),
         pagination: z.object({
           total: z.number(),
           page: z.number(),
