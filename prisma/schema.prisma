@@ -549,24 +549,6 @@ model AdminRolePermission {
   @@map("admin_role_permissions")
 }
 
-enum ServiceProviderStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
-}
-
-model ServiceApiProvider {
-  id        Int                   @id @default(autoincrement())
-  uid       String                @unique @default(uuid())
-  name      String
-  url       String
-  image     String?
-  status    ServiceProviderStatus @default(ACTIVE)
-  createdAt DateTime              @default(now()) @map("created_at")
-  updatedAt DateTime              @updatedAt @map("updated_at")
-
-  @@map("service_api_provders")
-}
-
 enum NotificationCategory {
   SYSTEM       @map("system")
   PAYMENT      @map("payment")

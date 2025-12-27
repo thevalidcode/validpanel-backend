@@ -20,7 +20,6 @@ import paymentGatewayRouter from "./routes/paymentGateway.routes";
 import notificationRouter from "./routes/notification.routes";
 import subscriptionPlanRouter from "./routes/subscriptionPlan.routes";
 import subscriptionRouter from "./routes/subscription.routes";
-import serviceApiProviderRouter from "./routes/serviceApiProvider.routes";
 import settingRouter from "./routes/setting.routes";
 import filesRouter from "./routes/files.routes";
 import paymentRouter from "./routes/payment.routes";
@@ -63,11 +62,6 @@ app.use("/api/v1/admins", cors(corsOptions), adminRouter);
 app.use("/api/v1/orders", cors(corsOptions), orderRouter);
 app.use("/api/v1/webhooks", cors(corsOptions), webhookRouter);
 app.use("/api/v1/payment-gateways", cors(corsOptions), paymentGatewayRouter);
-app.use(
-  "/api/v1/service-api-providers",
-  cors(corsOptions),
-  serviceApiProviderRouter
-);
 app.use("/api/v1/subscriptions", cors(corsOptions), subscriptionRouter);
 app.use(
   "/api/v1/subscription-plans",
