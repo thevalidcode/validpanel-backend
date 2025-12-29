@@ -1,10 +1,11 @@
+import dotenv from 'dotenv';
 import {
-  PaymentGateway,
   PaymentGatewayStatus,
   PaymentMethod,
 } from "../../prisma/generated";
 import { prisma } from "../config/db.config";
 
+dotenv.config();
 export const mockPaymentGateways = [
   {
     id: 1,

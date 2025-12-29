@@ -1,4 +1,6 @@
 import { prisma } from "../config/db.config";
+import dotenv from "dotenv";
+dotenv.config();
 
 async function main() {
   const user = await prisma.user.update({

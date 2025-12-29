@@ -1,5 +1,6 @@
 import { prisma } from "../config/db.config";
-
+import dotenv from 'dotenv';
+dotenv.config();
 const ADMIN_EMAIL = "ibeprecious49@gmail.com";
 
 async function main() {

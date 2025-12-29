@@ -1,9 +1,11 @@
+import dotenv from 'dotenv';
 import {
   BillingInterval,
   SubscriptionPlanStatus,
 } from "../../prisma/generated";
 import { prisma } from "../config/db.config";
 
+dotenv.config();
 const mockPlans = [
   {
     id: 1,
