@@ -11,7 +11,9 @@ export const corsOptions = {
 
     if (
       origin === `https://validpanel.com` ||
+      origin === `https://www.validpanel.com` ||
       origin === `https://test.validpanel.com` ||
+      origin === `https://www.test.validpanel.com` ||
       origin === `http://localhost:5173`
     ) {
       return callback(null, true);
