@@ -88,6 +88,7 @@ export const authenticateAdmin = async (
     const token = jwt.sign({ email, apiKey, uid }, env.JWT_SECRET, {
       expiresIn: "7d",
     });
+     
     res.cookie("auth_token", token, {
       httpOnly: true,
       secure: env.NODE_ENV === "production",
