@@ -287,7 +287,7 @@ export const createUser = async (req: Request, res: Response) => {
       },
     });
     const token = jwt.sign(
-      { email, apiKey: user.apiKey, role: "user" },
+      { email, apiKey: user.apiKey, uid: user.uid },
       env.JWT_SECRET,
       {
         expiresIn: "7d",
