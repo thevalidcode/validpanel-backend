@@ -10,7 +10,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 extendZodWithOpenApi(z);
 
 // Convert features type to Zod schema
-const SubscriptionPlanFeaturesSchema = z.object({
+export const SubscriptionPlanFeaturesSchema = z.object({
   stores: z.number(),
   products: z.number().nullable(),
   analytics: z.boolean(),
