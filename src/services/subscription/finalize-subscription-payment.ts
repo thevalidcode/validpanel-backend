@@ -33,11 +33,11 @@ const finalizeSubscriptionPaymentInternal = async (
     newPlanId,
   } = input;
 
-  const user = await tx.user.findUnique({
-    where: { id: userId },
-  });
+  // 1. Fetch user
+  const user = await tx.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found");
 
+  // 2. Fetch subscription
   const subscription = await tx.subscription.findUnique({
     where: { id: subscriptionId },
     include: { plan: true },
@@ -46,9 +46,8 @@ const finalizeSubscriptionPaymentInternal = async (
     throw new Error("Subscription not found");
   }
 
-  if (subscription.status === "ACTIVE") {
-    return; // idempotent
-  }
+  // 3. Idempotent: do nothing if already active
+  if (subscription.status === "ACTIVE") return;
 
   const isUpgrade = type === "SUBSCRIPTION_UPGRADE";
   const isRenewal =
@@ -58,10 +57,9 @@ const finalizeSubscriptionPaymentInternal = async (
   let planId = subscription.planId;
   let finalBillingCycle = subscription.billingCycle;
 
+  // 4. Handle upgrade
   if (isUpgrade) {
-    if (!newPlanId || !billingCycle) {
-      throw new Error("Upgrade details missing");
-    }
+    if (!newPlanId || !billingCycle) throw new Error("Upgrade details missing");
 
     planId = newPlanId;
     finalBillingCycle = billingCycle;
@@ -72,6 +70,7 @@ const finalizeSubscriptionPaymentInternal = async (
     });
   }
 
+  // 5. Handle renewal
   if (isRenewal) {
     const now = new Date();
     expiresAt =
@@ -80,6 +79,13 @@ const finalizeSubscriptionPaymentInternal = async (
         : new Date(now.setMonth(now.getMonth() + 1));
   }
 
+  // 6. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
+  await tx.subscription.updateMany({
+    where: { userId: user.id, status: "ACTIVE" },
+    data: { status: "EXPIRED" },
+  });
+
+  // 7. Activate this subscription
   const updatedSubscription = await tx.subscription.update({
     where: { id: subscription.id },
     data: {
@@ -93,6 +99,7 @@ const finalizeSubscriptionPaymentInternal = async (
     include: { plan: true },
   });
 
+  // 8. Update transaction & payment status
   await tx.transaction.update({
     where: { id: transactionId },
     data: { status: "SUCCESS" },
@@ -103,6 +110,7 @@ const finalizeSubscriptionPaymentInternal = async (
     data: { status: "SUCCESS" },
   });
 
+  // 9. Create notification
   const notification = buildNotification({
     category: "PAYMENT",
     type,
@@ -127,6 +135,7 @@ const finalizeSubscriptionPaymentInternal = async (
     },
   });
 
+  // 10. Advance onboarding if necessary
   if (user.onboardingStep !== "COMPLETE" && isRenewal) {
     await tx.user.update({
       where: { id: user.id },
@@ -134,6 +143,7 @@ const finalizeSubscriptionPaymentInternal = async (
     });
   }
 };
+
 
 export const finalizeSubscriptionPayment = async (
   input: FinalizeSubscriptionPaymentInput,
