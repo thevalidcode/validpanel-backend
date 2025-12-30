@@ -77,6 +77,7 @@ export const createSubscriptionPayment = async (
 
       return {
         message: "Subscription activated successfully.",
+        url: input.redirectUrl,
       };
     }
 

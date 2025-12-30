@@ -302,8 +302,18 @@ export const createSubscription = async (req: Request, res: Response) => {
       return;
     }
 
-    const subscription = await prisma.subscription.create({
-      data: {
+    const subscription = await prisma.subscription.upsert({
+      where: {
+        userId_status: {
+          userId: user.id,
+          status: "PENDING",
+        },
+      },
+      update: {
+        planId,
+        billingCycle,
+      },
+      create: {
         userId: user.id,
         planId,
         billingCycle,

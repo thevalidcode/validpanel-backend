@@ -9,6 +9,7 @@ import {
 import { AuthSchema } from "../schemas/user.schema";
 import { buildNotification } from "../services/notification.services";
 import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
+import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
 
 export const getStoreByUid = async (
   req: Request,
@@ -40,10 +41,12 @@ export const createStore = async (
 ): Promise<void> => {
   const parsed = CreateStoreSchema.safeParse(req.body);
   const authParsed = AuthSchema.safeParse(req.auth);
+
   if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
+
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
@@ -51,46 +54,79 @@ export const createStore = async (
 
   const { type, domain, name, description, subscriptionId, logoUrl, color } =
     parsed.data;
+
   const { user } = authParsed.data;
 
-  // Check if domain already exists
-  const existingDomain = await prisma.store.findUnique({
-    where: { uid: domain },
-  });
-
-  if (existingDomain) {
-    res.status(400).json({ error: "Domain already taken" });
-    return;
-  }
-
-  // Check if subscription already exists
-  const existingSubscription = await prisma.subscription.findFirst({
-    where: { id: subscriptionId, status: "ACTIVE" },
-    include: { plan: true },
-    orderBy: {
-      expiresAt: "desc", // get latest subscription
-    },
-  });
-
-  if (!existingSubscription) {
-    res.status(400).json({ error: "Subscription not found" });
-    return;
-  }
-
   try {
-    const { store } = await prisma.$transaction(async (tx) => {
+    /**
+     * 1. Ensure domain is unique
+     */
+    const existingDomain = await prisma.store.findUnique({
+      where: { uid: domain },
+    });
+
+    if (existingDomain) {
+      res.status(400).json({ error: "Domain already taken" });
+      return;
+    }
+
+    /**
+     * 2. Fetch ACTIVE subscription that belongs to user
+     */
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        id: subscriptionId,
+        userId: user.id,
+        status: "ACTIVE",
+      },
+      include: {
+        plan: true,
+        user: {
+          include: {
+            stores: true,
+          },
+        },
+      },
+    });
+
+    if (!subscription) {
+      res.status(400).json({ error: "Active subscription not found" });
+      return;
+    }
+
+    /**
+     * 3. Enforce store limit
+     */
+    const features = subscription.plan
+      .features as SubscriptionPlanFeatures | null;
+    const allowedStores = features?.stores ?? 1;
+    const currentStores = subscription.user.stores.length;
+
+    if (currentStores >= allowedStores) {
+      res.status(403).json({
+        error: "Store limit reached for this subscription",
+      });
+      return;
+    }
+
+    /**
+     * 4. Transaction: create store + logs
+     */
+    const store = await prisma.$transaction(async (tx) => {
       const store = await tx.store.create({
-        include: { owner: true },
         data: {
           uid: domain,
           type,
           name,
+          description,
           logoUrl,
           color,
-          description,
-          plan: existingSubscription.plan.name,
+          plan: subscription.plan.name,
           status: "PENDING",
           ownerId: user.id,
+        },
+        include: {
+          owner: true,
         },
       });
 
@@ -105,8 +141,8 @@ export const createStore = async (
           category: notificationDetails.category,
           title: notificationDetails.title,
           message: notificationDetails.message,
-          userId: user.id,
           meta: notificationDetails.meta,
+          userId: user.id,
         },
       });
 
@@ -118,14 +154,23 @@ export const createStore = async (
           userId: user.id,
         },
       });
-      return { store };
+
+      return store;
     });
 
-    await CreateStore(store.owner, store, existingSubscription);
+    /**
+     * 5. Post-creation side effects
+     */
+    await CreateStore(store.owner, store, subscription);
 
-    res.status(201).json({ success: "Store created successfully", store });
+    res.status(201).json({
+      success: "Store created successfully",
+      store,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to create store " + err.message });
+    res.status(500).json({
+      error: "Failed to create store",
+    });
   }
 };
 

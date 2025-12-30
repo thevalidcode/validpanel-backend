@@ -108,6 +108,7 @@ model Subscription {
   plan        SubscriptionPlan  @relation("ActivePlan", fields: [planId], references: [id])
   pendingPlan SubscriptionPlan? @relation("PendingPlan", fields: [pendingPlanId], references: [id])
 
+  @@unique([userId, status]) // Guarantees a user can only have one active or pending subscrition
   @@map("subscriptions")
 }
 
