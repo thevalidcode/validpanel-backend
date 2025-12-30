@@ -29,7 +29,6 @@ export async function CreateStore(
       adminUid: user.uid,
       adminImage: user.image,
       adminEmail: user.email,
-      adminPassword: user.password,
       fullName: user.fullName,
     }
   );
