@@ -120,7 +120,7 @@ export async function callInternalAPIForUsers<T = any>(
   } catch (err: any) {
     throw new Error(
       `User Internal API call failed: ${
-        err.response?.data?.error || err.message
+        err.response?.data?.error.message || err.message
       }`
     );
   }
@@ -158,7 +158,7 @@ export async function callInternalAPIForAdmins<T = any>(
   } catch (err: any) {
     throw new Error(
       `Admin Internal API call failed: ${
-        err.response?.data?.error || err.message
+        err.response?.data?.error.message || err.message
       }`
     );
   }
