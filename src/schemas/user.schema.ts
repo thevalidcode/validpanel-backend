@@ -112,7 +112,7 @@ export const setupStoreSchema = z.object({
   type: z.nativeEnum(StoreType),
   name: z.string().min(4),
   domain: z.string(),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().optional(),
   color: z.string().optional(),
 });
 
