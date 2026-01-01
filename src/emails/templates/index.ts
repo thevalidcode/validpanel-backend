@@ -4,11 +4,18 @@ import {
   passwordChanged,
   ForgotPasswordVars,
 } from "./user.templates";
+import {
+  adminForgotPassword,
+  adminPasswordChanged,
+  AdminForgotPasswordVars,
+} from "./admin.templates";
 
 // Map each template type string to the specific variable type it expects
 export interface EmailTemplateVars {
   FORGOT_PASSWORD: ForgotPasswordVars;
   PASSWORD_CHANGED: LogoVars;
+  ADMIN_FORGOT_PASSWORD: AdminForgotPasswordVars;
+  ADMIN_PASSWORD_CHANGED: LogoVars;
   // Add more templates here
 }
 
@@ -20,6 +27,8 @@ const typedTemplates: {
 } = {
   FORGOT_PASSWORD: forgotPassword,
   PASSWORD_CHANGED: passwordChanged,
+  ADMIN_FORGOT_PASSWORD: adminForgotPassword,
+  ADMIN_PASSWORD_CHANGED: adminPasswordChanged,
 };
 
 /**

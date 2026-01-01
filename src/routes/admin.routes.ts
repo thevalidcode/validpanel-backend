@@ -22,11 +22,13 @@ const router = express.Router();
 
 /**
  * =========================
- * ADMIN ROUTES
+ * AUTHENTICATION ROUTES
  * =========================
  */
 
 router.post("/me", admins.authenticateAdmin);
+router.post("/forgot-password", admins.forgotPassword);
+router.post("/reset-password", admins.resetPassword);
 router.get(
   "/",
   authenticateAdmin,

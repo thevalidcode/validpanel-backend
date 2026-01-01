@@ -7,6 +7,8 @@ import {
   updateAdminSchema,
   createAdminRequestSchema,
   RoleFormSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../../schemas/admin.schema";
 import {
   AuthenticateAdminResponse,
@@ -52,6 +54,53 @@ registry.registerPath({
   },
   responses: {
     200: AuthenticateAdminResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// Forgot password
+registry.registerPath({
+  method: "post",
+  path: "/admins/forgot-password",
+  summary: "Send password reset link to admin's email",
+  tags: ["Admins"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: forgotPasswordSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    404: {
+      description: "Admin not found",
+    },
+    500: ServerError,
+  },
+});
+
+// Reset password
+registry.registerPath({
+  method: "post",
+  path: "/admins/reset-password",
+  summary: "Reset admin's password",
+  tags: ["Admins"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: resetPasswordSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: SuccessResponse,
     400: BadRequest,
     500: ServerError,
   },

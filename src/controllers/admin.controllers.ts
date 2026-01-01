@@ -9,7 +9,10 @@ import {
   createAdminRequestSchema,
   UidSchema,
   updateAdminSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../schemas/admin.schema";
+import { sendAdminEmail } from "../emails";
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -558,5 +561,108 @@ export const createAdmin = async (req: Request, res: Response) => {
     res.status(200).json({ success: "Admin created successfully" });
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create admin" + error.message });
+  }
+};
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const input = forgotPasswordSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
+    return;
+  }
+
+  const { email } = input.data;
+
+  try {
+    // Find admin by email
+    const admin = await prisma.admin.findFirst({ where: { email } });
+    if (!admin) {
+      res.status(404).json({ error: "Admin with this email not found." });
+      return;
+    }
+
+    // Generate reset token and expiry
+    const resetToken = uuidv4();
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Save token to admin record
+    await prisma.admin.update({
+      where: { id: admin.id },
+      data: { resetToken, resetTokenExpiry },
+    });
+
+    // Send password reset email
+    await sendAdminEmail("ADMIN_FORGOT_PASSWORD", {
+      email: admin.email,
+      token: resetToken,
+    }, admin.email);
+
+    res.status(200).json({
+      success: "A password reset link has been sent to your email.",
+    });
+  } catch (err: any) {
+    console.error("forgotPassword error:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to process password reset." });
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const input = resetPasswordSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: input.error.flatten() });
+    return;
+  }
+
+  const { password, token, email } = input.data;
+
+  try {
+    const admin = await prisma.admin.findFirst({
+      where: { email },
+    });
+
+    if (!admin) {
+      res.status(400).json({ error: "Admin not found." });
+      return;
+    }
+
+    if (!admin.resetToken || admin.resetToken !== token) {
+      res.status(400).json({ error: "Invalid reset token." });
+      return;
+    }
+
+    if (
+      !admin.resetTokenExpiry ||
+      new Date(admin.resetTokenExpiry) < new Date()
+    ) {
+      res.status(400).json({ error: "Token expired." });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    await prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    // Send password changed email
+    await sendAdminEmail("ADMIN_PASSWORD_CHANGED", {}, admin.email);
+
+    res.status(200).json({ success: "Password updated successfully." });
+  } catch (err: any) {
+    res
+      .status(500)
+      .json({ error: "Failed to update password: " + err.message });
   }
 };

@@ -101,6 +101,16 @@ export const SuccessMessageSchema = z.object({
   success: z.string().describe("Admin operation was successful"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string(),
+  email: z.string().email(),
+  password: z.string(),
+});
+
 export const AdminAuthSchema = z.object({
   uid: z.string(),
   type: z.literal("admin"),

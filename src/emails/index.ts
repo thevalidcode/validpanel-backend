@@ -143,3 +143,23 @@ export async function sendUserEmail(
     console.error(`sendUserEmail error for ${to}: ${err.message}`);
   }
 }
+
+// ----------------------------
+// Send Email to a Specific Admin
+// ----------------------------
+export async function sendAdminEmail(
+  type: keyof EmailTemplateVars,
+  data: Record<string, any> = {},
+  to?: string,
+  from = '"Valid Panel" <admin@validpanel.com>'
+): Promise<void> {
+  try {
+    const { logoUrl } = await loadGeneralSettings();
+    const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
+
+    const adminEmail = to || "backend@validpanel.com";
+    await dispatchEmail({ from, to: adminEmail, subject, html });
+  } catch (err: any) {
+    console.error(`sendAdminEmail error: ${err.message}`);
+  }
+}
