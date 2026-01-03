@@ -339,6 +339,7 @@ export const getActiveStores = async (
     res.status(500).json({ error: "Failed to fetch stores " + err.message });
   }
 };
+
 export const adminGetAllStores = async (
   req: Request,
   res: Response

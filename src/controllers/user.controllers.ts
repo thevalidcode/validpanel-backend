@@ -428,7 +428,6 @@ export const setupStore = async (req: Request, res: Response) => {
       onboardingStep: "COMPLETE" as OnboardingStep,
     });
   } catch (err: any) {
-    console.error("Store setup error:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
