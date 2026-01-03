@@ -305,6 +305,22 @@ export const createSubscription = async (
       return;
     }
 
+    // Check for existing active subscription
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+      },
+    });
+
+    if (activeSubscription) {
+      res.status(200).json({
+        success: "You already have an active subscription.",
+        url: `${parsed.data.redirectUrl}?subscriptionId=${activeSubscription.id}`,
+      });
+      return;
+    }
+
     // Check for existing pending subscription
     let subscription = await prisma.subscription.findFirst({
       where: {
