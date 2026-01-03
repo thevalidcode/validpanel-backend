@@ -118,12 +118,12 @@ export async function callInternalAPIForUsers<T = any>(
 
     return { storeType: store.type, data: response.data };
   } catch (err: any) {
+    console.log("Error calling internal API for users", err);
     throw new Error(
       `User Internal API call failed: ${
         err.response?.data?.error.message || err.message
       }`
     );
-    console.log("Error calling internal API for users", err);
   }
 }
 
@@ -157,11 +157,11 @@ export async function callInternalAPIForAdmins<T = any>(
 
     return response.data;
   } catch (err: any) {
+    console.log("Error calling internal API for admins", err);
     throw new Error(
       `Admin Internal API call failed: ${
         err.response?.data?.error.message || err.message
       }`
     );
-    console.log("Error calling internal API for admins", err);
   }
 }
