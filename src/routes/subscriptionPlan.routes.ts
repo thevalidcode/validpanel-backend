@@ -2,9 +2,11 @@ import express from "express";
 import * as subscriptionPlans from "../controllers/subscriptionPlan.controllers";
 import { authenticateAdmin, authenticateUser } from "../middleware/auth";
 import {
-  limittAdd,
-  limittActions,
-} from "../middleware/ratelimit/common.ratelimit";
+  limitSubscriptionPlanCreate,
+  limitSubscriptionPlanUpdate,
+  limitSubscriptionPlanDelete,
+  limitSubscriptionPlanView,
+} from "../middleware/ratelimit/subscriptionPlan.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
@@ -13,11 +15,11 @@ const router = express.Router();
  * SUBSCRIPTIONS PLANS ROUTES FOR USERS AND ADMINS
  */
 
-router.get("/", limittActions, subscriptionPlans.getSubscriptionPlansForUser);
+router.get("/", limitSubscriptionPlanView, subscriptionPlans.getSubscriptionPlansForUser);
 
 router.get(
   "/:uid",
-  limittActions,
+  limitSubscriptionPlanView,
   subscriptionPlans.getSubscriptionPlanByUidForUser
 );
 
@@ -29,7 +31,7 @@ router.patch(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
-  limittActions,
+  limitSubscriptionPlanUpdate,
   subscriptionPlans.updateSubscriptionPlan
 );
 
@@ -37,7 +39,7 @@ router.post(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
-  limittAdd,
+  limitSubscriptionPlanCreate,
   subscriptionPlans.addSubscriptionPlan
 );
 
@@ -45,7 +47,7 @@ router.get(
   "/admin",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
-  limittActions,
+  limitSubscriptionPlanView,
   subscriptionPlans.getSubscriptionPlans
 );
 
@@ -53,7 +55,7 @@ router.get(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["VIEW_SUBSCRIPTION_PLANS"]),
-  limittActions,
+  limitSubscriptionPlanView,
   subscriptionPlans.getSubscriptionPlanByUid
 );
 
@@ -61,7 +63,7 @@ router.delete(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
-  limittActions,
+  limitSubscriptionPlanDelete,
   subscriptionPlans.deleteSubscriptionPlanByUid
 );
 

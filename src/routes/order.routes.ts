@@ -3,6 +3,7 @@ const router = express.Router();
 import * as orders from "../controllers/order.controllers";
 import { authenticateUser, authenticateAdmin } from "../middleware/auth";
 import { checkAdminPermission } from "../middleware/permission";
+import { limitOrderView } from "../middleware/ratelimit/order.ratelimit";
 
 /**
  * =========================
@@ -15,10 +16,11 @@ router.get(
   "/",
   authenticateAdmin,
   checkAdminPermission(["VIEW_ORDERS"]),
+  limitOrderView,
   orders.getAllOrders
 );
 
 // Get current user's orders (with pagination)
-router.get("/me", authenticateUser, orders.getMyOrders);
+router.get("/me", authenticateUser, limitOrderView, orders.getMyOrders);
 
 export default router;

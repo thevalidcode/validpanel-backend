@@ -276,7 +276,10 @@ export const downgradePlan = async (
   }
 };
 
-export const createSubscription = async (req: Request, res: Response) => {
+export const createSubscription = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   const parsed = SubscriptionPaymentSchema.safeParse(req.body);
   const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -302,24 +305,34 @@ export const createSubscription = async (req: Request, res: Response) => {
       return;
     }
 
-    const subscription = await prisma.subscription.upsert({
+    // Check for existing pending subscription
+    let subscription = await prisma.subscription.findFirst({
       where: {
-        userId_status: {
-          userId: user.id,
-          status: "PENDING",
-        },
-      },
-      update: {
-        planId,
-        billingCycle,
-      },
-      create: {
         userId: user.id,
-        planId,
-        billingCycle,
         status: "PENDING",
       },
     });
+
+    if (subscription) {
+      // Update existing pending subscription
+      subscription = await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId,
+          billingCycle,
+        },
+      });
+    } else {
+      // Create new subscription
+      subscription = await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          planId,
+          billingCycle,
+          status: "PENDING",
+        },
+      });
+    }
 
     const result = await paymentServices.createSubscriptionPayment(
       user,

@@ -3,13 +3,19 @@ const router = express.Router();
 import * as users from "../controllers/user.controllers";
 import { authenticateUser, authenticateAdmin } from "../middleware/auth";
 import { strictLimiter } from "../middleware/ratelimit/user.ratelimit";
+import {
+  limitLogin,
+  limitPasswordReset,
+  limitForgotPassword,
+  limitSessionVerify,
+} from "../middleware/ratelimit/auth.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
-router.post("/me", strictLimiter, users.me);
-router.post("/verify-session", users.verifySession);
+router.post("/me", limitLogin, users.me);
+router.post("/verify-session", limitSessionVerify, users.verifySession);
 router.post("/", strictLimiter, users.createUser);
-router.post("/reset-password", strictLimiter, users.resetPassword);
-router.post("/forgot-password", strictLimiter, users.forgotPassword);
+router.post("/reset-password", limitPasswordReset, users.resetPassword);
+router.post("/forgot-password", limitForgotPassword, users.forgotPassword);
 
 // ✅ FIX: static route FIRST
 router.get("/analytics", authenticateUser, users.userAnalytics);

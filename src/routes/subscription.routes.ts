@@ -2,9 +2,13 @@ import express from "express";
 import * as subscriptions from "../controllers/subscription.controllers";
 import { authenticateAdmin, authenticateUser } from "../middleware/auth";
 import {
-  limittAdd,
-  limittActions,
-} from "../middleware/ratelimit/common.ratelimit";
+  limitSubscriptionCreate,
+  limitPlanUpgrade,
+  limitPlanDowngrade,
+  limitSubscriptionRenew,
+  limitSubscriptionView,
+  limitSubscriptionUpdate,
+} from "../middleware/ratelimit/subscription.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
@@ -16,43 +20,43 @@ const router = express.Router();
 router.get(
   "/",
   authenticateUser,
-  limittActions,
+  limitSubscriptionView,
   subscriptions.getSubscriptionsForUser
 );
 
 router.get(
   "/active",
   authenticateUser,
-  limittActions,
+  limitSubscriptionView,
   subscriptions.getActiveSubscriptionForUser
 );
 
 router.patch(
   "/upgrade-plan",
   authenticateUser,
-  limittAdd,
+  limitPlanUpgrade,
   subscriptions.upgradePlan
 );
 
 router.patch(
   "/downgrade-plan",
   authenticateUser,
-  limittAdd,
+  limitPlanDowngrade,
   subscriptions.downgradePlan
 );
 
-router.post("/", authenticateUser, limittAdd, subscriptions.createSubscription);
+router.post("/", authenticateUser, limitSubscriptionCreate, subscriptions.createSubscription);
 router.post(
   "/renew",
   authenticateUser,
-  limittAdd,
+  limitSubscriptionRenew,
   subscriptions.renewSubscription
 );
 
 router.get(
   "/:uid",
   authenticateUser,
-  limittActions,
+  limitSubscriptionView,
   subscriptions.getSubscriptionByUidForUser
 );
 
@@ -64,7 +68,7 @@ router.patch(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTIONS"]),
-  limittActions,
+  limitSubscriptionUpdate,
   subscriptions.updateSubscription
 );
 
@@ -72,7 +76,7 @@ router.get(
   "/admin",
   authenticateAdmin,
   checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
-  limittActions,
+  limitSubscriptionView,
   subscriptions.getSubscriptions
 );
 
@@ -80,7 +84,7 @@ router.get(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
-  limittActions,
+  limitSubscriptionView,
   subscriptions.getSubscriptionByUid
 );
 

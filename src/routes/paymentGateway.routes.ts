@@ -2,9 +2,11 @@ import express from "express";
 import * as paymentGateways from "../controllers/paymentGateway.controllers";
 import { authenticateAdmin, authenticateUser } from "../middleware/auth";
 import {
-  limittAdd,
-  limittActions,
-} from "../middleware/ratelimit/common.ratelimit";
+  limitPaymentGatewayCreate,
+  limitPaymentGatewayUpdate,
+  limitPaymentGatewayDelete,
+  limitPaymentGatewayView,
+} from "../middleware/ratelimit/paymentGateway.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
@@ -12,14 +14,14 @@ const router = express.Router();
 router.get(
   "/",
   authenticateUser,
-  limittActions,
+  limitPaymentGatewayView,
   paymentGateways.getPaymentGatewaysForUser
 );
 
 router.get(
   "/:uid",
   authenticateUser,
-  limittActions,
+  limitPaymentGatewayView,
   paymentGateways.getPaymentGatewayByUidForUser
 );
 
@@ -33,7 +35,7 @@ router.patch(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_PAYMENT_GATEWAYS"]),
-  limittActions,
+  limitPaymentGatewayUpdate,
   paymentGateways.updatePaymentGateway
 );
 
@@ -41,7 +43,7 @@ router.delete(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_PAYMENT_GATEWAYS"]),
-  limittActions,
+  limitPaymentGatewayDelete,
   paymentGateways.deletePaymentGateway
 );
 
@@ -49,7 +51,7 @@ router.post(
   "/",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_PAYMENT_GATEWAYS"]),
-  limittAdd,
+  limitPaymentGatewayCreate,
   paymentGateways.addPaymentGateway
 );
 
@@ -57,7 +59,7 @@ router.get(
   "/admin",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_PAYMENT_GATEWAYS"]),
-  limittActions,
+  limitPaymentGatewayView,
   paymentGateways.getPaymentGateways
 );
 
@@ -65,7 +67,7 @@ router.get(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["VIEW_PAYMENT_GATEWAYS"]),
-  limittActions,
+  limitPaymentGatewayView,
   paymentGateways.getPaymentGatewayByUid
 );
 export default router;

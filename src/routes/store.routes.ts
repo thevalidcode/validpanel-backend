@@ -2,18 +2,20 @@ import express from "express";
 import * as stores from "../controllers/store.controllers";
 import { authenticateAdmin, authenticateUser } from "../middleware/auth";
 import {
-  limittActions,
-  limittAdd,
-} from "../middleware/ratelimit/common.ratelimit";
+  limitStoreCreate,
+  limitStoreUpdate,
+  limitStoreDelete,
+  limitStoreAdminAction,
+} from "../middleware/ratelimit/store.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
 
 router.get("/me", authenticateUser, stores.getMyStores);
 router.get("/:uid", authenticateUser, stores.getStoreByUid);
-router.post("/", authenticateUser, limittAdd, stores.createStore);
-router.put("/:uid", authenticateUser, limittActions, stores.updateStore);
-router.delete("/:uid", authenticateUser, limittActions, stores.deleteStore);
+router.post("/", authenticateUser, limitStoreCreate, stores.createStore);
+router.put("/:uid", authenticateUser, limitStoreUpdate, stores.updateStore);
+router.delete("/:uid", authenticateUser, limitStoreDelete, stores.deleteStore);
 
 /**
  *
@@ -49,24 +51,28 @@ router.put(
   "/admin/:uid/approve",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_STORES"]),
+  limitStoreAdminAction,
   stores.approveStore
 );
 router.put(
   "/admin/:uid/pause",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_STORES"]),
+  limitStoreAdminAction,
   stores.pauseStore
 );
 router.put(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_STORES"]),
+  limitStoreUpdate,
   stores.adminUpdateStore
 );
 router.delete(
   "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_STORES"]),
+  limitStoreDelete,
   stores.adminDeleteStore
 );
 

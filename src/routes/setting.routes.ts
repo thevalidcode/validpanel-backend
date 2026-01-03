@@ -2,17 +2,20 @@ import express from "express";
 const router = express.Router();
 import * as settings from "../controllers/setting.controllers";
 import { authenticateAdmin } from "../middleware/auth";
-import { limittActions } from "../middleware/ratelimit/common.ratelimit";
+import {
+  limitSettingsUpdate,
+  limitSettingsView,
+} from "../middleware/ratelimit/setting.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
-router.get("/", settings.getSettingsForUsers);
+router.get("/", limitSettingsView, settings.getSettingsForUsers);
 
 // Admin routes
-router.get("/admin", authenticateAdmin, settings.getSettingsForAdmins);
+router.get("/admin", authenticateAdmin, limitSettingsView, settings.getSettingsForAdmins);
 router.put(
   "/",
   authenticateAdmin,
-  limittActions,
+  limitSettingsUpdate,
   checkAdminPermission(["MANAGE_SETTINGS"]),
   settings.updateSettings
 );
