@@ -112,56 +112,75 @@ export const createStore = async (
     /**
      * 4. Transaction: create store + logs
      */
-    const store = await prisma.$transaction(async (tx) => {
-      const store = await tx.store.create({
-        data: {
-          uid: domain,
-          type,
-          name,
-          description,
-          logoUrl,
-          color,
-          plan: subscription.plan.name,
-          status: "PENDING",
-          ownerId: user.id,
-        },
-        include: {
-          owner: true,
-        },
-      });
+    const { store, notification, platformEvent } = await prisma.$transaction(
+      async (tx) => {
+        const store = await tx.store.create({
+          data: {
+            uid: domain,
+            type,
+            name,
+            description,
+            logoUrl,
+            color,
+            plan: subscription.plan.name,
+            status: "PENDING",
+            ownerId: user.id,
+          },
+          include: {
+            owner: true,
+          },
+        });
 
-      const notificationDetails = buildNotification({
-        category: "STORE",
-        type: "STORE_CREATED",
-        status: "success",
-      });
-
-      await tx.notification.create({
-        data: {
-          category: notificationDetails.category,
-          title: notificationDetails.title,
-          message: notificationDetails.message,
-          meta: notificationDetails.meta,
-          userId: user.id,
-        },
-      });
-
-      await tx.platformEvent.create({
-        data: {
-          event: "STORE_CREATED",
+        const notificationDetails = buildNotification({
           category: "STORE",
-          entityUid: store.uid,
-          userId: user.id,
-        },
-      });
+          type: "STORE_CREATED",
+          status: "success",
+        });
 
-      return store;
-    });
+        const notification = await tx.notification.create({
+          data: {
+            category: notificationDetails.category,
+            title: notificationDetails.title,
+            message: notificationDetails.message,
+            meta: notificationDetails.meta,
+            userId: user.id,
+          },
+        });
+
+        const platformEvent = await tx.platformEvent.create({
+          data: {
+            event: "STORE_CREATED",
+            category: "STORE",
+            entityUid: store.uid,
+            userId: user.id,
+          },
+        });
+
+        return { store, notification, platformEvent };
+      },
+      {
+        isolationLevel: "Serializable",
+      }
+    );
 
     /**
      * 5. Post-creation side effects
      */
-    await CreateStore(store.owner, store, subscription);
+    try {
+      await CreateStore(store.owner, store, subscription);
+    } catch (err: any) {
+      // Revert: delete the created store and related records
+      await prisma.$transaction(async (tx) => {
+        await tx.notification.delete({
+          where: { userId: user.id, uid: notification.uid },
+        });
+        await tx.platformEvent.delete({
+          where: { uid: platformEvent.uid },
+        });
+        await tx.store.delete({ where: { uid: store.uid } });
+      });
+      throw err;
+    }
 
     res.status(201).json({
       success: "Store created successfully",

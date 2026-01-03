@@ -351,52 +351,73 @@ export const setupStore = async (req: Request, res: Response) => {
     }
 
     // Create store
-    const { store, user } = await prisma.$transaction(async (tx) => {
-      const store = await tx.store.create({
-        data: {
-          type,
-          name,
-          logoUrl,
-          color,
-          uid: domain,
-          plan: existingSubscription.plan.name,
-          ownerId: userId,
-        },
-      });
+    const { store, user } = await prisma.$transaction(
+      async (tx) => {
+        const store = await tx.store.create({
+          data: {
+            type,
+            name,
+            logoUrl,
+            color,
+            uid: domain,
+            plan: existingSubscription.plan.name,
+            ownerId: userId,
+          },
+        });
 
-      const notificationDetails = buildNotification({
-        category: "STORE",
-        type: "STORE_CREATED",
-        status: "success",
-      });
+        const notificationDetails = buildNotification({
+          category: "STORE",
+          type: "STORE_CREATED",
+          status: "success",
+        });
 
-      await tx.notification.create({
-        data: {
-          category: notificationDetails.category,
-          title: notificationDetails.title,
-          message: notificationDetails.message,
-          userId: userId,
-          meta: notificationDetails.meta,
-        },
-      });
+        await tx.notification.create({
+          data: {
+            category: notificationDetails.category,
+            title: notificationDetails.title,
+            message: notificationDetails.message,
+            userId: userId,
+            meta: notificationDetails.meta,
+          },
+        });
 
-      await tx.platformEvent.create({
-        data: {
-          event: "USER_LOGIN",
-          category: "USER",
-          entityUid: req.auth?.uid,
-          userId: userId,
-        },
-      });
+        await tx.platformEvent.create({
+          data: {
+            event: "STORE_CREATED",
+            category: "USER",
+            entityUid: req.auth?.uid,
+            userId: userId,
+          },
+        });
 
-      const user = await tx.user.update({
+        const user = await tx.user.update({
+          where: { id: userId },
+          data: { onboardingStep: "COMPLETE" },
+        });
+        return { store, user };
+      },
+      {
+        timeout: 10000,
+      }
+    );
+
+    try {
+      await CreateStore(user, store, existingSubscription);
+    } catch (err) {
+      console.error("Error creating store in internal API:", err);
+      await prisma.store.delete({ where: { uid: store.uid } });
+      await prisma.platformEvent.deleteMany({
+        where: { entityUid: store.uid },
+      });
+      await prisma.notification.deleteMany({
+        where: { userId: userId },
+      });
+      await prisma.user.update({
         where: { id: userId },
-        data: { onboardingStep: "COMPLETE" },
+        data: { onboardingStep: "PLAN" },
       });
-      return { store, user };
-    });
-
-    await CreateStore(user, store, existingSubscription);
+      throw err;
+    }
 
     const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
 

@@ -123,6 +123,7 @@ export async function callInternalAPIForUsers<T = any>(
         err.response?.data?.error.message || err.message
       }`
     );
+    console.log("Error calling internal API for users", err);
   }
 }
 
@@ -161,5 +162,6 @@ export async function callInternalAPIForAdmins<T = any>(
         err.response?.data?.error.message || err.message
       }`
     );
+    console.log("Error calling internal API for admins", err);
   }
 }
