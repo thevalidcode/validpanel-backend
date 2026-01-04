@@ -1,6 +1,6 @@
 import express from "express";
 import * as subscriptionPlans from "../controllers/subscriptionPlan.controllers";
-import { authenticateAdmin, authenticateUser } from "../middleware/auth";
+import { authenticateAdmin } from "../middleware/auth";
 import {
   limitSubscriptionPlanCreate,
   limitSubscriptionPlanUpdate,
@@ -12,23 +12,11 @@ import { checkAdminPermission } from "../middleware/permission";
 const router = express.Router();
 
 /**
- * SUBSCRIPTIONS PLANS ROUTES FOR USERS AND ADMINS
- */
-
-router.get("/", limitSubscriptionPlanView, subscriptionPlans.getSubscriptionPlansForUser);
-
-router.get(
-  "/:uid",
-  limitSubscriptionPlanView,
-  subscriptionPlans.getSubscriptionPlanByUidForUser
-);
-
-/**
  * ADMIN ROUTES FOR SUBSCRIPTIONS PLANS
  */
 
 router.patch(
-  "/",
+  "/admin/:uid",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanUpdate,
@@ -46,7 +34,7 @@ router.post(
 router.get(
   "/admin",
   authenticateAdmin,
-  checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
+  checkAdminPermission(["VIEW_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanView,
   subscriptionPlans.getSubscriptionPlans
 );
@@ -65,6 +53,22 @@ router.delete(
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanDelete,
   subscriptionPlans.deleteSubscriptionPlanByUid
+);
+
+/**
+ * SUBSCRIPTIONS PLANS ROUTES FOR USERS AND ADMINS
+ */
+
+router.get(
+  "/",
+  limitSubscriptionPlanView,
+  subscriptionPlans.getSubscriptionPlansForUser
+);
+
+router.get(
+  "/:uid",
+  limitSubscriptionPlanView,
+  subscriptionPlans.getSubscriptionPlanByUidForUser
 );
 
 export default router;

@@ -50,7 +50,7 @@ export const authenticateAdmin = async (
       return;
     }
 
-    const { password, ...safeAdmin } = admin;
+    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
 
     req.auth = {
       uid,
@@ -88,16 +88,18 @@ export const authenticateAnyone = async (
     }
 
     if (admin) {
+      const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
       req.auth = {
         type: "admin",
         uid,
-        user: { ...admin, role: admin.role.name },
+        user: { ...safeAdmin, role: admin.role.name },
       };
     } else if (user) {
+      const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
       req.auth = {
         type: "user",
         uid,
-        user,
+        user: safeUser,
       };
     }
 

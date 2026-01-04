@@ -45,7 +45,12 @@ router.patch(
   subscriptions.downgradePlan
 );
 
-router.post("/", authenticateUser, limitSubscriptionCreate, subscriptions.createSubscription);
+router.post(
+  "/",
+  authenticateUser,
+  limitSubscriptionCreate,
+  subscriptions.createSubscription
+);
 router.post(
   "/renew",
   authenticateUser,

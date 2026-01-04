@@ -28,6 +28,8 @@ export const getSettingsForUsers = async (req: Request, res: Response) => {
         // Maintenance info (read-only for users)
         maintenanceMode: true,
         maintenanceMsg: true,
+        maintenanceEnd: true,
+        maintenanceStart: true,
       },
     });
 

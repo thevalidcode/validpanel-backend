@@ -9,21 +9,17 @@ import {
 
 extendZodWithOpenApi(z);
 
-export const AdminSchema: z.ZodType<Admin> = z
+export const AdminSchema = z
   .object({
     id: z.number(),
     email: z.string().email(),
-    uid: z.string().uuid(),
-    apiKey: z.string().uuid(),
-    image: z.string().url(),
-    password: z.string(),
-    currency: z.string().toUpperCase().length(3),
+    uid: z.string(),
+    apiKey: z.string(),
+    image: z.string().url().nullable(),
     fullName: z.string(),
     lastSeen: z.coerce.date(),
     timestamp: z.coerce.date(),
     updatedAt: z.coerce.date(),
-    resetToken: z.string(),
-    resetTokenExpiry: z.coerce.date(),
     status: z.nativeEnum(AdminStatus),
     roleId: z.number(),
   })

@@ -10,27 +10,29 @@ import { Decimal } from "@prisma/client/runtime/library";
 extendZodWithOpenApi(z);
 
 // Convert features type to Zod schema
-export const SubscriptionPlanFeaturesSchema = z.object({
-  stores: z.number(),
-  products: z.number().nullable(),
-  analytics: z.boolean(),
-  custom_branding: z.boolean(),
-  priority_support: z.boolean(),
-  store_analytics: z.boolean(),
-  unlimited_products: z.boolean(),
-  hide_banner: z.boolean(),
-  api_access: z.boolean(),
-  custom_domain: z.boolean(),
-  ai_features: z.boolean(),
-  customer_emails: z.boolean(),
-  free_ssl: z.boolean(),
-  available_templates: z.number(),
-  custom_templates: z.boolean(),
-  payment_gateways: z.number(),
-  default_template: z.boolean(),
-  staff_accounts: z.number(),
-  order_syncing_for_social_media_store: z.boolean(),
-});
+export const SubscriptionPlanFeaturesSchema = z
+  .object({
+    stores: z.number(),
+    products: z.number().nullable(),
+    analytics: z.boolean(),
+    custom_branding: z.boolean(),
+    priority_support: z.boolean(),
+    store_analytics: z.boolean(),
+    unlimited_products: z.boolean(),
+    hide_banner: z.boolean(),
+    api_access: z.boolean(),
+    custom_domain: z.boolean(),
+    ai_features: z.boolean(),
+    customer_emails: z.boolean(),
+    free_ssl: z.boolean(),
+    available_templates: z.number(),
+    custom_templates: z.boolean(),
+    payment_gateways: z.number(),
+    default_template: z.boolean(),
+    staff_accounts: z.number(),
+    order_syncing_for_social_media_store: z.boolean(),
+  })
+  .catchall(z.any()); // Allow for future extensions
 
 export type SubscriptionPlanFeatures = z.infer<
   typeof SubscriptionPlanFeaturesSchema
@@ -59,26 +61,27 @@ export const SubscriptionPlanSchema: z.ZodType<SubscriptionPlan> = z
 // Create request schema
 export const SubscriptionPlanCreateRequestSchema = z.object({
   interval: z.nativeEnum(BillingInterval),
-  price: z.custom<Decimal>(),
+  price: z.string(),
   currency: z.string().toUpperCase().length(3),
   name: z.string(),
-  discountForAnnually: z.number().optional(),
-  tax: z.number().optional(),
-  description: z.string().optional(),
+  discountForAnnually: z.coerce.number().optional().nullable(),
+  tax: z.coerce.number().optional().nullable(),
+  description: z.string().optional().nullable(),
+  gracePeriod: z.coerce.number().optional().nullable(),
   features: SubscriptionPlanFeaturesSchema, // <- typed here
 });
 
 // Update request schema
 export const SubscriptionPlanUpdateRequestSchema = z.object({
   interval: z.nativeEnum(BillingInterval).optional(),
-  price: z.custom<Decimal>().optional(),
+  price: z.string().optional(),
   currency: z.string().toUpperCase().length(3).optional(),
   name: z.string().optional(),
-  discountForAnnually: z.number().optional(),
-  tax: z.number().optional(),
-  description: z.string().optional(),
+  discountForAnnually: z.number().optional().nullable(),
+  tax: z.coerce.number().optional().nullable(),
+  gracePeriod: z.coerce.number().optional().nullable(),
+  description: z.string().optional().nullable(),
   features: SubscriptionPlanFeaturesSchema.partial().optional(), // <- allow partial updates
-  uid: z.string(),
 });
 
 // UID schema

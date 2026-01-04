@@ -109,7 +109,7 @@ registry.registerPath({
 // PATCH /subscription-plans
 registry.registerPath({
   method: "patch",
-  path: "/subscription-plans",
+  path: "/subscription-plans/admin/{uid",
   summary: "Update a subscription plan",
   tags: ["Subscription Plans"],
   security: [{ CookieAuth: [] }],
