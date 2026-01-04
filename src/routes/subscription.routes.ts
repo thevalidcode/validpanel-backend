@@ -14,6 +14,34 @@ import { checkAdminPermission } from "../middleware/permission";
 const router = express.Router();
 
 /**
+ * ADMIN ROUTES FOR SUBSCRIPTIONS
+ */
+
+router.patch(
+  "/",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_SUBSCRIPTIONS"]),
+  limitSubscriptionUpdate,
+  subscriptions.updateSubscription
+);
+
+router.get(
+  "/admin",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
+  limitSubscriptionView,
+  subscriptions.getSubscriptions
+);
+
+router.get(
+  "/admin/:uid",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
+  limitSubscriptionView,
+  subscriptions.getSubscriptionByUid
+);
+
+/**
  * SUBSCRIPTIONS ROUTES FOR USERS AND ADMINS
  */
 
@@ -63,34 +91,6 @@ router.get(
   authenticateUser,
   limitSubscriptionView,
   subscriptions.getSubscriptionByUidForUser
-);
-
-/**
- * ADMIN ROUTES FOR SUBSCRIPTIONS
- */
-
-router.patch(
-  "/",
-  authenticateAdmin,
-  checkAdminPermission(["MANAGE_SUBSCRIPTIONS"]),
-  limitSubscriptionUpdate,
-  subscriptions.updateSubscription
-);
-
-router.get(
-  "/admin",
-  authenticateAdmin,
-  checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
-  limitSubscriptionView,
-  subscriptions.getSubscriptions
-);
-
-router.get(
-  "/admin/:uid",
-  authenticateAdmin,
-  checkAdminPermission(["VIEW_SUBSCRIPTIONS"]),
-  limitSubscriptionView,
-  subscriptions.getSubscriptionByUid
 );
 
 export default router;

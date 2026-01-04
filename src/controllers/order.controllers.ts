@@ -10,6 +10,7 @@ import {
 } from "../utils/internalApi";
 import { NormalizedOrder } from "../types/order.types";
 import { mapShopOrder, mapSocialOrder } from "../utils/mappers/order.mappers";
+import { AdminAuthSchema } from "../schemas/admin.schema";
 
 /**
  * Get all orders (Admin only)
@@ -21,7 +22,7 @@ export const getAllOrders = async (req: Request, res: Response) => {
       res.json({ error: queryParsed.error.flatten() });
       return;
     }
-    const authParsed = AuthSchema.safeParse(req.auth);
+    const authParsed = AdminAuthSchema.safeParse(req.auth);
     if (!authParsed.success) {
       res.json({ error: authParsed.error.flatten() });
       return;
@@ -37,12 +38,13 @@ export const getAllOrders = async (req: Request, res: Response) => {
       "SOCIAL"
     );
 
-    const shopOrders = await callInternalAPIForAdmins(
-      "GET",
-      `/orders?page=${page}&limit=${limit}`,
-      user.uid,
-      "SHOP"
-    );
+    const shopOrders =
+      (await callInternalAPIForAdmins(
+        "GET",
+        `/orders?page=${page}&limit=${limit}`,
+        user.uid,
+        "SHOP"
+      )) || [];
 
     // Normalize
     const normalizedSocial: NormalizedOrder[] =

@@ -11,84 +11,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { Prisma } from "../../prisma/generated";
-
-export const getPaymentGateways = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  try {
-    const gateways = await prisma.paymentGateway.findMany({
-      select: {
-        createdAt: true,
-        platform: true,
-        name: true,
-        uid: true,
-        image: true,
-        description: true,
-        min: true,
-        max: true,
-        content: true,
-        status: true,
-      },
-      orderBy: { position: "asc" },
-    });
-
-    res.status(200).json(gateways);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const getPaymentGatewayByUid = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
-
-  if (!authParsed.success || !paramsParsed.success) {
-    res.status(400).json({
-      error: {
-        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
-        params: !paramsParsed.success
-          ? paramsParsed.error.flatten()
-          : undefined,
-      },
-    });
-    return;
-  }
-
-  const { uid } = paramsParsed.data;
-
-  try {
-    const gateway = await prisma.paymentGateway.findUnique({
-      where: { uid },
-      select: {
-        createdAt: true,
-        platform: true,
-        name: true,
-        uid: true,
-        content: true,
-        image: true,
-        description: true,
-        min: true,
-        max: true,
-        status: true,
-      },
-    });
-
-    res.status(200).json(gateway);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
+import { AdminAuthSchema } from "../schemas/admin.schema";
 
 export const getPaymentGatewaysForUser = async (
   req: Request,
@@ -169,11 +92,89 @@ export const getPaymentGatewayByUidForUser = async (
   }
 };
 
+export const getPaymentGateways = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const gateways = await prisma.paymentGateway.findMany({
+      select: {
+        createdAt: true,
+        platform: true,
+        name: true,
+        uid: true,
+        image: true,
+        description: true,
+        min: true,
+        max: true,
+        content: true,
+        status: true,
+      },
+      orderBy: { position: "asc" },
+    });
+
+    res.status(200).json(gateways);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getPaymentGatewayByUid = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+  const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
+
+  if (!authParsed.success || !paramsParsed.success) {
+    res.status(400).json({
+      error: {
+        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
+        params: !paramsParsed.success
+          ? paramsParsed.error.flatten()
+          : undefined,
+      },
+    });
+    return;
+  }
+
+  const { uid } = paramsParsed.data;
+
+  try {
+    const gateway = await prisma.paymentGateway.findUnique({
+      where: { uid },
+      select: {
+        createdAt: true,
+        platform: true,
+        name: true,
+        uid: true,
+        content: true,
+        image: true,
+        description: true,
+        min: true,
+        max: true,
+        status: true,
+      },
+    });
+
+    res.status(200).json(gateway);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const addPaymentGateway = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = PaymentCreateRequestSchema.safeParse(req.body);
 
   if (!authParsed.success || !bodyParsed.success) {
@@ -236,7 +237,7 @@ export const updatePaymentGateway = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = PaymentUpdateRequestSchema.safeParse(req.body);
 
   if (!parsed.success || !authParsed.success) {
@@ -299,7 +300,7 @@ export const deletePaymentGateway = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = DeletePaymentGatewaySchema.safeParse(req.body);
 
   if (!authParsed.success || !parsed.success) {

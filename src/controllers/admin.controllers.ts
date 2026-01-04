@@ -108,7 +108,7 @@ export const authenticateAdmin = async (
       },
     });
 
-    const { password: _, ...safeAdmin } = account;
+    const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = account;
     res.status(200).json({
       success: "Logged in successfully",
       role: account.role.name,
@@ -365,7 +365,18 @@ export const overview = async (req: Request, res: Response) => {
 export const getAdmins = async (req: Request, res: Response) => {
   try {
     const admins = await prisma.admin.findMany({
-      include: {
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        fullName: true,
+        image: true,
+        apiKey: true,
+        status: true,
+        timestamp: true,
+        lastSeen: true,
+        updatedAt: true,
+        roleId: true,
         role: {
           include: {
             permissions: {
@@ -387,8 +398,24 @@ export const getPlatformEvents = async (req: Request, res: Response) => {
   try {
     const platformEvents = await prisma.platformEvent.findMany({
       include: {
-        user: true,
-        admin: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
+        admin: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
       },
       take: 10,
     });
@@ -503,7 +530,18 @@ export const updateMe = async (req: Request, res: Response) => {
       data: {
         ...parsed.data,
       },
-      include: {
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        fullName: true,
+        image: true,
+        apiKey: true,
+        status: true,
+        timestamp: true,
+        lastSeen: true,
+        updatedAt: true,
+        roleId: true,
         role: {
           include: {
             permissions: {

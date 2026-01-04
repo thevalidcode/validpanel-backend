@@ -31,6 +31,7 @@ export const SubscriptionPlanFeaturesSchema = z
     default_template: z.boolean(),
     staff_accounts: z.number(),
     order_syncing_for_social_media_store: z.boolean(),
+    service_syncing_for_social_media_store: z.boolean(),
   })
   .catchall(z.any()); // Allow for future extensions
 

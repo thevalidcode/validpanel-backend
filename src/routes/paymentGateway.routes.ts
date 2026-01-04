@@ -11,20 +11,6 @@ import { checkAdminPermission } from "../middleware/permission";
 
 const router = express.Router();
 
-router.get(
-  "/",
-  authenticateUser,
-  limitPaymentGatewayView,
-  paymentGateways.getPaymentGatewaysForUser
-);
-
-router.get(
-  "/:uid",
-  authenticateUser,
-  limitPaymentGatewayView,
-  paymentGateways.getPaymentGatewayByUidForUser
-);
-
 /**
  *
  * ADMIN ROUTES FOR PAYMENT GATEWAYS
@@ -69,5 +55,25 @@ router.get(
   checkAdminPermission(["VIEW_PAYMENT_GATEWAYS"]),
   limitPaymentGatewayView,
   paymentGateways.getPaymentGatewayByUid
+);
+
+/**
+ *
+ * USER ROUTES FOR PAYMENT GATEWAYS
+ *
+ */
+
+router.get(
+  "/",
+  authenticateUser,
+  limitPaymentGatewayView,
+  paymentGateways.getPaymentGatewaysForUser
+);
+
+router.get(
+  "/:uid",
+  authenticateUser,
+  limitPaymentGatewayView,
+  paymentGateways.getPaymentGatewayByUidForUser
 );
 export default router;

@@ -10,29 +10,7 @@ import {
   RenewSubscriptionPaymentSchema,
 } from "../schemas/subscription.schema";
 import * as paymentServices from "../services/subscription/payment.services";
-
-export const getSubscriptions = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
-  try {
-    const subscriptions = await prisma.subscription.findMany({
-      orderBy: { id: "desc" },
-      include: { plan: true },
-    });
-
-    res.status(200).json(subscriptions);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
+import { AdminAuthSchema } from "../schemas/admin.schema";
 
 export const getActiveSubscriptionForUser = async (
   req: Request,
@@ -49,39 +27,6 @@ export const getActiveSubscriptionForUser = async (
     const subscription = await prisma.subscription.findFirst({
       where: { status: "ACTIVE" },
       orderBy: { id: "desc" },
-      include: { plan: true },
-    });
-
-    res.status(200).json(subscription);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-export const getSubscriptionByUid = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-  const paramsParsed = SubscriptionUidSchema.safeParse(req.params);
-
-  if (!authParsed.success || !paramsParsed.success) {
-    res.status(400).json({
-      error: {
-        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
-        params: !paramsParsed.success
-          ? paramsParsed.error.flatten()
-          : undefined,
-      },
-    });
-    return;
-  }
-
-  const { uid } = paramsParsed.data;
-
-  try {
-    const subscription = await prisma.subscription.findUnique({
-      where: { uid },
       include: { plan: true },
     });
 
@@ -439,7 +384,7 @@ export const updateSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = SubscriptionUpdateRequestSchema.safeParse(req.body);
 
   if (!parsed.success || !authParsed.success) {
@@ -467,5 +412,83 @@ export const updateSubscription = async (
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+export const getSubscriptions = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+
+  if (!authParsed.success) {
+    res.status(400).json({ error: authParsed.error.flatten() });
+    return;
+  }
+
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        plan: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(subscriptions);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getSubscriptionByUid = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authParsed = AdminAuthSchema.safeParse(req.auth);
+  const paramsParsed = SubscriptionUidSchema.safeParse(req.params);
+
+  if (!authParsed.success || !paramsParsed.success) {
+    res.status(400).json({
+      error: {
+        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
+        params: !paramsParsed.success
+          ? paramsParsed.error.flatten()
+          : undefined,
+      },
+    });
+    return;
+  }
+
+  const { uid } = paramsParsed.data;
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { uid },
+      include: {
+        plan: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(subscription);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 };
