@@ -15,7 +15,7 @@ export const uploadImage = async (
       return;
     }
 
-    const { user } = req.auth!;
+    const { user, type } = req.auth!;
 
     const bodyResult = UploadImageRequest.safeParse(req.body);
     if (!bodyResult.success) {
@@ -60,7 +60,7 @@ export const uploadImage = async (
           uid: uuidv4(),
           collection,
           filename: safeName,
-          userId: user.id,
+          ...(type === "admin" ? { adminId: user.id } : { userId: user.id }),
           url: s3Url,
           mimetype: req.file?.mimetype || "application/octet-stream",
           size: req.file?.size || 0,
@@ -97,12 +97,15 @@ export const getPreviousImages = async (
     return;
   }
 
-  const { user } = authParsed.data;
+  const { user, type } = authParsed.data;
   const { collection } = queryParsed.data;
 
   try {
     const images = await prisma.uploadLog.findMany({
-      where: { userId: user.id, collection },
+      where: {
+        ...(type === "admin" ? { adminId: user.id } : { userId: user.id }),
+        collection,
+      },
       orderBy: { timestamp: "desc" },
     });
 
