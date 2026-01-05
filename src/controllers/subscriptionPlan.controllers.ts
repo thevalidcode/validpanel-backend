@@ -32,9 +32,7 @@ export const getSubscriptionPlanByUidForUser = async (
   if (!paramsParsed.success) {
     res.status(400).json({
       error: {
-        params: !paramsParsed.success
-          ? paramsParsed.error.flatten()
-          : undefined,
+        params: paramsParsed.error.flatten(),
       },
     });
     return;
@@ -42,8 +40,13 @@ export const getSubscriptionPlanByUidForUser = async (
   const { uid } = paramsParsed.data;
 
   try {
+    const idAsNumber = parseInt(uid, 10);
+    const where = isNaN(idAsNumber)
+      ? { uid, status: "ACTIVE" as const }
+      : { id: idAsNumber, status: "ACTIVE" as const };
+
     const subscriptionPlan = await prisma.subscriptionPlan.findUnique({
-      where: { uid, status: "ACTIVE" },
+      where,
     });
 
     res.status(200).json(subscriptionPlan);
