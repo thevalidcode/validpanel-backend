@@ -21,6 +21,8 @@ export const SubscriptionSchema: z.ZodType<Subscription> = z
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),
     expiresAt: z.coerce.date(),
+    renewedAt: z.coerce.date(),
+    renewalProcessingAt: z.coerce.date(),
     billingCycle: z.nativeEnum(BillingInterval),
     status: z.nativeEnum(SubscriptionStatus),
   })
