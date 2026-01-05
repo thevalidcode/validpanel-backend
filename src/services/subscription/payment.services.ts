@@ -99,13 +99,6 @@ export const createSubscriptionPayment = async (
       throw new Error("Payment gateway not properly configured");
     }
 
-    if (
-      gateway.platform !== "MANUAL" &&
-      (!gateway.encryptedSecretKey || !gateway.iv)
-    ) {
-      throw new Error("Payment gateway not properly configured");
-    }
-
     const paymentData = {
       tx_ref: `sub_${subscriptionId}_${Date.now()}`,
       amount: subscription.plan.price,
@@ -166,10 +159,17 @@ export const upgradePlan = async (
   return prisma.$transaction(async (tx) => {
     const gateway = await tx.paymentGateway.findFirst({
       where: { platform },
-      select: { encryptedSecretKey: true, iv: true },
+      select: { encryptedSecretKey: true, iv: true, platform: true },
     });
 
-    if (!gateway || !gateway.encryptedSecretKey || !gateway.iv) {
+    if (!gateway) {
+      throw new Error("Payment gateway not properly configured");
+    }
+
+    if (
+      gateway.platform !== "MANUAL" &&
+      (!gateway.encryptedSecretKey || !gateway.iv)
+    ) {
       throw new Error("Payment gateway not properly configured");
     }
 
@@ -250,8 +250,8 @@ export const upgradePlan = async (
     };
 
     const parsedSecretKey = {
-      encrypted_key: gateway.encryptedSecretKey,
-      iv: gateway.iv,
+      encrypted_key: gateway.encryptedSecretKey!,
+      iv: gateway.iv!,
     };
 
     switch (platform) {
@@ -265,6 +265,7 @@ export const upgradePlan = async (
         return {
           message:
             "Pay manually. Our team will verify and complete your upgrade.",
+          url: input.redirectUrl,
         };
 
       default:
