@@ -82,11 +82,15 @@ export const processSuccess = async (
   }
 
   if (isRenewal) {
-    const now = new Date();
+    const baseDate =
+      subscription.expiresAt && subscription.expiresAt > new Date()
+        ? subscription.expiresAt
+        : new Date();
+
     expiresAt =
       data.meta.billingCycle === "YEARLY"
-        ? new Date(now.setFullYear(now.getFullYear() + 1))
-        : new Date(now.setMonth(now.getMonth() + 1));
+        ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
+        : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
 
   // Downgrade success does NOT touch expiry or plan immediately

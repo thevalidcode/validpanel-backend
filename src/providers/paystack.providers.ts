@@ -88,11 +88,15 @@ const processSuccess = async (
   }
 
   if (isRenewal) {
-    const now = new Date();
+    const baseDate =
+      subscription.expiresAt && subscription.expiresAt > new Date()
+        ? subscription.expiresAt
+        : new Date();
+
     expiresAt =
       data.metadata.billingCycle === "YEARLY"
-        ? new Date(now.setFullYear(now.getFullYear() + 1))
-        : new Date(now.setMonth(now.getMonth() + 1));
+        ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
+        : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
 
   const amount = new Decimal(data.amount / 100); // Paystack uses kobo

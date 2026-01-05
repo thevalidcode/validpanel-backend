@@ -18,6 +18,26 @@ interface FinalizeSubscriptionPaymentInput {
 
 type TxClient = Prisma.TransactionClient;
 
+/**
+ * Finalizes a subscription billing event by activating or updating a subscription
+ * after payment confirmation.
+ *
+ * This function is used for:
+ * - Manual payment overrides (PENDING payment + PENDING transaction)
+ * - Subscription renewals
+ * - Subscription upgrades
+ *
+ * It performs the following atomically:
+ * - Validates user, subscription, payment, and transaction ownership
+ * - Calculates and applies subscription expiry and plan changes
+ * - Expires any other ACTIVE subscriptions for the user
+ * - Marks the payment and transaction as SUCCESS
+ * - Activates the subscription
+ * - Creates a payment notification
+ * - Advances user onboarding state when applicable
+ *
+ * This function is idempotent and safe to call multiple times.
+ */
 const finalizeSubscriptionPaymentInternal = async (
   tx: TxClient,
   input: FinalizeSubscriptionPaymentInput
@@ -46,6 +66,18 @@ const finalizeSubscriptionPaymentInternal = async (
     throw new Error("Subscription not found");
   }
 
+  const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+  if (!payment) throw new Error("Payment not found");
+
+  const transaction = await tx.transaction.findUnique({
+    where: { id: transactionId },
+  });
+  if (!transaction) throw new Error("Transaction not found");
+  if (payment.status === "SUCCESS" && transaction.status === "SUCCESS") {
+    // Already finalized; idempotent exit
+    return;
+  }
+
   // 3. Idempotent: do nothing if already active
   if (subscription.status === "ACTIVE") return;
 
@@ -72,16 +104,24 @@ const finalizeSubscriptionPaymentInternal = async (
 
   // 5. Handle renewal
   if (isRenewal) {
-    const now = new Date();
+    const baseDate =
+      subscription.expiresAt && subscription.expiresAt > new Date()
+        ? subscription.expiresAt
+        : new Date();
+
     expiresAt =
       finalBillingCycle === "YEARLY"
-        ? new Date(now.setFullYear(now.getFullYear() + 1))
-        : new Date(now.setMonth(now.getMonth() + 1));
+        ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
+        : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
 
   // 6. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
   await tx.subscription.updateMany({
-    where: { userId: user.id, status: "ACTIVE" },
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      NOT: { id: subscription.id },
+    },
     data: { status: "EXPIRED" },
   });
 
