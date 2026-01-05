@@ -26,7 +26,7 @@ export const getActiveSubscriptionForUser = async (
 
   try {
     const subscription = await prisma.subscription.findFirst({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", userId: authParsed.data.user.id },
       orderBy: { id: "desc" },
       include: { plan: true },
     });
