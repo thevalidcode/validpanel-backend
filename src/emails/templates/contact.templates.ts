@@ -91,7 +91,7 @@ export const contactMessageUserConfirmation = ({
             <strong>Need immediate help?</strong>
           </p>
           <p style="margin:8px 0 0 0;">
-            <a href="https://validpanel.com/support" style="
+            <a href="https://validpanel.com/contact-us" style="
               background:#7C3AED;
               color:#fff;
               text-decoration:none;
@@ -109,7 +109,7 @@ export const contactMessageUserConfirmation = ({
   `;
 
   return Layout({
-    subject: "We've Received Your Message - ValidPanel Support",
+    subject: "We've Received Your Message - Valid Panel Support",
     children: bodyContent,
     logoUrl: logo,
   });
@@ -239,7 +239,7 @@ export const contactMessageAdminNotification = ({
     </table>
 
     <p style="font-size:13px; line-height:1.6; color:#9CA3AF; margin-top:25px; padding-top:20px; border-top:1px solid #E5E7EB; text-align:center;">
-      This is an automated notification from ValidPanel Contact Form System
+      This is an automated notification from Valid Panel Contact Form System
     </p>
   `;
 

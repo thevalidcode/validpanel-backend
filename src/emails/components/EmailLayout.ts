@@ -21,7 +21,7 @@ export const Header = (logoUrl?: string) => `
           <td style="padding:32px 40px; background:#FFFFFF; border-bottom:1px solid #E5E7EB;">
             <img 
               src="${logoUrl || "https://validpanel.com/logo.png"}" 
-              alt="ValidPanel" 
+              alt="Valid Panel" 
               width="140" 
               height="auto"
               style="display:block; max-width:140px; height:auto;"
@@ -52,11 +52,11 @@ export const Footer = () => `
                   <table role="presentation" style="display:inline-block; border-collapse:collapse;">
                     <tr>
                       <td style="padding:0 12px;">
-                        <a href="https://validpanel.com/about" style="color:#6B7280; text-decoration:none; font-size:13px;">About</a>
+                        <a href="https://validpanel.com/pricing" style="color:#6B7280; text-decoration:none; font-size:13px;">Pricing</a>
                       </td>
                       <td style="padding:0 12px; color:#D1D5DB;">|</td>
                       <td style="padding:0 12px;">
-                        <a href="https://validpanel.com/support" style="color:#6B7280; text-decoration:none; font-size:13px;">Support</a>
+                        <a href="https://validpanel.com/contact-us" style="color:#6B7280; text-decoration:none; font-size:13px;">Support</a>
                       </td>
                       <td style="padding:0 12px; color:#D1D5DB;">|</td>
                       <td style="padding:0 12px;">
@@ -72,12 +72,12 @@ export const Footer = () => `
               </tr>
               <tr>
                 <td style="padding-top:0; text-align:center; font-size:13px; line-height:20px; color:#9CA3AF;">
-                  &copy; ${new Date().getFullYear()} ValidPanel. All rights reserved.
+                  &copy; ${new Date().getFullYear()} Valid Panel. All rights reserved.
                 </td>
               </tr>
               <tr>
                 <td style="padding-top:8px; text-align:center; font-size:12px; line-height:18px; color:#9CA3AF;">
-                  This email was sent from ValidPanel. If you have any questions, please contact us at
+                  This email was sent from Valid Panel. If you have any questions, please contact us at
                   <a href="mailto:support@validpanel.com" style="color:#7C3AED; text-decoration:none;">support@validpanel.com</a>
                 </td>
               </tr>
@@ -137,7 +137,7 @@ export const Layout = ({
         <table role="presentation" style="width:100%; max-width:600px; margin-top:16px;">
           <tr>
             <td style="text-align:center; font-size:12px; line-height:18px; color:#9CA3AF; padding:0 16px;">
-              You are receiving this email because you are a valued member of ValidPanel.
+              You are receiving this email because you are a valued member of Valid Panel.
             </td>
           </tr>
         </table>

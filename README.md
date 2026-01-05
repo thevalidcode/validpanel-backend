@@ -1,7 +1,7 @@
-# ValidPanel Backend (Core Platform)
+# Valid Panel Backend (Core Platform)
 
 ## Overview
-ValidPanel is the **core backend platform** that powers all types of stores, including the **Social Media Store**, within a multi-tenant architecture.  
+Valid Panel is the **core backend platform** that powers all types of stores, including the **Social Media Store**, within a multi-tenant architecture.  
 This backend is built with **TypeScript**, **Node.js**, and follows a scalable, modular design using **Prisma ORM**, **PostgreSQL**, and a set of robust libraries for validation, authentication, and API development.
 
 The core platform is responsible for:  
