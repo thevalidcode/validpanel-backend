@@ -25,6 +25,7 @@ import filesRouter from "./routes/files.routes";
 import paymentRouter from "./routes/payment.routes";
 import transactionRouter from "./routes/transaction.routes";
 import rateRouter from "./routes/rate.routes";
+import contactRouter from "./routes/contact.routes";
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use("/api/v1/payments", cors(corsOptions), paymentRouter);
 app.use("/api/v1/transactions", cors(corsOptions), transactionRouter);
 app.use("/api/v1/files", cors(corsOptions), filesRouter);
 app.use("/api/v1/rates", cors(corsOptions), rateRouter);
+app.use("/api/v1/contact", cors(corsOptions), contactRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);

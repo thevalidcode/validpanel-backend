@@ -9,6 +9,12 @@ import {
   adminPasswordChanged,
   AdminForgotPasswordVars,
 } from "./admin.templates";
+import {
+  contactMessageUserConfirmation,
+  contactMessageAdminNotification,
+  ContactMessageUserVars,
+  ContactMessageAdminVars,
+} from "./contact.templates";
 
 // Map each template type string to the specific variable type it expects
 export interface EmailTemplateVars {
@@ -16,6 +22,8 @@ export interface EmailTemplateVars {
   PASSWORD_CHANGED: LogoVars;
   ADMIN_FORGOT_PASSWORD: AdminForgotPasswordVars;
   ADMIN_PASSWORD_CHANGED: LogoVars;
+  CONTACT_MESSAGE_USER_CONFIRMATION: ContactMessageUserVars;
+  CONTACT_MESSAGE_ADMIN_NOTIFICATION: ContactMessageAdminVars;
   // Add more templates here
 }
 
@@ -29,6 +37,8 @@ const typedTemplates: {
   PASSWORD_CHANGED: passwordChanged,
   ADMIN_FORGOT_PASSWORD: adminForgotPassword,
   ADMIN_PASSWORD_CHANGED: adminPasswordChanged,
+  CONTACT_MESSAGE_USER_CONFIRMATION: contactMessageUserConfirmation,
+  CONTACT_MESSAGE_ADMIN_NOTIFICATION: contactMessageAdminNotification,
 };
 
 /**
