@@ -192,7 +192,22 @@ export const upgradePlan = async (
 
     const currentPrice = new Decimal(currentSubscription.plan.price);
     const newPrice = new Decimal(newPlan.price);
-    const upgradeAmount = newPrice.minus(currentPrice);
+
+    let finalNewPrice = billingCycle === "YEARLY" ? newPrice.mul(12) : newPrice;
+
+    if (billingCycle === "YEARLY" && newPlan.discountForAnnually) {
+      finalNewPrice = finalNewPrice.minus(
+        finalNewPrice.mul(new Decimal(newPlan.discountForAnnually).div(100))
+      );
+    }
+
+    const tax = finalNewPrice.mul(new Decimal(newPlan.tax || 0).div(100));
+    finalNewPrice = finalNewPrice.plus(tax);
+
+    const normalizedCurrentPrice =
+      billingCycle === "YEARLY" ? currentPrice.mul(12) : currentPrice;
+
+    const upgradeAmount = finalNewPrice.minus(normalizedCurrentPrice);
 
     if (upgradeAmount.lte(0)) {
       throw new Error("Invalid upgrade. New plan must cost more");
