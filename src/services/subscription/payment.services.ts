@@ -141,6 +141,7 @@ export const createSubscriptionPayment = async (
         return {
           message:
             "Pay manually. Our team will verify and activate your subscription.",
+          url: input.redirectUrl,
         };
 
       default:
