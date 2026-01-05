@@ -13,6 +13,7 @@ export const TransactionPublicSchema = z.object({
   currency: z.string().toUpperCase(),
   amount: z.custom<Decimal>(),
   id: z.number(),
+  paymentId: z.number(),
   type: z.nativeEnum(TransactionType),
   timestamp: z.coerce.date(),
   status: z.nativeEnum(TransactionStatus),

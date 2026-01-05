@@ -11,6 +11,7 @@ import {
 } from "../schemas/subscription.schema";
 import * as paymentServices from "../services/subscription/payment.services";
 import { AdminAuthSchema } from "../schemas/admin.schema";
+import { finalizeSubscriptionPayment } from "../services/subscription/finalize-subscription-payment";
 
 export const getActiveSubscriptionForUser = async (
   req: Request,
@@ -400,18 +401,112 @@ export const updateSubscription = async (
   const { uid, status } = parsed.data;
 
   try {
-    await prisma.subscription.update({
-      where: { uid },
-      data: {
-        status,
-      },
+    await prisma.$transaction(async (tx) => {
+      const subscription = await tx.subscription.findUnique({
+        where: { uid },
+        include: {
+          user: true,
+          plan: true,
+        },
+      });
+
+      if (!subscription) {
+        throw new Error("SUBSCRIPTION_NOT_FOUND");
+      }
+
+      // Idempotency
+      if (subscription.status === status) {
+        return;
+      }
+
+      // Cancellation path
+      if (status === "CANCELED") {
+        await tx.subscription.update({
+          where: { id: subscription.id },
+          data: { status: "CANCELED" },
+        });
+        return;
+      }
+
+      if (status !== "ACTIVE") {
+        throw new Error("UNSUPPORTED_STATUS_TRANSITION");
+      }
+
+      // Fetch latest payment regardless of state
+      const payment = await tx.payment.findFirst({
+        where: { subscriptionId: subscription.id },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!payment) {
+        throw new Error("PAYMENT_NOT_FOUND");
+      }
+
+      const transaction = await tx.transaction.findFirst({
+        where: { paymentId: payment.id },
+        orderBy: { timestamp: "desc" },
+      });
+
+      if (!transaction) {
+        throw new Error("TRANSACTION_NOT_FOUND");
+      }
+
+      const isAlreadyPaid =
+        payment.status === "SUCCESS" && transaction.status === "SUCCESS";
+
+      const isManualOverride =
+        payment.status === "PENDING" && transaction.status === "PENDING";
+
+      if (!isAlreadyPaid && !isManualOverride) {
+        throw new Error("INVALID_PAYMENT_STATE");
+      }
+
+      // Only finalize when manually confirming payment
+      if (isManualOverride) {
+        await finalizeSubscriptionPayment(
+          {
+            subscriptionId: subscription.id,
+            userId: subscription.user.id,
+            transactionId: transaction.id,
+            paymentId: payment.id,
+            type: "SUBSCRIPTION_PAYMENT",
+            amount: subscription.plan.price,
+            billingCycle: subscription.billingCycle,
+          },
+          tx
+        );
+      }
+
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: { status: "ACTIVE" },
+      });
     });
 
     res.status(200).json({
       success: "Subscription updated successfully.",
     });
+    return;
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const message = error.message;
+
+    if (message === "SUBSCRIPTION_NOT_FOUND") {
+      res.status(404).json({ error: "Subscription not found." });
+      return;
+    }
+
+    if (
+      message === "PAYMENT_NOT_FOUND" ||
+      message === "TRANSACTION_NOT_FOUND" ||
+      message === "INVALID_PAYMENT_STATE" ||
+      message === "UNSUPPORTED_STATUS_TRANSITION"
+    ) {
+      res.status(409).json({ error: message });
+      return;
+    }
+
+    res.status(500).json({ error: "Internal server error." });
+    return;
   }
 };
 

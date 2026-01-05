@@ -38,6 +38,7 @@ export const createSubscriptionPayment = async (
         method: platform,
         currency,
         userId: user.id,
+        subscriptionId: subscription.id,
       },
     });
 
@@ -48,6 +49,7 @@ export const createSubscriptionPayment = async (
         type,
         currency,
         userUid: user.uid,
+        paymentId: payment.id,
       },
     });
 
@@ -83,10 +85,24 @@ export const createSubscriptionPayment = async (
 
     const gateway = await tx.paymentGateway.findFirst({
       where: { platform },
-      select: { encryptedSecretKey: true, iv: true },
+      select: { encryptedSecretKey: true, iv: true, platform: true },
     });
 
-    if (!gateway || !gateway.encryptedSecretKey || !gateway.iv) {
+    if (!gateway) {
+      throw new Error("Payment gateway not properly configured");
+    }
+
+    if (
+      gateway.platform !== "MANUAL" &&
+      (!gateway.encryptedSecretKey || !gateway.iv)
+    ) {
+      throw new Error("Payment gateway not properly configured");
+    }
+
+    if (
+      gateway.platform !== "MANUAL" &&
+      (!gateway.encryptedSecretKey || !gateway.iv)
+    ) {
       throw new Error("Payment gateway not properly configured");
     }
 
@@ -110,8 +126,8 @@ export const createSubscriptionPayment = async (
     };
 
     const parsedSecretKey = {
-      encrypted_key: gateway.encryptedSecretKey,
-      iv: gateway.iv,
+      encrypted_key: gateway.encryptedSecretKey!,
+      iv: gateway.iv!,
     };
 
     switch (platform) {

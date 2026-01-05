@@ -107,25 +107,29 @@ model Subscription {
   user        User              @relation(fields: [userId], references: [id])
   plan        SubscriptionPlan  @relation("ActivePlan", fields: [planId], references: [id])
   pendingPlan SubscriptionPlan? @relation("PendingPlan", fields: [pendingPlanId], references: [id])
+  Payment     Payment[]
 
   @@unique([userId, status]) // Guarantees a user can only have one active or pending subscrition
   @@map("subscriptions")
 }
 
 model Payment {
-  id            Int           @id @default(autoincrement())
-  uid           String        @unique @default(uuid())
-  userId        Int           @map("user_id")
-  planId        Int           @map("plan_id")
-  currency      String
-  amount        Decimal       @db.Decimal(10, 2)
-  chargedAmount Decimal       @map("charged_amount") @db.Decimal(10, 2)
-  status        PaymentStatus
-  method        PaymentMethod
-  createdAt     DateTime      @default(now()) @map("created_at")
+  id             Int           @id @default(autoincrement())
+  uid            String        @unique @default(uuid())
+  userId         Int           @map("user_id")
+  planId         Int           @map("plan_id")
+  currency       String
+  amount         Decimal       @db.Decimal(10, 2)
+  chargedAmount  Decimal       @map("charged_amount") @db.Decimal(10, 2)
+  status         PaymentStatus
+  method         PaymentMethod
+  subscriptionId Int?          @map("subscription_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
 
-  user User             @relation(fields: [userId], references: [id])
-  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  subscription Subscription?    @relation(fields: [subscriptionId], references: [id])
+  plan         SubscriptionPlan @relation(fields: [planId], references: [id])
+  Transaction  Transaction[]
 
   @@map("payments")
 }
@@ -499,8 +503,10 @@ model Transaction {
   type      TransactionType
   currency  String            @default("USD")
   userUid   String            @map("user_uid")
+  paymentId Int?              @map("payment_id")
 
-  user User @relation(fields: [userUid], references: [uid])
+  user    User     @relation(fields: [userUid], references: [uid])
+  payment Payment? @relation(fields: [paymentId], references: [id])
 
   @@map("transactions")
 }

@@ -136,14 +136,13 @@ const finalizeSubscriptionPaymentInternal = async (
   });
 
   // 10. Advance onboarding if necessary
-  if (user.onboardingStep !== "COMPLETE" && isRenewal) {
+  if (user.onboardingStep !== "COMPLETE") {
     await tx.user.update({
       where: { id: user.id },
       data: { onboardingStep: "STORE_DETAILS" },
     });
   }
 };
-
 
 export const finalizeSubscriptionPayment = async (
   input: FinalizeSubscriptionPaymentInput,

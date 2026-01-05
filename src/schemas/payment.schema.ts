@@ -1,16 +1,13 @@
 import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import {
-  Payment,
-  PaymentMethod,
-  PaymentStatus,
-} from "../../prisma/generated";
+import { Payment, PaymentMethod, PaymentStatus } from "../../prisma/generated";
 import { Decimal } from "@prisma/client/runtime/library";
 
 extendZodWithOpenApi(z);
 
 export const PaymentPublicSchema = z.object({
   currency: z.string().toUpperCase(),
+  subscriptionId: z.number(),
   planId: z.number(),
   id: z.number(),
   amount: z.custom<Decimal>(),
