@@ -77,9 +77,9 @@ export const UpdateSettingSchema = z.object({
   // Site Information
   siteName: z.string().optional(),
   siteDescription: z.string().optional(),
-  adminEmail: z.string().email().optional(),
-  logoUrl: z.string().url().optional(),
-  faviconUrl: z.string().url().optional(),
+  adminEmail: z.string().optional(),
+  logoUrl: z.string().optional(),
+  faviconUrl: z.string().optional(),
   defaultCurrency: z.string().length(3), // e.g., USD
   timezone: z.string().optional(),
   defaultLanguage: z.string().optional(),
