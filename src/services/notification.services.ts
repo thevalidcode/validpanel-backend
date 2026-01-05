@@ -10,7 +10,7 @@ export function buildNotification(params: {
   type: NotificationType;
   planName?: string;
   expiresAt?: Date | null;
-  status?: "success" | "failed";
+  status?: "success" | "failed" | "warning";
   meta?: NotificationMeta;
 }): {
   category: NotificationCategory;

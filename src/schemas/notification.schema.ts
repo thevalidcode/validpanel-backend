@@ -30,7 +30,7 @@ export const NotificationSchema: z.ZodType<Notification> = z
     userId: z.number(),
     meta: z
       .object({
-        status: z.enum(["success", "failed"]),
+        status: z.enum(["success", "failed", "warning"]),
         type: NotificationTypeEnum,
       })
       .catchall(z.unknown()) as z.ZodType<JsonValue>,

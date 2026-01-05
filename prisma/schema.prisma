@@ -104,6 +104,9 @@ model Subscription {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  renewalProcessingAt DateTime?
+  renewedAt           DateTime?
+
   user        User              @relation(fields: [userId], references: [id])
   plan        SubscriptionPlan  @relation("ActivePlan", fields: [planId], references: [id])
   pendingPlan SubscriptionPlan? @relation("PendingPlan", fields: [pendingPlanId], references: [id])
