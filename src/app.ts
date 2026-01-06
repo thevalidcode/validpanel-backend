@@ -26,6 +26,7 @@ import paymentRouter from "./routes/payment.routes";
 import transactionRouter from "./routes/transaction.routes";
 import rateRouter from "./routes/rate.routes";
 import contactRouter from "./routes/contact.routes";
+import authRoutes from "./routes/auth.routes";
 
 const app = express();
 
@@ -79,5 +80,8 @@ app.use("/api/v1/contact", cors(corsOptions), contactRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
+
+// Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
+app.use("/api/auth/core", authRoutes);
 
 export default app;
