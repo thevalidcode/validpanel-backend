@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { apiLimiter } from "./middleware/ratelimit";
 import PrismaSessionStore from "./utils/PrismaSessionStore";
-import { corsOptions } from "./config/cors.config";
+import { corsOptions, openCors } from "./config/cors.config";
 
 // Routes
 import swaggerRouter from "./docs/swagger";
@@ -82,6 +82,6 @@ app.use("/api/v1/contact", cors(corsOptions), contactRouter);
 app.use("/swagger", swaggerRouter);
 
 // Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
-app.use("/api/auth/core", authRoutes);
+app.use("/api/auth/core", cors(corsOptions), authRoutes);
 
 export default app;
