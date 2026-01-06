@@ -17,8 +17,8 @@ import {
 const isValidPanelDomain = async (url: string): Promise<boolean> => {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    const domain = hostname.split(":")[0] === "validpanel.com";
-    return !!domain;
+    const domain = hostname.split(":")[0];
+    return !!domain.endsWith("validpanel.com");
   } catch {
     return false;
   }
