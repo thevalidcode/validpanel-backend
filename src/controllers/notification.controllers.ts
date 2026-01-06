@@ -26,6 +26,7 @@ export const getMyNotification = async (req: Request, res: Response) => {
       where: { userId: user.id },
       skip: (page - 1) * limit,
       take: limit,
+      orderBy: { createdAt: "desc" },
     });
 
     res.status(200).json({ notifications });

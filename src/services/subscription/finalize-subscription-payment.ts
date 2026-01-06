@@ -57,13 +57,23 @@ const finalizeSubscriptionPaymentInternal = async (
   const user = await tx.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found");
 
-  // 2. Fetch subscription
+  // 2. Fetch subscriptions
   const subscription = await tx.subscription.findUnique({
-    where: { id: subscriptionId },
+    where: { id: subscriptionId, userId },
     include: { plan: true },
   });
-  if (!subscription || subscription.userId !== userId) {
+
+  if (!subscription) {
     throw new Error("Subscription not found");
+  }
+
+  const activeSubscription = await tx.subscription.findUnique({
+    where: { status: "ACTIVE", userId },
+    include: { plan: true },
+  });
+
+  if (!activeSubscription) {
+    throw new Error("Active subscription not found");
   }
 
   const payment = await tx.payment.findUnique({ where: { id: paymentId } });
@@ -97,12 +107,22 @@ const finalizeSubscriptionPaymentInternal = async (
     finalBillingCycle = billingCycle;
 
     expiresAt = calculateExpiryForUpgrade({
-      currentSubscription: subscription,
+      currentSubscription: activeSubscription,
       newBillingCycle: billingCycle,
+    });
+
+    // 5. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
+    await tx.subscription.updateMany({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+        NOT: { id: subscription.id },
+      },
+      data: { status: "EXPIRED" },
     });
   }
 
-  // 5. Handle renewal
+  // 6. Handle renewal
   if (isRenewal) {
     const baseDate =
       subscription.expiresAt && subscription.expiresAt > new Date()
@@ -114,16 +134,6 @@ const finalizeSubscriptionPaymentInternal = async (
         ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
         : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
-
-  // 6. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
-  await tx.subscription.updateMany({
-    where: {
-      userId: user.id,
-      status: "ACTIVE",
-      NOT: { id: subscription.id },
-    },
-    data: { status: "EXPIRED" },
-  });
 
   // 7. Activate this subscription
   const updatedSubscription = await tx.subscription.update({

@@ -1,6 +1,5 @@
 import { prisma } from "../config/db.config";
 import convertCurrency from "../utils/ConvertCurrency";
-import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -52,15 +51,16 @@ const processSuccess = async (
   if (!user) throw new Error("User not found");
 
   const subscription = await prisma.subscription.findUnique({
-    where: { id: data.metadata.subscriptionId },
+    where: {
+      id: data.metadata.subscriptionId,
+      userId: user.id,
+      status: "PENDING",
+    },
     include: { plan: true },
   });
-  if (!subscription || subscription.userId !== data.metadata.userId) {
-    throw new Error("Subscription not found");
-  }
 
-  if (subscription.status !== "PENDING") {
-    return; // idempotency safeguard
+  if (!subscription) {
+    throw new Error("Subscription not found");
   }
 
   const isUpgrade = data.metadata.type === "SUBSCRIPTION_UPGRADE";
@@ -74,7 +74,16 @@ const processSuccess = async (
   let billingCycle = subscription.billingCycle;
 
   if (isUpgrade) {
-    if (!data.metadata.newPlanId || !data.metadata.billingCycle) {
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: { status: "ACTIVE", userId: user.id },
+      include: { plan: true },
+    });
+
+    if (
+      !data.metadata.newPlanId ||
+      !data.metadata.billingCycle ||
+      !activeSubscription
+    ) {
       throw new Error("Upgrade metadata missing");
     }
 
@@ -82,8 +91,18 @@ const processSuccess = async (
     billingCycle = data.metadata.billingCycle;
 
     expiresAt = calculateExpiryForUpgrade({
-      currentSubscription: subscription,
+      currentSubscription: activeSubscription,
       newBillingCycle: billingCycle,
+    });
+
+    // Expire any existing ACTIVE subscriptions to avoid unique constraint violation
+    await prisma.subscription.updateMany({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+        NOT: { id: subscription.id },
+      },
+      data: { status: "EXPIRED" },
     });
   }
 

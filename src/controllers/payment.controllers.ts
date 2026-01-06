@@ -19,7 +19,18 @@ export const getPaymentsForUsers = async (
     const payments = await prisma.payment.findMany({
       where: { userId: user.id },
       orderBy: { id: "desc" },
-      include: { plan: true, user: { select: { email: true, fullName: true, id: true, uid: true, image: true } } },
+      include: {
+        plan: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
+      },
     });
 
     res.status(200).json(payments);
@@ -41,7 +52,18 @@ export const getPaymentsForAdmins = async (
   try {
     const payments = await prisma.payment.findMany({
       orderBy: { id: "desc" },
-      include: { plan: true, user: { select: { email: true, fullName: true, id: true, uid: true, image: true } } },
+      include: {
+        plan: true,
+        user: {
+          select: {
+            email: true,
+            fullName: true,
+            id: true,
+            uid: true,
+            image: true,
+          },
+        },
+      },
     });
 
     res.status(200).json(payments);

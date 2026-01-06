@@ -10,16 +10,20 @@ export const calculateExpiryForUpgrade = ({
   const now = new Date();
   const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+  if (!currentSubscription.expiresAt) {
+    throw new Error("Current subscription has no expiry date");
+  }
+
   const remainingDays = Math.max(
     Math.ceil(
-      (currentSubscription.expiresAt!.getTime() - now.getTime()) / MS_PER_DAY
+      (currentSubscription.expiresAt.getTime() - now.getTime()) / MS_PER_DAY
     ),
     0
   );
 
   // Same cycle
   if (currentSubscription.billingCycle === newBillingCycle) {
-    return currentSubscription.expiresAt!;
+    return currentSubscription.expiresAt;
   }
 
   // Monthly → Yearly (credit remaining time)
@@ -34,5 +38,5 @@ export const calculateExpiryForUpgrade = ({
   }
 
   // Yearly → Monthly should never happen immediately
-  return currentSubscription.expiresAt!;
+  return currentSubscription.expiresAt;
 };

@@ -124,7 +124,7 @@ export const upgradePlan = async (
       return;
     }
 
-    const subscription = await prisma.subscription.findFirst({
+    let subscription = await prisma.subscription.findFirst({
       where: { userId: user.id, status: "ACTIVE" },
     });
 
@@ -135,9 +135,42 @@ export const upgradePlan = async (
       return;
     }
 
+    // Find pending subscription
+    let pendingSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        status: "PENDING",
+      },
+    });
+
+    if (pendingSubscription) {
+      // Update existing pending pendingSubscription
+      pendingSubscription = await prisma.subscription.update({
+        where: { id: pendingSubscription.id },
+        data: {
+          planId,
+          billingCycle: parsed.data.billingCycle,
+          startedAt: subscription.startedAt,
+          expiresAt: subscription.expiresAt,
+        },
+      });
+    } else {
+      // Create new pending subscription
+      pendingSubscription = await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          planId,
+          billingCycle: parsed.data.billingCycle,
+          status: "PENDING",
+          startedAt: subscription.startedAt,
+          expiresAt: subscription.expiresAt,
+        },
+      });
+    }
+
     const result = await paymentServices.upgradePlan(user, {
       ...parsed.data,
-      subscriptionId: subscription.id,
+      subscriptionId: pendingSubscription.id,
     });
 
     res.status(200).json({ status: "success", ...result });
@@ -348,11 +381,44 @@ export const renewSubscription = async (req: Request, res: Response) => {
       return;
     }
 
-    const RENEWAL_WINDOW_DAYS = 7; // allow renewal up to 7 days before expiry
-
     if (!subscription.expiresAt) {
       return res.status(400).json({ error: "Invalid subscription." });
     }
+
+    // Find pending subscription
+    let pendingSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        status: "PENDING",
+      },
+    });
+
+    if (pendingSubscription) {
+      // Update existing pending pendingSubscription
+      pendingSubscription = await prisma.subscription.update({
+        where: { id: pendingSubscription.id },
+        data: {
+          planId,
+          billingCycle: subscription.billingCycle,
+          startedAt: subscription.startedAt,
+          expiresAt: subscription.expiresAt,
+        },
+      });
+    } else {
+      // Create new pending subscription
+      pendingSubscription = await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          planId,
+          billingCycle: subscription.billingCycle,
+          status: "PENDING",
+          startedAt: subscription.startedAt,
+          expiresAt: subscription.expiresAt,
+        },
+      });
+    }
+
+    const RENEWAL_WINDOW_DAYS = 7; // allow renewal up to 7 days before expiry
 
     const now = new Date();
     const renewalWindowStart = new Date(subscription.expiresAt);
@@ -371,8 +437,8 @@ export const renewSubscription = async (req: Request, res: Response) => {
       "SUBSCRIPTION_RENEWAL",
       {
         ...parsed.data,
-        subscriptionId: subscription.id,
-        billingCycle: subscription.billingCycle,
+        subscriptionId: pendingSubscription.id,
+        billingCycle: pendingSubscription.billingCycle,
       }
     );
     res.status(200).json({ status: "success", ...result });
@@ -417,6 +483,10 @@ export const updateSubscription = async (
       // Idempotency
       if (subscription.status === status) {
         return;
+      }
+
+      if (subscription.status === "EXPIRED") {
+        throw new Error("You cannot update an expired subscription.");
       }
 
       // Cancellation path
@@ -469,9 +539,10 @@ export const updateSubscription = async (
             userId: subscription.user.id,
             transactionId: transaction.id,
             paymentId: payment.id,
-            type: "SUBSCRIPTION_PAYMENT",
+            type: transaction.type,
             amount: subscription.plan.price,
             billingCycle: subscription.billingCycle,
+            newPlanId: subscription.planId,
           },
           tx
         );
@@ -504,8 +575,7 @@ export const updateSubscription = async (
       res.status(409).json({ error: message });
       return;
     }
-
-    res.status(500).json({ error: "Internal server error." });
+    res.status(500).json({ error: "Internal server error. " + error.messasge });
     return;
   }
 };

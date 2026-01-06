@@ -21,12 +21,12 @@ export const createSubscriptionPayment = async (
 
   return prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.findFirst({
-      where: { id: subscriptionId },
+      where: { id: subscriptionId, userId: user.id, status: "PENDING" },
       include: { plan: true },
     });
 
     if (!subscription) {
-      throw new Error("Subscription hasn't been created yet");
+      throw new Error("Pending subscription not found");
     }
 
     const payment = await tx.payment.create({
@@ -174,52 +174,58 @@ export const upgradePlan = async (
     }
 
     const currentSubscription = await tx.subscription.findFirst({
-      where: { id: subscriptionId, userId: user.id, status: "ACTIVE" },
+      where: { userId: user.id, status: "ACTIVE" },
       include: { plan: true },
     });
+
+    const newSubscription = await tx.subscription.findFirst({
+      where: { id: subscriptionId, userId: user.id, status: "PENDING" },
+      include: { plan: true },
+    });
+
+    if (!newSubscription) {
+      throw new Error("Pending subscription not found");
+    }
 
     if (!currentSubscription) {
       throw new Error("Active subscription not found");
     }
 
-    const newPlan = await tx.subscriptionPlan.findUnique({
-      where: { id: planId },
-    });
-
-    if (!newPlan) {
+    if (!newSubscription || !newSubscription.plan) {
       throw new Error("Target plan not found");
     }
 
-    const currentPrice = new Decimal(currentSubscription.plan.price);
-    const newPrice = new Decimal(newPlan.price);
+    const months = billingCycle === "YEARLY" ? 12 : 1;
 
-    let finalNewPrice = billingCycle === "YEARLY" ? newPrice.mul(12) : newPrice;
+    const targetBase = new Decimal(newSubscription.plan.price).mul(months);
+    const discountRate =
+      billingCycle === "YEARLY"
+        ? newSubscription.plan.discountForAnnually || 0
+        : 0;
+    const discountAmount = discountRate
+      ? targetBase.mul(new Decimal(discountRate)).div(100)
+      : new Decimal(0);
 
-    if (billingCycle === "YEARLY" && newPlan.discountForAnnually) {
-      finalNewPrice = finalNewPrice.minus(
-        finalNewPrice.mul(new Decimal(newPlan.discountForAnnually).div(100))
-      );
-    }
+    const discountedTarget = targetBase.minus(discountAmount);
+    const currentBase = new Decimal(currentSubscription.plan.price).mul(months);
+    const payableBeforeTax = discountedTarget.minus(currentBase);
 
-    const tax = finalNewPrice.mul(new Decimal(newPlan.tax || 0).div(100));
-    finalNewPrice = finalNewPrice.plus(tax);
-
-    const normalizedCurrentPrice =
-      billingCycle === "YEARLY" ? currentPrice.mul(12) : currentPrice;
-
-    const upgradeAmount = finalNewPrice.minus(normalizedCurrentPrice);
-
-    if (upgradeAmount.lte(0)) {
+    if (payableBeforeTax.lte(0)) {
       throw new Error("Invalid upgrade. New plan must cost more");
     }
+
+    const taxRate = new Decimal(newSubscription.plan.tax || 0);
+    const taxAmount = payableBeforeTax.mul(taxRate.div(100));
+    const upgradeAmount = payableBeforeTax.plus(taxAmount);
 
     const payment = await tx.payment.create({
       data: {
         status: "PENDING",
-        planId: newPlan.id,
+        planId: newSubscription.plan.id,
         amount: upgradeAmount,
         chargedAmount: upgradeAmount,
         method: platform,
+        subscriptionId: newSubscription.id,
         currency,
         userId: user.id,
       },
@@ -229,6 +235,7 @@ export const upgradePlan = async (
       data: {
         status: "PENDING",
         amount: upgradeAmount,
+        paymentId: payment.id,
         type: "SUBSCRIPTION_UPGRADE",
         currency,
         userUid: user.uid,
@@ -239,7 +246,7 @@ export const upgradePlan = async (
       data: {
         event: "SUBSCRIPTION_UPGRADE",
         category: "SUBSCRIPTION",
-        entityUid: currentSubscription.uid,
+        entityUid: newSubscription.uid,
         userId: user.id,
       },
     });
@@ -255,7 +262,7 @@ export const upgradePlan = async (
       },
       meta: {
         subscriptionId,
-        newPlanId: newPlan.id,
+        newPlanId: newSubscription.plan.id,
         userId: user.id,
         type: "SUBSCRIPTION_UPGRADE" as TransactionType,
         paymentId: payment.id,

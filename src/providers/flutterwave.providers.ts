@@ -46,15 +46,16 @@ export const processSuccess = async (
   if (!user) throw new Error("User not found");
 
   const subscription = await prisma.subscription.findUnique({
-    where: { id: data.meta.subscriptionId },
+    where: {
+      id: data.meta.subscriptionId,
+      userId: user.id,
+      status: "PENDING",
+    },
     include: { plan: true },
   });
-  if (!subscription || subscription.userId !== data.meta.userId) {
-    throw new Error("Subscription not found");
-  }
 
-  if (subscription.status !== "PENDING") {
-    return; // idempotency safeguard
+  if (!subscription) {
+    throw new Error("Subscription not found");
   }
 
   const isUpgrade = data.meta.type === "SUBSCRIPTION_UPGRADE";
@@ -68,7 +69,16 @@ export const processSuccess = async (
   let billingCycle = subscription.billingCycle;
 
   if (isUpgrade) {
-    if (!data.meta.newPlanId || !data.meta.billingCycle) {
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: { status: "ACTIVE", userId: user.id },
+      include: { plan: true },
+    });
+
+    if (
+      !data.meta.newPlanId ||
+      !data.meta.billingCycle ||
+      !activeSubscription
+    ) {
       throw new Error("Upgrade metadata missing");
     }
 
@@ -76,8 +86,18 @@ export const processSuccess = async (
     billingCycle = data.meta.billingCycle;
 
     expiresAt = calculateExpiryForUpgrade({
-      currentSubscription: subscription,
+      currentSubscription: activeSubscription,
       newBillingCycle: billingCycle,
+    });
+
+    // Expire any existing ACTIVE subscriptions to avoid unique constraint violation
+    await prisma.subscription.updateMany({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+        NOT: { id: subscription.id },
+      },
+      data: { status: "EXPIRED" },
     });
   }
 
