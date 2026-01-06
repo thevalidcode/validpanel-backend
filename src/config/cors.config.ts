@@ -13,6 +13,7 @@ export const corsOptions = {
       origin === `https://validpanel.com` ||
       origin === `https://www.validpanel.com` ||
       origin === `https://test.validpanel.com` ||
+      origin === `https://auth.validpanel.com` ||
       origin === `https://www.test.validpanel.com` ||
       origin === `http://localhost:5173`
     ) {
