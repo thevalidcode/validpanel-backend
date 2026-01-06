@@ -244,9 +244,11 @@ export const verifySessionCode = async (
   );
 
   res.cookie("auth_token", token, {
+    domain: ".validpanel.com",
+    path: "/",
+    secure: true,
+    sameSite: "none",
     httpOnly: true,
-    secure: env.NODE_ENV === "production",
-    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
