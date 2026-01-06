@@ -67,15 +67,6 @@ const finalizeSubscriptionPaymentInternal = async (
     throw new Error("Subscription not found");
   }
 
-  const activeSubscription = await tx.subscription.findUnique({
-    where: { status: "ACTIVE", userId },
-    include: { plan: true },
-  });
-
-  if (!activeSubscription) {
-    throw new Error("Active subscription not found");
-  }
-
   const payment = await tx.payment.findUnique({ where: { id: paymentId } });
   if (!payment) throw new Error("Payment not found");
 
@@ -101,7 +92,13 @@ const finalizeSubscriptionPaymentInternal = async (
 
   // 4. Handle upgrade
   if (isUpgrade) {
-    if (!newPlanId || !billingCycle) throw new Error("Upgrade details missing");
+    const activeSubscription = await tx.subscription.findFirst({
+      where: { status: "ACTIVE", userId },
+      include: { plan: true },
+    });
+
+    if (!newPlanId || !billingCycle || !activeSubscription)
+      throw new Error("Upgrade details missing");
 
     planId = newPlanId;
     finalBillingCycle = billingCycle;
