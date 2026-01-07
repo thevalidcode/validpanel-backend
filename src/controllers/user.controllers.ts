@@ -344,12 +344,10 @@ export const setupStore = async (req: Request, res: Response) => {
     });
 
     if (!existingSubscription) {
-      res
-        .status(400)
-        .json({
-          error:
-            "Active subscription not found, If you paid manually kindly check back later when your subscription is active or contact support.",
-        });
+      res.status(400).json({
+        error:
+          "Active subscription not found, If you paid manually kindly check back later when your subscription is active or contact support.",
+      });
       return;
     }
 
@@ -562,8 +560,8 @@ export const updateUser = async (req: Request, res: Response) => {
     res
       .status(200)
       .json({ success: "Successfully updated user", user: safeUser });
-  } catch {
-    res.status(500).json({ error: "Failed to update user" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to update user " + error.message });
   }
 };
 
