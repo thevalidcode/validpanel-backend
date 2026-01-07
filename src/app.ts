@@ -1,6 +1,5 @@
 import express from "express";
 import bodyParser from "body-parser";
-import cors from "cors";
 import session from "express-session";
 import { env } from "./config/env.config";
 import cookieParser from "cookie-parser";
@@ -58,30 +57,30 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/users", cors(corsOptions), userRouter);
-app.use("/api/v1/stores", cors(corsOptions), storeRouter);
-app.use("/api/v1/admins", cors(corsOptions), adminRouter);
-app.use("/api/v1/orders", cors(corsOptions), orderRouter);
-app.use("/api/v1/webhooks", cors(corsOptions), webhookRouter);
-app.use("/api/v1/payment-gateways", cors(corsOptions), paymentGatewayRouter);
-app.use("/api/v1/subscriptions", cors(corsOptions), subscriptionRouter);
+app.use("/api/v1/users", corsOptions, userRouter);
+app.use("/api/v1/stores", corsOptions, storeRouter);
+app.use("/api/v1/admins", corsOptions, adminRouter);
+app.use("/api/v1/orders", corsOptions, orderRouter);
+app.use("/api/v1/webhooks", corsOptions, webhookRouter);
+app.use("/api/v1/payment-gateways", corsOptions, paymentGatewayRouter);
+app.use("/api/v1/subscriptions", corsOptions, subscriptionRouter);
 app.use(
   "/api/v1/subscription-plans",
-  cors(corsOptions),
+  corsOptions,
   subscriptionPlanRouter
 );
-app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
-app.use("/api/v1/setting", cors(corsOptions), settingRouter);
-app.use("/api/v1/payments", cors(corsOptions), paymentRouter);
-app.use("/api/v1/transactions", cors(corsOptions), transactionRouter);
-app.use("/api/v1/files", cors(corsOptions), filesRouter);
-app.use("/api/v1/rates", cors(corsOptions), rateRouter);
-app.use("/api/v1/contact", cors(corsOptions), contactRouter);
+app.use("/api/v1/notifications", corsOptions, notificationRouter);
+app.use("/api/v1/setting", corsOptions, settingRouter);
+app.use("/api/v1/payments", corsOptions, paymentRouter);
+app.use("/api/v1/transactions", corsOptions, transactionRouter);
+app.use("/api/v1/files", corsOptions, filesRouter);
+app.use("/api/v1/rates", corsOptions, rateRouter);
+app.use("/api/v1/contact", corsOptions, contactRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
 
 // Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
-app.use("/api/auth/core", cors(corsOptions), authRoutes);
+app.use("/api/auth/core", corsOptions, authRoutes);
 
 export default app;
