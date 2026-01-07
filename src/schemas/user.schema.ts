@@ -85,13 +85,14 @@ export const createUserRequestSchema = z.object({
   password: z.string().min(6),
 });
 
-export const updateUserSchema = z.object({
-  username: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  email: z.string().email().optional(),
-  image: z.string().optional(),
-  fullName: z.string().optional(),
-});
+export const updateUserSchema = z
+  .object({
+    username: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    image: z.string().optional(),
+    fullName: z.string().optional(),
+  })
+  .strict();
 
 export const tokenPayloadSchema = z.object({
   email: z.string().email(),
