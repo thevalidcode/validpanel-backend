@@ -124,6 +124,10 @@ export const resetPasswordSchema = z.object({
   password: z.string(),
 });
 
+export const VerifySessionSchema = z.object({
+  sessionCode: z.string(),
+});
+
 export const UidsSchema = z.object({
   uids: z.array(z.string().uuid()),
 });

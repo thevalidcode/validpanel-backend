@@ -9,6 +9,7 @@ import {
   RoleFormSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  VerifySessionSchema,
 } from "../../schemas/admin.schema";
 import {
   AuthenticateAdminResponse,
@@ -22,6 +23,7 @@ import {
   UpdateRoleResponse,
   DeleteRoleResponse,
   AdminListResponse,
+  VerifySessionResponse,
   PlatformEventsListResponse,
 } from "../responses/admin.response";
 import {
@@ -101,6 +103,28 @@ registry.registerPath({
   },
   responses: {
     200: SuccessResponse,
+    400: BadRequest,
+    500: ServerError,
+  },
+});
+
+// Verify session
+registry.registerPath({
+  method: "post",
+  path: "/admins/verify-session",
+  summary: "Verify session code for admin authentication",
+  tags: ["Admins"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: VerifySessionSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: VerifySessionResponse,
     400: BadRequest,
     500: ServerError,
   },

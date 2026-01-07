@@ -11,6 +11,7 @@ import {
   updateAdminSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  VerifySessionSchema,
 } from "../schemas/admin.schema";
 import { sendAdminEmail } from "../emails";
 
@@ -703,4 +704,67 @@ export const resetPassword = async (
       .status(500)
       .json({ error: "Failed to update password: " + err.message });
   }
+};
+
+export const verifySession = async (req: Request, res: Response) => {
+  const parsed = VerifySessionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+
+  const { sessionCode } = parsed.data;
+
+  const session = await prisma.sessionCode.findUnique({
+    where: { code: sessionCode },
+  });
+
+  if (!session || session.used || new Date(session.expiresAt) < new Date()) {
+    res.status(400).json({ error: "Invalid or expired session code" });
+    return;
+  }
+
+  const account = await prisma.admin.findFirst({
+    where: { email: session.email },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!account) {
+    res.status(404).json({ error: "Admin not found" });
+    return;
+  }
+
+  await prisma.sessionCode.update({
+    where: { code: sessionCode },
+    data: { used: true },
+  });
+
+  const token = jwt.sign(
+    { uid: account.uid, apiKey: account.apiKey, email: account.email },
+    env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = account;
+
+  res.status(200).json({ success: "Admin authenticated successfully", admin: safeAdmin });
 };

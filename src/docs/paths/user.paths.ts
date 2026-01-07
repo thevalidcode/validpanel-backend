@@ -8,6 +8,7 @@ import {
   setupStoreSchema,
   UidsSchema,
   updateUserSchema,
+  VerifySessionSchema,
 } from "../../schemas/user.schema";
 
 import {
@@ -55,8 +56,17 @@ registry.registerPath({
 registry.registerPath({
   method: "post",
   path: "/users/verify-session",
-  summary: "Verify the session of an authenticated user",
+  summary: "Verify session code for user authentication",
   tags: ["Users"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: VerifySessionSchema,
+        },
+      },
+    },
+  },
   responses: {
     200: VerifySessionResponse,
     400: BadRequest,

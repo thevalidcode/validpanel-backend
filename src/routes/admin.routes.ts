@@ -28,6 +28,7 @@ import {
   limitRolePermissionUpdate,
   limitRolePermissionDelete,
 } from "../middleware/ratelimit/admin.ratelimit";
+import { limitSessionVerify } from "../middleware/ratelimit/auth.ratelimit";
 
 const router = express.Router();
 
@@ -40,6 +41,7 @@ const router = express.Router();
 router.post("/me", limitAdminAuth, admins.authenticateAdmin);
 router.post("/forgot-password", limitAdminPasswordOps, admins.forgotPassword);
 router.post("/reset-password", limitAdminPasswordOps, admins.resetPassword);
+router.post("/verify-session", limitSessionVerify, admins.verifySession);
 router.get(
   "/",
   authenticateAdmin,

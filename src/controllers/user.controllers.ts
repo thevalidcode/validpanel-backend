@@ -12,6 +12,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   UidsSchema,
+  VerifySessionSchema,
 } from "../schemas/user.schema";
 import { prisma } from "../config/db.config";
 import { OnboardingStep } from "../../prisma/generated";
@@ -509,12 +510,57 @@ export const getUserByUid = async (req: Request, res: Response) => {
 };
 
 export const verifySession = async (req: Request, res: Response) => {
-  const parsed = AuthSchema.safeParse(req.auth);
+  const parsed = VerifySessionSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  res.status(200).json({ email: parsed.data.user.email });
+
+  const { sessionCode } = parsed.data;
+
+  const session = await prisma.sessionCode.findUnique({
+    where: { code: sessionCode },
+  });
+
+  if (!session || session.used || new Date(session.expiresAt) < new Date()) {
+    res.status(400).json({ error: "Invalid or expired session code" });
+    return;
+  }
+
+  const account = await prisma.user.findFirst({
+    where: { email: session.email },
+  });
+
+  if (!account) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  await prisma.sessionCode.update({
+    where: { code: sessionCode },
+    data: { used: true },
+  });
+
+  const token = jwt.sign(
+    { uid: account.uid, apiKey: account.apiKey, email: account.email },
+    env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  res.cookie("auth_token", token, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  const { password: _, resetToken, resetTokenExpiry, ...safeUser } = account;
+
+  res
+    .status(200)
+    .json({ success: "User authenticated successfully", user: safeUser });
 };
 
 export const deleteUser = async (req: Request, res: Response) => {

@@ -15,19 +15,3 @@ export const GoogleCallbackQuerySchema = z.object({
   code: z.coerce.string(),
   state: z.coerce.string(),
 });
-
-export const VerifySessionCodeBodySchema = z.object({
-  sessionCode: z.string(),
-  role: RoleEnum.optional().default("USER"),
-});
-
-export type RedirectToGoogleQuery = z.infer<typeof RedirectToGoogleQuerySchema>;
-export type GoogleCallbackQuery = z.infer<typeof GoogleCallbackQuerySchema>;
-export type VerifySessionCodeBody = z.infer<typeof VerifySessionCodeBodySchema>;
-
-export default {
-  RoleEnum,
-  RedirectToGoogleQuerySchema,
-  GoogleCallbackQuerySchema,
-  VerifySessionCodeBodySchema,
-};

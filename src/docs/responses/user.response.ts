@@ -43,10 +43,13 @@ export const CreateUserResponse = {
 };
 
 export const VerifySessionResponse = {
-  description: "Authenticated user session object",
+  description: "Session verified, user authenticated",
   content: {
     "application/json": {
-      schema: VerifySessionResponseSchema,
+      schema: z.object({
+        success: z.string(),
+        user: UserSchema,
+      }),
     },
   },
 };

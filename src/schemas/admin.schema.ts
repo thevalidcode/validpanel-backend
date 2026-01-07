@@ -107,6 +107,10 @@ export const resetPasswordSchema = z.object({
   password: z.string(),
 });
 
+export const VerifySessionSchema = z.object({
+  sessionCode: z.string(),
+});
+
 export const AdminAuthSchema = z.object({
   uid: z.string(),
   type: z.literal("admin"),

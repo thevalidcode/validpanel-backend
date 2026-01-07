@@ -179,6 +179,18 @@ export const OverviewResponse = {
   },
 };
 
+export const VerifySessionResponse = {
+  description: "Session verified, admin authenticated",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.string(),
+        admin: AdminSchema,
+      }),
+    },
+  },
+};
+
 export const AssignPermissionToRoleResponse = {
   description: "Successfully assigned permission to a role",
   content: {
