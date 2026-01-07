@@ -60,11 +60,11 @@ export const Footer = () => `
                       </td>
                       <td style="padding:0 12px; color:#D1D5DB;">|</td>
                       <td style="padding:0 12px;">
-                        <a href="https://validpanel.com/privacy" style="color:#6B7280; text-decoration:none; font-size:13px;">Privacy</a>
+                        <a href="https://validpanel.com/privacy-policy" style="color:#6B7280; text-decoration:none; font-size:13px;">Privacy</a>
                       </td>
                       <td style="padding:0 12px; color:#D1D5DB;">|</td>
                       <td style="padding:0 12px;">
-                        <a href="https://validpanel.com/terms" style="color:#6B7280; text-decoration:none; font-size:13px;">Terms</a>
+                        <a href="https://validpanel.com/terms-of-service" style="color:#6B7280; text-decoration:none; font-size:13px;">Terms</a>
                       </td>
                     </tr>
                   </table>
