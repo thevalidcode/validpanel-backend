@@ -19,7 +19,7 @@ export const UserSchema = z
     apiKey: z.string(),
     ref: z.number().nullable(),
     refCode: z.number(),
-    image: z.string().url().nullable(),
+    image: z.string().nullable(),
     currency: z.string().toUpperCase().length(3),
     fullName: z.string(),
     spent: z.custom<Decimal>(),
