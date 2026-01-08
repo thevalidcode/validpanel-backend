@@ -5,35 +5,73 @@ import { prisma } from "../config/db.config";
  */
 export const markStaleItemsFailed = async () => {
   try {
-    // 1. Get default cutoff days from first active plan (or use 7 days)
     const setting = await prisma.setting.findFirst();
     const cutoffDays = setting?.staleItemThreshold ?? 7;
 
-    // 2. Calculate cutoff date
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - cutoffDays);
 
-    // 3. Mark payments as FAILED
-    const failedPayments = await prisma.payment.updateMany({
-      where: { status: "PENDING", createdAt: { lte: cutoff } },
-      data: { status: "FAILED" },
-    });
+    // Choose safe batch size for your VPS
+    const BATCH_SIZE = 250;
 
-    // 4. Mark transactions as FAILED
-    const failedTransactions = await prisma.transaction.updateMany({
-      where: { status: "PENDING", timestamp: { lte: cutoff } },
-      data: { status: "FAILED" },
-    });
+    // --- Payments ---
+    let paymentsUpdated: number;
+    do {
+      const batch = await prisma.payment.findMany({
+        where: { status: "PENDING", createdAt: { lte: cutoff } },
+        take: BATCH_SIZE,
+        select: { id: true },
+      });
 
-    // 5. Expire subscriptions waiting on these payments
-    const expiredSubscriptions = await prisma.subscription.updateMany({
-      where: { status: "PENDING", startedAt: { lte: cutoff } },
-      data: { status: "EXPIRED" },
-    });
+      paymentsUpdated = batch.length;
 
-    console.log(
-      `Mark stale items complete: ${failedPayments.count} payments failed, ${failedTransactions.count} transactions failed, ${expiredSubscriptions.count} subscriptions expired.`
-    );
+      if (paymentsUpdated > 0) {
+        await prisma.payment.updateMany({
+          where: { id: { in: batch.map((p) => p.id) } },
+          data: { status: "FAILED" },
+        });
+      }
+    } while (paymentsUpdated === BATCH_SIZE);
+
+    // --- Transactions ---
+    let transactionsUpdated: number;
+    do {
+      const batch = await prisma.transaction.findMany({
+        where: { status: "PENDING", timestamp: { lte: cutoff } },
+        take: BATCH_SIZE,
+        select: { id: true },
+      });
+
+      transactionsUpdated = batch.length;
+
+      if (transactionsUpdated > 0) {
+        await prisma.transaction.updateMany({
+          where: { id: { in: batch.map((t) => t.id) } },
+          data: { status: "FAILED" },
+        });
+      }
+    } while (transactionsUpdated === BATCH_SIZE);
+
+    // --- Subscriptions ---
+    let subscriptionsUpdated: number;
+    do {
+      const batch = await prisma.subscription.findMany({
+        where: { status: "PENDING", startedAt: { lte: cutoff } },
+        take: BATCH_SIZE,
+        select: { id: true },
+      });
+
+      subscriptionsUpdated = batch.length;
+
+      if (subscriptionsUpdated > 0) {
+        await prisma.subscription.updateMany({
+          where: { id: { in: batch.map((s) => s.id) } },
+          data: { status: "EXPIRED" },
+        });
+      }
+    } while (subscriptionsUpdated === BATCH_SIZE);
+
+    console.log(`Mark stale items complete.`);
   } catch (err: any) {
     console.error("Failed to mark stale items:", err);
   }

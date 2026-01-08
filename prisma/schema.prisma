@@ -113,6 +113,7 @@ model Subscription {
   Payment     Payment[]
 
   @@unique([userId, status]) // Guarantees a user can only have one active or pending subscrition
+  @@index([status, startedAt])
   @@map("subscriptions")
 }
 
@@ -134,6 +135,7 @@ model Payment {
   plan         SubscriptionPlan @relation(fields: [planId], references: [id])
   Transaction  Transaction[]
 
+  @@index([status, createdAt])
   @@map("payments")
 }
 
@@ -511,6 +513,7 @@ model Transaction {
   user    User     @relation(fields: [userUid], references: [uid])
   payment Payment? @relation(fields: [paymentId], references: [id])
 
+  @@index([status, timestamp])
   @@map("transactions")
 }
 
