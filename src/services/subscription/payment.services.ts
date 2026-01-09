@@ -29,12 +29,29 @@ export const createSubscriptionPayment = async (
       throw new Error("Pending subscription not found");
     }
 
+    const months = billingCycle === "YEARLY" ? 12 : 1;
+
+    const targetBase = new Decimal(subscription.plan.price).mul(months);
+    const discountRate =
+      billingCycle === "YEARLY"
+        ? subscription.plan.discountForAnnually || 0
+        : 0;
+    const discountAmount = discountRate
+      ? targetBase.mul(new Decimal(discountRate)).div(100)
+      : new Decimal(0);
+
+    const discountedTarget = targetBase.minus(discountAmount);
+
+    const taxRate = new Decimal(subscription.plan.tax || 0);
+    const taxAmount = discountedTarget.mul(taxRate.div(100));
+    const totalAmount = discountedTarget.plus(taxAmount);
+
     const payment = await tx.payment.create({
       data: {
         status: "PENDING",
         planId: subscription.planId,
-        amount: subscription.plan.price,
-        chargedAmount: subscription.plan.price,
+        amount: totalAmount,
+        chargedAmount: totalAmount,
         method: platform,
         currency,
         userId: user.id,
@@ -45,7 +62,7 @@ export const createSubscriptionPayment = async (
     const transaction = await tx.transaction.create({
       data: {
         status: "PENDING",
-        amount: subscription.plan.price,
+        amount: totalAmount,
         type,
         currency,
         userUid: user.uid,
@@ -101,7 +118,7 @@ export const createSubscriptionPayment = async (
 
     const paymentData = {
       tx_ref: `sub_${subscriptionId}_${Date.now()}`,
-      amount: subscription.plan.price,
+      amount: totalAmount.toNumber(),
       currency,
       redirectUrl,
       customer: { email: user.email },
