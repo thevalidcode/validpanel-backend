@@ -6,7 +6,7 @@ import { initPaystackPayment } from "../../providers/paystack.providers";
 import type { SubscriptionPaymentInput } from "../../schemas/subscription.schema";
 import { TransactionType } from "../../../prisma/generated";
 import { UserPublic } from "../../schemas/user.schema";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { finalizeSubscriptionPayment } from "./finalize-subscription-payment";
 
 export const createSubscriptionPayment = async (

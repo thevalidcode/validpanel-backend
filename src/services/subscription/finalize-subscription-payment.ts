@@ -1,5 +1,5 @@
 import { prisma } from "../../config/db.config";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { TransactionType } from "../../../prisma/generated";
 import { calculateExpiryForUpgrade } from "../../utils/calculateExpiresAt";
 import { buildNotification } from "../notification.services";

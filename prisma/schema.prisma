@@ -6,26 +6,25 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum StoreStatus {
-  ACTIVE   @map("active")
-  PENDING  @map("pending")
-  CANCELED @map("canceled")
-  DISABLED @map("disabled")
-  EXPIRED  @map("expired")
+  ACTIVE
+  PENDING
+  CANCELED
+  DISABLED
+  EXPIRED
 }
 
 enum StoreType {
-  SOCIAL  @map("social_media_store")
-  SHOP    @map("shop")
-  DIGITAL @map("digital")
+  SOCIAL
+  SHOP
+  DIGITAL
 }
 
 enum BillingInterval {
-  MONTHLY @map("monthly")
-  YEARLY  @map("yearly")
+  MONTHLY
+  YEARLY
 }
 
 model Store {
@@ -47,24 +46,24 @@ model Store {
 }
 
 enum SubscriptionStatus {
-  ACTIVE   @map("active")
-  PENDING  @map("pending")
-  FAILED   @map("failed")
-  EXPIRED  @map("expired")
-  TRIAL    @map("trial")
-  CANCELED @map("canceled")
+  ACTIVE
+  PENDING
+  FAILED
+  EXPIRED
+  TRIAL
+  CANCELED
 }
 
 enum PaymentStatus {
-  PENDING @map("pending")
-  SUCCESS @map("success")
-  FAILED  @map("failed")
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 enum SubscriptionPlanStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
-  DRAFT    @map("draft")
+  ACTIVE
+  INACTIVE
+  DRAFT
 }
 
 model SubscriptionPlan {
@@ -140,16 +139,16 @@ model Payment {
 }
 
 enum UserStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
-  BANNED   @map("banned")
+  ACTIVE
+  INACTIVE
+  BANNED
 }
 
 enum OnboardingStep {
-  PLAN          @map("plan")
-  PAYMENT       @map("payment")
-  STORE_DETAILS @map("store_details")
-  COMPLETE      @map("complete")
+  PLAN
+  PAYMENT
+  STORE_DETAILS
+  COMPLETE
 }
 
 model User {
@@ -189,9 +188,9 @@ model User {
 }
 
 enum AdminStatus {
-  ACTIVE   @map("active")
-  INACTIVE @map("inactive")
-  BANNED   @map("banned")
+  ACTIVE
+  INACTIVE
+  BANNED
 }
 
 model Admin {
@@ -218,13 +217,13 @@ model Admin {
 }
 
 enum OrderStatus {
-  PENDING    @map("Pending")
-  CANCELED   @map("Canceled")
-  PARTIAL    @map("Partial")
-  FAILED     @map("Failed")
-  COMPLETED  @map("Completed")
-  ACTIVE     @map("In progress")
-  PROCESSING @map("Processing")
+  PENDING
+  CANCELED
+  PARTIAL
+  FAILED
+  COMPLETED
+  ACTIVE
+  PROCESSING
 }
 
 model Order {
@@ -242,8 +241,8 @@ model Order {
 }
 
 enum BlogStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
+  ACTIVE
+  DISABLED
 }
 
 model Blog {
@@ -272,8 +271,8 @@ model ExchangeRate {
 }
 
 enum EmailStatus {
-  SUCCESS @map("success")
-  ERROR   @map("error")
+  SUCCESS
+  ERROR
 }
 
 model EmailLog {
@@ -305,8 +304,8 @@ model EmailTemplate {
 }
 
 enum FaqStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
+  ACTIVE
+  DISABLED
 }
 
 model Faq {
@@ -323,8 +322,8 @@ model Faq {
 }
 
 enum MaintenanceStatus {
-  ENABLED  @map("enabled")
-  DISABLED @map("disabled")
+  ENABLED
+  DISABLED
 }
 
 model Setting {
@@ -388,15 +387,15 @@ model InternalApiSession {
 }
 
 enum PaymentGatewayStatus {
-  ACTIVE   @map("active")
-  DISABLED @map("disabled")
+  ACTIVE
+  DISABLED
 }
 
 enum PaymentMethod {
-  MANUAL      @map("manual")
-  FLUTTERWAVE @map("flutterwave")
-  PAYSTACK    @map("paystack")
-  CRON        @map("cron")
+  MANUAL
+  FLUTTERWAVE
+  PAYSTACK
+  CRON
 }
 
 model PaymentGateway {
@@ -429,17 +428,17 @@ model SessionCode {
 }
 
 enum TicketStatus {
-  OPEN     @map("open")
-  PENDING  @map("pending")
-  RESOLVED @map("resolved")
-  CLOSED   @map("closed")
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
 }
 
 enum TicketPriority {
-  LOW    @map("low")
-  MEDIUM @map("medium")
-  HIGH   @map("high")
-  URGENT @map("urgent")
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 model SupportTicket {
@@ -460,8 +459,8 @@ model SupportTicket {
 }
 
 enum MessageSenderType {
-  USER  @map("user")
-  ADMIN @map("admin")
+  USER
+  ADMIN
 }
 
 model TicketMessage {
@@ -481,22 +480,22 @@ model TicketMessage {
 }
 
 enum TransactionStatus {
-  SUCCESS   @map("success")
-  PENDING   @map("pending")
-  FAILED    @map("failed")
-  COMPLETED @map("completed")
-  REVERSED  @map("reversed")
-  CANCELLED @map("cancelled")
+  SUCCESS
+  PENDING
+  FAILED
+  COMPLETED
+  REVERSED
+  CANCELLED
 }
 
 enum TransactionType {
-  SUBSCRIPTION_PAYMENT   @map("subscription_payment") // user pays for a plan
-  SUBSCRIPTION_RENEWAL   @map("subscription_renewal") // auto/manual renewal
-  SUBSCRIPTION_UPGRADE   @map("subscription_upgrade")
-  SUBSCRIPTION_DOWNGRADE @map("subscription_downgrade")
+  SUBSCRIPTION_PAYMENT // user pays for a plan
+  SUBSCRIPTION_RENEWAL // auto/manual renewal
+  SUBSCRIPTION_UPGRADE
+  SUBSCRIPTION_DOWNGRADE
 
-  MANUAL_CREDIT @map("manual_credit") // admin tops up / compensates user
-  MANUAL_DEBIT  @map("manual_debit") // admin deducts
+  MANUAL_CREDIT // admin tops up / compensates user
+  MANUAL_DEBIT // admin deducts
 }
 
 model Transaction {
@@ -566,11 +565,11 @@ model AdminRolePermission {
 }
 
 enum NotificationCategory {
-  SYSTEM       @map("system")
-  PAYMENT      @map("payment")
-  SUBSCRIPTION @map("subscription")
-  STORE        @map("store")
-  USER         @map("user")
+  SYSTEM
+  PAYMENT
+  SUBSCRIPTION
+  STORE
+  USER
 }
 
 model Notification {
@@ -590,12 +589,12 @@ model Notification {
 }
 
 enum PlatformEventCategory {
-  STORE        @map("store")
-  USER         @map("user")
-  ADMIN        @map("admin")
-  SUBSCRIPTION @map("subscription")
-  PAYMENT      @map("payment")
-  SYSTEM       @map("system")
+  STORE
+  USER
+  ADMIN
+  SUBSCRIPTION
+  PAYMENT
+  SYSTEM
 }
 
 model PlatformEvent {
@@ -617,9 +616,9 @@ model PlatformEvent {
 }
 
 enum ContactMessageStatus {
-  PENDING  @map("pending")
-  REPLIED  @map("replied")
-  RESOLVED @map("resolved")
+  PENDING
+  REPLIED
+  RESOLVED
 }
 
 model ContactMessage {

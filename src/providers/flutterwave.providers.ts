@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { FlutterwaveWebhookData } from "../schemas/webhook.schema";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { buildNotification } from "../services/notification.services";
 import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";
 

@@ -2,7 +2,7 @@ import { prisma } from "../config/db.config";
 import convertCurrency from "../utils/ConvertCurrency";
 import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
 import { buildNotification } from "../services/notification.services";
 import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";

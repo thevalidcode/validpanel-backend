@@ -3,7 +3,7 @@ import {
   Subscription,
   SubscriptionPlan,
 } from "../../../prisma/generated";
-import { Decimal } from "../../../prisma/generated/runtime/library";
+import { Decimal } from "../../../prisma/generated/runtime/client";
 import { prisma } from "../../config/db.config";
 import { buildNotification } from "../../services/notification.services";
 

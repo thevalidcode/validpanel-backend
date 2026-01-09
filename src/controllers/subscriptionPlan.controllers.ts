@@ -6,7 +6,7 @@ import {
   SubscriptionPlanUpdateRequestSchema,
 } from "../schemas/subscriptionPlan.schema";
 import { AdminAuthSchema } from "../schemas/admin.schema";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const getSubscriptionPlansForUser = async (
   req: Request,

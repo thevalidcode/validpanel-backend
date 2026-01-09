@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../../config/env.config";
 import { tokenPayloadSchema } from "../../schemas/user.schema";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { UserStatus, AdminStatus } from "../../../prisma/generated";
 
 declare module "express" {

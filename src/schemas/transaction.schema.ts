@@ -5,7 +5,7 @@ import {
   TransactionStatus,
   TransactionType,
 } from "../../prisma/generated";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 
 extendZodWithOpenApi(z);
 

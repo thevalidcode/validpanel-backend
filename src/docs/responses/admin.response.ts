@@ -6,7 +6,7 @@ import {
   SuccessMessageSchema,
   AdminSchema,
 } from "../../schemas/admin.schema";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/client";
 import { NotificationSchema } from "../../schemas/notification.schema";
 import { PlatformEvent } from "../../../prisma/generated";
 import { PlatformEventSchema } from "../../schemas/platformEvent.schema";
