@@ -3,7 +3,7 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { TransactionType } from "../../../prisma/generated";
 import { calculateExpiryForUpgrade } from "../../utils/calculateExpiresAt";
 import { buildNotification } from "../notification.services";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "../../../prisma/generated";
 
 interface FinalizeSubscriptionPaymentInput {
   subscriptionId: number;
