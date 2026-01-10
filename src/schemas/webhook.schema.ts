@@ -19,7 +19,7 @@ export const FlutterwaveWebhookSchema = z.object({
     id: z.number(),
     fullName: z.string().nullable(),
     email: z.string().email(),
-    phone: z.string(),
+    phone: z.string().nullable(),
   }),
   meta: z
     .object({
@@ -28,7 +28,7 @@ export const FlutterwaveWebhookSchema = z.object({
       billingCycle: z.nativeEnum(BillingInterval),
       userId: z.coerce.number(),
       paymentId: z.coerce.number(),
-      newPlanId: z.coerce.number(),
+      newPlanId: z.coerce.number().optional().nullable(),
       transactionId: z.coerce.number(),
     })
     .passthrough(),
@@ -55,7 +55,7 @@ export const PaystackWebhookSchema = z.object({
         billingCycle: z.nativeEnum(BillingInterval),
         userId: z.coerce.number(),
         paymentId: z.coerce.number(),
-        newPlanId: z.coerce.number(),
+        newPlanId: z.coerce.number().optional().nullable(),
         transactionId: z.coerce.number(),
       })
       .passthrough(),

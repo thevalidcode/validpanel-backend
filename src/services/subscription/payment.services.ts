@@ -117,10 +117,10 @@ export const createSubscriptionPayment = async (
     }
 
     const paymentData = {
-      tx_ref: `sub_${subscriptionId}_${Date.now()}`,
+      tx_ref: payment.uid,
       amount: totalAmount.toNumber(),
       currency,
-      redirectUrl,
+      redirect_url: redirectUrl,
       customer: { email: user.email },
       customizations: {
         title: "Valid Panel Subscription Payment",
@@ -269,10 +269,10 @@ export const upgradePlan = async (
     });
 
     const paymentData = {
-      tx_ref: `upgrade_${subscriptionId}_${Date.now()}`,
+      tx_ref: payment.uid,
       amount: upgradeAmount.toNumber(),
       currency,
-      redirectUrl,
+      redirect_url: redirectUrl,
       customer: { email: user.email },
       customizations: {
         title: "Valid Panel Subscription Upgrade",

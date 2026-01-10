@@ -1,12 +1,11 @@
 import { prisma } from "../config/db.config";
-import convertCurrency from "../utils/ConvertCurrency";
-import { v4 as uuidv4 } from "uuid";
 import axios from "axios";
 import { decryptKey } from "../utils/encrypt";
 import { FlutterwaveWebhookData } from "../schemas/webhook.schema";
 import { Decimal } from "@prisma/client/runtime/client";
 import { buildNotification } from "../services/notification.services";
 import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";
+import convertCurrency from "../utils/ConvertCurrency";
 
 export const initFlutterwavePayment = async (
   paymentData: any,
@@ -20,15 +19,16 @@ export const initFlutterwavePayment = async (
     throw new Error("Exchange rate not found");
   }
 
-  const convertedUSDAmount = convertCurrency(
+  const convertedAmount = convertCurrency(
     paymentData.amount,
+    "USD",
     paymentData.currency,
-    "NGN",
-    exchangeRate.rates
+    exchangeRate?.rates!
   );
+
   const response = await axios.post(
     "https://api.flutterwave.com/v3/payments",
-    { ...paymentData, amount: convertedUSDAmount },
+    { ...paymentData, amount: convertedAmount },
     {
       headers: {
         Authorization: `Bearer ${decryptKey(

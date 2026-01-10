@@ -16,7 +16,7 @@ export const initPaystackPayment = async (
   });
   const convertedNGNAmount = convertCurrency(
     paymentData.amount,
-    paymentData.currency,
+    "USD",
     "NGN",
     exchangeRates?.rates!
   );
@@ -26,7 +26,7 @@ export const initPaystackPayment = async (
       email: paymentData.customer.email,
       amount: convertedNGNAmount * 100, // Paystack uses kobo
       currency: "NGN",
-      callback_url: paymentData.redirectUrl,
+      callback_url: paymentData.redirect_url,
       metadata: paymentData.meta,
     },
     {
