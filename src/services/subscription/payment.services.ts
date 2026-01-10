@@ -8,6 +8,7 @@ import { TransactionType } from "../../../prisma/generated";
 import { UserPublic } from "../../schemas/user.schema";
 import { Decimal } from "@prisma/client/runtime/client";
 import { finalizeSubscriptionPayment } from "./finalize-subscription-payment";
+import convertCurrency from "../../utils/ConvertCurrency";
 
 export const createSubscriptionPayment = async (
   user: UserPublic,
@@ -29,9 +30,24 @@ export const createSubscriptionPayment = async (
       throw new Error("Pending subscription not found");
     }
 
+    const exchangeRate = await prisma.exchangeRate.findFirst({
+      select: { rates: true },
+    });
+
+    if (!exchangeRate) {
+      throw new Error("Exchange rate not found");
+    }
+
+    const usdAmount = convertCurrency(
+      subscription.plan.price,
+      subscription.plan.currency,
+      "USD",
+      exchangeRate?.rates!
+    );
+
     const months = billingCycle === "YEARLY" ? 12 : 1;
 
-    const targetBase = new Decimal(subscription.plan.price).mul(months);
+    const targetBase = new Decimal(usdAmount).mul(months);
     const discountRate =
       billingCycle === "YEARLY"
         ? subscription.plan.discountForAnnually || 0
@@ -164,14 +180,8 @@ export const upgradePlan = async (
   user: UserPublic,
   input: SubscriptionPaymentInput
 ) => {
-  const {
-    platform,
-    currency,
-    subscriptionId,
-    redirectUrl,
-    planId,
-    billingCycle,
-  } = input;
+  const { platform, currency, subscriptionId, redirectUrl, billingCycle } =
+    input;
 
   return prisma.$transaction(async (tx) => {
     const gateway = await tx.paymentGateway.findFirst({
@@ -212,9 +222,31 @@ export const upgradePlan = async (
       throw new Error("Target plan not found");
     }
 
+    const exchangeRate = await prisma.exchangeRate.findFirst({
+      select: { rates: true },
+    });
+
+    if (!exchangeRate) {
+      throw new Error("Exchange rate not found");
+    }
+
+    const usdAmount = convertCurrency(
+      newSubscription.plan.price,
+      newSubscription.plan.currency,
+      "USD",
+      exchangeRate?.rates!
+    );
+
+    const usdBaseAmount = convertCurrency(
+      currentSubscription.plan.price,
+      currentSubscription.plan.currency,
+      "USD",
+      exchangeRate?.rates!
+    );
+
     const months = billingCycle === "YEARLY" ? 12 : 1;
 
-    const targetBase = new Decimal(newSubscription.plan.price).mul(months);
+    const targetBase = new Decimal(usdAmount).mul(months);
     const discountRate =
       billingCycle === "YEARLY"
         ? newSubscription.plan.discountForAnnually || 0
@@ -224,7 +256,7 @@ export const upgradePlan = async (
       : new Decimal(0);
 
     const discountedTarget = targetBase.minus(discountAmount);
-    const currentBase = new Decimal(currentSubscription.plan.price).mul(months);
+    const currentBase = new Decimal(usdBaseAmount).mul(months);
     const payableBeforeTax = discountedTarget.minus(currentBase);
 
     if (payableBeforeTax.lte(0)) {

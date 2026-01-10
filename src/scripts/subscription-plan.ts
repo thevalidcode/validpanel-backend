@@ -8,7 +8,6 @@ import { prisma } from "../config/db.config";
 dotenv.config();
 const mockPlans = [
   {
-    id: 1,
     uid: "starter-free-plan",
     name: "Starter",
     price: "0",
@@ -49,7 +48,6 @@ const mockPlans = [
   },
 
   {
-    id: 2,
     uid: "essentials-plan",
     name: "Essentials",
     price: "20",
@@ -90,7 +88,6 @@ const mockPlans = [
   },
 
   {
-    id: 3,
     uid: "pro-plan",
     name: "Pro",
     price: "40",
@@ -131,7 +128,6 @@ const mockPlans = [
   },
 
   {
-    id: 4,
     uid: "business-plan",
     name: "Business",
     price: "80",
@@ -171,7 +167,6 @@ const mockPlans = [
   },
 
   {
-    id: 5,
     uid: "empire-plan",
     name: "Empire",
     price: "150",
