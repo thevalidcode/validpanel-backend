@@ -5,49 +5,44 @@ import { BillingInterval, TransactionType } from "../../prisma/generated";
 extendZodWithOpenApi(z);
 
 export const FlutterwaveWebhookSchema = z.object({
-  event: z.string(), // usually "charge.completed"
-  status: z.string(), // "successful" | "failed"
-  data: z.object({
+  "event.type": z.string(),
+  status: z.string(),
+  id: z.number(),
+  txRef: z.string(),
+  flwRef: z.string(),
+  amount: z.number(),
+  currency: z.string(),
+  charged_amount: z.number(),
+  charge_type: z.string(),
+  createdAt: z.string(),
+  customer: z.object({
     id: z.number(),
-    tx_ref: z.string(),
-    flw_ref: z.string(),
-    amount: z.number(),
-    currency: z.string(),
-    status: z.string(), // "successful", "failed", etc.
-    charged_amount: z.number(),
-    payment_type: z.string(),
-    created_at: z.string(),
-    customer: z.object({
-      id: z.number(),
-      name: z.string().nullable(),
-      email: z.string().email(),
-      phone_number: z.string().nullable(),
-    }),
-    meta: z
-      .object({
-        subscriptionId: z.coerce.number(),
-        type: z.nativeEnum(TransactionType),
-        billingCycle: z.nativeEnum(BillingInterval),
-        userId: z.coerce.number(),
-        paymentId: z.coerce.number(),
-        newPlanId: z.coerce.number(),
-        transactionId: z.coerce.number(),
-      })
-      .passthrough(),
+    fullName: z.string().nullable(),
+    email: z.string().email(),
+    phone: z.string(),
   }),
+  meta: z
+    .object({
+      subscriptionId: z.coerce.number(),
+      type: z.nativeEnum(TransactionType),
+      billingCycle: z.nativeEnum(BillingInterval),
+      userId: z.coerce.number(),
+      paymentId: z.coerce.number(),
+      newPlanId: z.coerce.number(),
+      transactionId: z.coerce.number(),
+    })
+    .passthrough(),
 });
 
-export type FlutterwaveWebhookData = z.infer<
-  typeof FlutterwaveWebhookSchema
->["data"];
+export type FlutterwaveWebhookData = z.infer<typeof FlutterwaveWebhookSchema>;
 
 export const PaystackWebhookSchema = z.object({
-  event: z.string(), // e.g. "charge.success"
+  event: z.string(),
   data: z.object({
     id: z.number(),
     amount: z.number(),
     currency: z.string(),
-    status: z.string(), // "success" | "failed"
+    status: z.string(),
     reference: z.string(),
     domain: z.string(),
     paid_at: z.string(),
@@ -57,27 +52,13 @@ export const PaystackWebhookSchema = z.object({
       .object({
         subscriptionId: z.coerce.number(),
         type: z.nativeEnum(TransactionType),
+        billingCycle: z.nativeEnum(BillingInterval),
         userId: z.coerce.number(),
         paymentId: z.coerce.number(),
-        billingCycle: z.nativeEnum(BillingInterval),
-        transactionId: z.coerce.number(),
         newPlanId: z.coerce.number(),
+        transactionId: z.coerce.number(),
       })
       .passthrough(),
-    authorization: z
-      .object({
-        authorization_code: z.string(),
-        card_type: z.string(),
-        last4: z.string(),
-        exp_month: z.string(),
-        exp_year: z.string(),
-        bin: z.string(),
-        bank: z.string(),
-        channel: z.string(),
-        reusable: z.boolean(),
-        signature: z.string(),
-      })
-      .optional(),
     customer: z.object({
       id: z.number(),
       first_name: z.string().nullable(),

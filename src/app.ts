@@ -81,6 +81,9 @@ app.use("/api/v1/contact", cors(corsOptions), contactRouter);
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
 
+// Webhook Routes (no CORS - these are called by external services)
+app.use("/webhooks", openCors, webhookRouter);
+
 // Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
 app.use("/api/auth/core", openCors, authRoutes);
 

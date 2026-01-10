@@ -15,6 +15,7 @@ export const flutterwaveWebhook = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  console.log("Received Flutterwave webhook:", req.body);
   const parsed = FlutterwaveWebhookSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -23,7 +24,7 @@ export const flutterwaveWebhook = async (
   }
 
   const gateway = await prisma.paymentGateway.findFirst({
-    where: { platform: "PAYSTACK" },
+    where: { platform: "FLUTTERWAVE" },
   });
 
   if (!gateway || !gateway.signature) {
@@ -39,11 +40,11 @@ export const flutterwaveWebhook = async (
   try {
     const event = parsed.data;
     if (event.status === "successful") {
-      await paymentService.handleFlutterwaveSuccess(event, event.data.customer);
+      await paymentService.handleFlutterwaveSuccess(event, event.customer);
     } else if (["failed", "reversed", "cancelled"].includes(event.status)) {
-      await paymentService.handleFlutterwaveFailure(event, event.data.customer);
+      await paymentService.handleFlutterwaveFailure(event, event.customer);
     } else {
-      console.log("Unhandled event:", event.event);
+      console.log("Unhandled event status:", event.status);
     }
 
     res.sendStatus(200);
