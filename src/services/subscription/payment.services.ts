@@ -137,6 +137,7 @@ export const createSubscriptionPayment = async (
       amount: totalAmount.toNumber(),
       currency,
       redirect_url: redirectUrl,
+      payment_options: "card,ussd,banktransfer",
       customer: { email: user.email },
       customizations: {
         title: "Valid Panel Subscription Payment",
