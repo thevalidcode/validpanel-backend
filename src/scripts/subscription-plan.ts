@@ -4,11 +4,12 @@ import {
   SubscriptionPlanStatus,
 } from "../../prisma/generated";
 import { prisma } from "../config/db.config";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 const mockPlans = [
   {
-    uid: "starter-free-plan",
+    uid: uuidv4(),
     name: "Starter",
     price: "0",
     currency: "USD",
@@ -48,7 +49,7 @@ const mockPlans = [
   },
 
   {
-    uid: "essentials-plan",
+    uid: uuidv4(),
     name: "Essentials",
     price: "20",
     currency: "USD",
@@ -88,7 +89,7 @@ const mockPlans = [
   },
 
   {
-    uid: "pro-plan",
+    uid: uuidv4(),
     name: "Pro",
     price: "40",
     currency: "USD",
@@ -128,7 +129,7 @@ const mockPlans = [
   },
 
   {
-    uid: "business-plan",
+    uid: uuidv4(),
     name: "Business",
     price: "80",
     currency: "USD",
@@ -167,7 +168,7 @@ const mockPlans = [
   },
 
   {
-    uid: "empire-plan",
+    uid: uuidv4(),
     name: "Empire",
     price: "150",
     currency: "USD",

@@ -7,6 +7,7 @@ import {
 } from "../schemas/subscriptionPlan.schema";
 import { AdminAuthSchema } from "../schemas/admin.schema";
 import { Decimal } from "@prisma/client/runtime/client";
+import { validate as isUUID } from "uuid";
 
 export const getSubscriptionPlansForUser = async (
   req: Request,
@@ -40,10 +41,9 @@ export const getSubscriptionPlanByUidForUser = async (
   const { uid } = paramsParsed.data;
 
   try {
-    const idAsNumber = parseInt(uid, 10);
-    const where = isNaN(idAsNumber)
+    const where = isUUID(uid)
       ? { uid, status: "ACTIVE" as const }
-      : { id: idAsNumber, status: "ACTIVE" as const };
+      : { id: Number(uid), status: "ACTIVE" as const };
 
     const subscriptionPlan = await prisma.subscriptionPlan.findUnique({
       where,
