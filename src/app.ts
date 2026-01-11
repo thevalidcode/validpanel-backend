@@ -7,7 +7,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { apiLimiter } from "./middleware/ratelimit";
 import PrismaSessionStore from "./utils/PrismaSessionStore";
-import { corsOptions, openCors } from "./config/cors.config";
+import { openCors, dynamicCors } from "./config/cors.config";
 
 // Routes
 import swaggerRouter from "./docs/swagger";
@@ -58,25 +58,21 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/users", cors(corsOptions), userRouter);
-app.use("/api/v1/stores", cors(corsOptions), storeRouter);
-app.use("/api/v1/admins", cors(corsOptions), adminRouter);
-app.use("/api/v1/orders", cors(corsOptions), orderRouter);
-app.use("/api/v1/webhooks", cors(corsOptions), webhookRouter);
-app.use("/api/v1/payment-gateways", cors(corsOptions), paymentGatewayRouter);
-app.use("/api/v1/subscriptions", cors(corsOptions), subscriptionRouter);
-app.use(
-  "/api/v1/subscription-plans",
-  cors(corsOptions),
-  subscriptionPlanRouter
-);
-app.use("/api/v1/notifications", cors(corsOptions), notificationRouter);
-app.use("/api/v1/setting", cors(corsOptions), settingRouter);
-app.use("/api/v1/payments", cors(corsOptions), paymentRouter);
-app.use("/api/v1/transactions", cors(corsOptions), transactionRouter);
-app.use("/api/v1/files", cors(corsOptions), filesRouter);
-app.use("/api/v1/rates", cors(corsOptions), rateRouter);
-app.use("/api/v1/contact", cors(corsOptions), contactRouter);
+app.use("/api/v1/users", dynamicCors, userRouter);
+app.use("/api/v1/stores", dynamicCors, storeRouter);
+app.use("/api/v1/admins", dynamicCors, adminRouter);
+app.use("/api/v1/orders", dynamicCors, orderRouter);
+app.use("/api/v1/webhooks", dynamicCors, webhookRouter);
+app.use("/api/v1/payment-gateways", dynamicCors, paymentGatewayRouter);
+app.use("/api/v1/subscriptions", dynamicCors, subscriptionRouter);
+app.use("/api/v1/subscription-plans", dynamicCors, subscriptionPlanRouter);
+app.use("/api/v1/notifications", dynamicCors, notificationRouter);
+app.use("/api/v1/setting", dynamicCors, settingRouter);
+app.use("/api/v1/payments", dynamicCors, paymentRouter);
+app.use("/api/v1/transactions", dynamicCors, transactionRouter);
+app.use("/api/v1/files", dynamicCors, filesRouter);
+app.use("/api/v1/rates", dynamicCors, rateRouter);
+app.use("/api/v1/contact", dynamicCors, contactRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
