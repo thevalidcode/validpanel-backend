@@ -201,6 +201,7 @@ export const addPaymentGateway = async (
       const paymentData: Prisma.PaymentGatewayCreateInput = {
         uid: uuidv4(),
         name: reqData.name,
+        content: reqData.content,
         description: reqData.description,
         image: reqData.image,
         platform: reqData.platform,
@@ -266,6 +267,7 @@ export const updatePaymentGateway = async (
       description: reqData.description,
       image: reqData.image,
       min: reqData.min,
+      content: reqData.content,
       max: reqData.max,
       signature: crypto.randomBytes(32).toString("hex"),
     };

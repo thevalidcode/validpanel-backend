@@ -46,6 +46,7 @@ export const PaymentCreateRequestSchema = z.object({
   min: z.coerce.string(),
   max: z.coerce.string(),
   secretKey: z.string().optional(),
+  content: z.string().optional(),
   description: z.string().optional(),
   image: z.string(),
 });
@@ -58,6 +59,7 @@ export const PaymentUpdateRequestSchema = z.object({
   max: z.coerce.string(),
   secretKey: z.string().optional(),
   description: z.string().optional(),
+  content: z.string().optional(),
   image: z.string(),
 });
 
