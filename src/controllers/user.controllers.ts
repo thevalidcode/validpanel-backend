@@ -567,10 +567,39 @@ export const deleteUser = async (req: Request, res: Response) => {
   const { uid } = req.body;
 
   try {
-    await prisma.user.delete({ where: { uid } });
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { uid },
+        select: { id: true, uid: true },
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Delete related records in order
+      await tx.notification.deleteMany({ where: { userId: user.id } });
+      await tx.uploadLog.deleteMany({ where: { userId: user.id } });
+      await tx.platformEvent.deleteMany({ where: { userId: user.id } });
+      await tx.transaction.deleteMany({ where: { userUid: user.uid } });
+      await tx.payment.deleteMany({ where: { userId: user.id } });
+      await tx.subscription.deleteMany({ where: { userId: user.id } });
+      await tx.store.deleteMany({ where: { ownerId: user.id } });
+
+      // Update referrals
+      await tx.user.updateMany({
+        where: { ref: user.id },
+        data: { ref: null },
+      });
+
+      // Delete the user
+      await tx.user.delete({ where: { uid } });
+    });
+
     res.status(200).json({ success: "Successfully deleted user" });
-  } catch {
-    res.status(500).json({ error: "Failed to delete user" });
+  } catch (error: any) {
+    console.error("Delete user error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete user" });
   }
 };
 
@@ -582,10 +611,50 @@ export const deleteUsers = async (req: Request, res: Response) => {
   const uids = input.data.uids;
 
   try {
-    await prisma.user.deleteMany({ where: { uid: { in: uids } } });
+    // Use transaction to delete all related records first
+    await prisma.$transaction(async (tx) => {
+      // Get user IDs from UIDs
+      const users = await tx.user.findMany({
+        where: { uid: { in: uids } },
+        select: { id: true, uid: true },
+      });
+
+      const userIds = users.map((u) => u.id);
+      const userUids = users.map((u) => u.uid);
+
+      if (userIds.length === 0) {
+        throw new Error("No users found with provided UIDs");
+      }
+
+      // Delete related records in order (respecting foreign key constraints)
+      await tx.notification.deleteMany({ where: { userId: { in: userIds } } });
+      await tx.uploadLog.deleteMany({ where: { userId: { in: userIds } } });
+      await tx.platformEvent.deleteMany({ where: { userId: { in: userIds } } });
+      await tx.transaction.deleteMany({ where: { userUid: { in: userUids } } });
+
+      // Delete payments (must be before subscriptions)
+      await tx.payment.deleteMany({ where: { userId: { in: userIds } } });
+
+      // Delete subscriptions
+      await tx.subscription.deleteMany({ where: { userId: { in: userIds } } });
+
+      // Delete stores
+      await tx.store.deleteMany({ where: { ownerId: { in: userIds } } });
+
+      // Update referrals to set ref to null (already has onDelete: SetNull in schema)
+      await tx.user.updateMany({
+        where: { ref: { in: userIds } },
+        data: { ref: null },
+      });
+
+      // Finally delete the users
+      await tx.user.deleteMany({ where: { id: { in: userIds } } });
+    });
+
     res.status(200).json({ success: "Successfully deleted users" });
-  } catch {
-    res.status(500).json({ error: "Failed to delete users" });
+  } catch (error: any) {
+    console.error("Delete users error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete users" });
   }
 };
 
