@@ -137,7 +137,6 @@ export const createSubscriptionPayment = async (
       amount: totalAmount.toNumber(),
       currency,
       redirect_url: redirectUrl,
-      payment_options: "card,ussd,banktransfer",
       customer: { email: user.email },
       customizations: {
         title: "Valid Panel Subscription Payment",
@@ -159,6 +158,11 @@ export const createSubscriptionPayment = async (
 
     switch (platform) {
       case "FLUTTERWAVE":
+        if (totalAmount.lessThan(1)) {
+          throw new Error(
+            "Minimum amount for Flutterwave is 1 unit of the currency"
+          );
+        }
         return initFlutterwavePayment(paymentData, parsedSecretKey);
 
       case "PAYSTACK":

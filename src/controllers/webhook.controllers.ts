@@ -15,7 +15,6 @@ export const flutterwaveWebhook = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  console.log("Received Flutterwave webhook:", req.body);
   const parsed = FlutterwaveWebhookSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -39,12 +38,16 @@ export const flutterwaveWebhook = async (
 
   try {
     const event = parsed.data;
-    if (event.status === "successful") {
-      await paymentService.handleFlutterwaveSuccess(event, event.customer);
-    } else if (["failed", "reversed", "cancelled"].includes(event.status)) {
-      await paymentService.handleFlutterwaveFailure(event, event.customer);
+    if (event.event === "charge.completed") {
+      await paymentService.handleFlutterwaveSuccess(event, event.data.customer);
+    } else if (
+      ["charge.failed", "charge.reversed", "charge.cancelled"].includes(
+        event.event
+      )
+    ) {
+      await paymentService.handleFlutterwaveFailure(event, event.data.customer);
     } else {
-      console.log("Unhandled event status:", event.status);
+      console.log("Unhandled event:", event.event);
     }
 
     res.sendStatus(200);

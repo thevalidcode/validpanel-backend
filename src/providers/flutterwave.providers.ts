@@ -43,7 +43,7 @@ export const initFlutterwavePayment = async (
 
 export const processSuccess = async (
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"]
 ) => {
   const user = await prisma.user.findFirst({
     where: { email: customer.email },
@@ -52,7 +52,7 @@ export const processSuccess = async (
 
   const subscription = await prisma.subscription.findUnique({
     where: {
-      id: data.meta.subscriptionId,
+      id: data.meta_data.subscriptionId,
       userId: user.id,
       status: "PENDING",
     },
@@ -63,11 +63,11 @@ export const processSuccess = async (
     throw new Error("Subscription not found");
   }
 
-  const isUpgrade = data.meta.type === "SUBSCRIPTION_UPGRADE";
-  const isDowngrade = data.meta.type === "SUBSCRIPTION_DOWNGRADE";
+  const isUpgrade = data.meta_data.type === "SUBSCRIPTION_UPGRADE";
+  const isDowngrade = data.meta_data.type === "SUBSCRIPTION_DOWNGRADE";
   const isRenewal =
-    data.meta.type === "SUBSCRIPTION_RENEWAL" ||
-    data.meta.type === "SUBSCRIPTION_PAYMENT";
+    data.meta_data.type === "SUBSCRIPTION_RENEWAL" ||
+    data.meta_data.type === "SUBSCRIPTION_PAYMENT";
 
   let expiresAt = subscription.expiresAt;
   let planId = subscription.planId;
@@ -80,15 +80,15 @@ export const processSuccess = async (
     });
 
     if (
-      !data.meta.newPlanId ||
-      !data.meta.billingCycle ||
+      !data.meta_data.newPlanId ||
+      !data.meta_data.billingCycle ||
       !activeSubscription
     ) {
       throw new Error("Upgrade metadata missing");
     }
 
-    planId = data.meta.newPlanId;
-    billingCycle = data.meta.billingCycle;
+    planId = data.meta_data.newPlanId;
+    billingCycle = data.meta_data.billingCycle;
 
     expiresAt = calculateExpiryForUpgrade({
       currentSubscription: activeSubscription,
@@ -113,7 +113,7 @@ export const processSuccess = async (
         : new Date();
 
     expiresAt =
-      data.meta.billingCycle === "YEARLY"
+      data.meta_data.billingCycle === "YEARLY"
         ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
         : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
@@ -134,24 +134,24 @@ export const processSuccess = async (
     });
 
     await tx.transaction.update({
-      where: { id: data.meta.transactionId },
+      where: { id: data.meta_data.transactionId },
       data: { status: "SUCCESS" },
     });
 
     await tx.payment.update({
-      where: { id: data.meta.paymentId },
+      where: { id: data.meta_data.paymentId },
       data: { status: "SUCCESS" },
     });
 
     const notificationDetails = buildNotification({
       category: "PAYMENT",
-      type: data.meta.type,
+      type: data.meta_data.type,
       planName: subscription.plan.name,
       expiresAt,
       status: "success",
       meta: {
-        amount: data.amount,
-        currency: data.currency,
+        amount: data.data.amount,
+        currency: data.data.currency,
         previousPlanId: subscription.planId,
         newPlanId: planId,
       },
@@ -171,36 +171,36 @@ export const processSuccess = async (
 
 const processFailure = async (
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"]
 ) => {
   const user = await prisma.user.findFirst({
     where: { email: customer.email },
   });
 
   if (!user) throw new Error("User not found");
-  const amountInDecimal = new Decimal(data.amount / 100);
+  const amountInDecimal = new Decimal(data.data.amount / 100);
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.update({
-      where: { id: data.meta.subscriptionId },
+      where: { id: data.meta_data.subscriptionId },
       data: {
         status: "FAILED",
       },
       include: { plan: true },
     });
     await tx.transaction.update({
-      where: { id: data.meta.transactionId },
+      where: { id: data.meta_data.transactionId },
       data: {
         status:
-          data.status === "reversed"
+          data.data.status === "reversed"
             ? "REVERSED"
-            : data.status === "cancelled"
+            : data.data.status === "cancelled"
             ? "CANCELLED"
             : "FAILED",
       },
     });
 
     await tx.payment.update({
-      where: { id: data.meta.paymentId },
+      where: { id: data.meta_data.paymentId },
       data: {
         status: "FAILED",
       },
@@ -208,10 +208,10 @@ const processFailure = async (
 
     const notificationDetails = buildNotification({
       category: "PAYMENT",
-      type: data.meta.type,
+      type: data.meta_data.type,
       planName: subscription.plan.name,
       status: "failed",
-      meta: { amount: amountInDecimal, currency: data.currency },
+      meta: { amount: amountInDecimal, currency: data.data.currency },
     });
 
     await tx.notification.create({
