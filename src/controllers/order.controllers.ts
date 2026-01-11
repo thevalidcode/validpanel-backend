@@ -31,20 +31,30 @@ export const getAllOrders = async (req: Request, res: Response) => {
     const { user } = authParsed.data;
     const { page, limit } = queryParsed.data;
 
-    const socialMediaStoreOrders = await callInternalAPIForAdmins(
-      "GET",
-      `/orders?page=${page}&limit=${limit}`,
-      user.uid,
-      "SOCIAL"
-    );
+    let socialMediaStoreOrders: any[] = [];
+    let shopOrders: any[] = [];
 
-    const shopOrders =
-      (await callInternalAPIForAdmins(
+    try {
+      socialMediaStoreOrders = await callInternalAPIForAdmins(
+        "GET",
+        `/orders?page=${page}&limit=${limit}`,
+        user.uid,
+        "SOCIAL"
+      );
+    } catch (e) {
+      socialMediaStoreOrders = [];
+    }
+
+    try {
+      shopOrders = await callInternalAPIForAdmins(
         "GET",
         `/orders?page=${page}&limit=${limit}`,
         user.uid,
         "SHOP"
-      )) || [];
+      );
+    } catch (e) {
+      shopOrders = [];
+    }
 
     // Normalize
     const normalizedSocial: NormalizedOrder[] =
