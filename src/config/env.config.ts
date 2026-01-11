@@ -15,7 +15,6 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(1),
   ADMIN_USERNAME: z.string().min(1),
   ADMIN_PASSWORD: z.string().min(1),
-  BACKEND_PROXY_PATH: z.string().optional().default(""),
   REDIS_URL: z.string().optional().default(""),
   CORE_SERVICE_SECRET: z.string().default(""),
   GOOGLE_CLIENT_SECRET: z.string(),

@@ -58,27 +58,27 @@ app.use(
 );
 
 // --- Public Routes ---
-app.use("/api/v1/users", dynamicCors, userRouter);
-app.use("/api/v1/stores", dynamicCors, storeRouter);
-app.use("/api/v1/admins", dynamicCors, adminRouter);
-app.use("/api/v1/orders", dynamicCors, orderRouter);
-app.use("/api/v1/webhooks", dynamicCors, webhookRouter);
-app.use("/api/v1/payment-gateways", dynamicCors, paymentGatewayRouter);
-app.use("/api/v1/subscriptions", dynamicCors, subscriptionRouter);
-app.use("/api/v1/subscription-plans", dynamicCors, subscriptionPlanRouter);
-app.use("/api/v1/notifications", dynamicCors, notificationRouter);
-app.use("/api/v1/setting", dynamicCors, settingRouter);
-app.use("/api/v1/payments", dynamicCors, paymentRouter);
-app.use("/api/v1/transactions", dynamicCors, transactionRouter);
-app.use("/api/v1/files", dynamicCors, filesRouter);
-app.use("/api/v1/rates", dynamicCors, rateRouter);
-app.use("/api/v1/contact", dynamicCors, contactRouter);
+app.use("/v1/users", dynamicCors, userRouter);
+app.use("/v1/stores", dynamicCors, storeRouter);
+app.use("/v1/admins", dynamicCors, adminRouter);
+app.use("/v1/orders", dynamicCors, orderRouter);
+app.use("/v1/webhooks", dynamicCors, webhookRouter);
+app.use("/v1/payment-gateways", dynamicCors, paymentGatewayRouter);
+app.use("/v1/subscriptions", dynamicCors, subscriptionRouter);
+app.use("/v1/subscription-plans", dynamicCors, subscriptionPlanRouter);
+app.use("/v1/notifications", dynamicCors, notificationRouter);
+app.use("/v1/setting", dynamicCors, settingRouter);
+app.use("/v1/payments", dynamicCors, paymentRouter);
+app.use("/v1/transactions", dynamicCors, transactionRouter);
+app.use("/v1/files", dynamicCors, filesRouter);
+app.use("/v1/rates", dynamicCors, rateRouter);
+app.use("/v1/contact", dynamicCors, contactRouter);
+
+// Webhook Routes (no CORS - these are called by external services)
+app.use("/v1/webhooks", openCors, webhookRouter);
 
 // --- Docs ---
 app.use("/swagger", swaggerRouter);
-
-// Webhook Routes (no CORS - these are called by external services)
-app.use("/webhooks", openCors, webhookRouter);
 
 // Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
 app.use("/api/auth/core", openCors, authRoutes);

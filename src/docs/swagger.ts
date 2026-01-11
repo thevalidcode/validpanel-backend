@@ -29,11 +29,11 @@ const openApiDocument = generator.generateDocument({
   },
   servers: [
     {
-      url: `https://validpanel.com${env.BACKEND_PROXY_PATH}/api/v1`,
+      url: `https://api.validpanel.com/v1`,
       description: "Public testing server (use this to test endpoints)",
     },
     {
-      url: "http://localhost:2340/api/v1",
+      url: "http://localhost:2340/v1",
       description: "Local development server",
     },
   ],
@@ -47,8 +47,8 @@ swaggerRouter.use(
   isAdmin,
   swaggerUi.serve,
   swaggerUi.setup(openApiDocument, {
-    customCssUrl: `${env.BACKEND_PROXY_PATH}/assets/swagger-custom.css`,
-    customfavIcon: `${env.BACKEND_PROXY_PATH}/assets/validpanel.png`,
+    customCssUrl: `/assets/swagger-custom.css`,
+    customfavIcon: `/assets/validpanel.png`,
     customSiteTitle: "Valid Panel API Docs",
   })
 );
