@@ -35,23 +35,26 @@ export const getAllOrders = async (req: Request, res: Response) => {
     let shopOrders: any[] = [];
 
     try {
-      socialMediaStoreOrders = await callInternalAPIForAdmins(
+      const response: any = await callInternalAPIForAdmins(
         "GET",
         `/orders?page=${page}&limit=${limit}`,
         user.uid,
         "SOCIAL"
       );
+
+      socialMediaStoreOrders = response.orders;
     } catch (e) {
       socialMediaStoreOrders = [];
     }
 
     try {
-      shopOrders = await callInternalAPIForAdmins(
+      const response = await callInternalAPIForAdmins(
         "GET",
         `/orders?page=${page}&limit=${limit}`,
         user.uid,
         "SHOP"
       );
+      shopOrders = response.orders;
     } catch (e) {
       shopOrders = [];
     }
