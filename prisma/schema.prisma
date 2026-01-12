@@ -427,58 +427,6 @@ model SessionCode {
   @@map("session_codes")
 }
 
-enum TicketStatus {
-  OPEN
-  PENDING
-  RESOLVED
-  CLOSED
-}
-
-enum TicketPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-model SupportTicket {
-  id          Int            @id @default(autoincrement())
-  uid         String         @unique @default(uuid())
-  description String?
-  userUid     String         @map("user_uid")
-  subject     String
-  status      TicketStatus   @default(OPEN)
-  priority    TicketPriority @default(MEDIUM)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-
-  messages TicketMessage[] @relation("TicketMessages")
-
-  @@index([userUid])
-  @@map("support_tickets")
-}
-
-enum MessageSenderType {
-  USER
-  ADMIN
-}
-
-model TicketMessage {
-  id         Int               @id @default(autoincrement())
-  uid        String            @unique @default(uuid())
-  ticketUid  String            @map("ticket_uid")
-  senderUid  String            @map("sender_uid")
-  senderType MessageSenderType @map("sender_type")
-  message    String
-  createdAt  DateTime          @default(now()) @map("created_at")
-
-  ticket SupportTicket @relation("TicketMessages", fields: [ticketUid], references: [uid])
-
-  @@index([ticketUid])
-  @@index([senderUid])
-  @@map("ticket_messages")
-}
-
 enum TransactionStatus {
   SUCCESS
   PENDING
@@ -619,20 +567,49 @@ enum ContactMessageStatus {
   PENDING
   REPLIED
   RESOLVED
+  CLOSED
+}
+
+enum ContactReplySender {
+  USER
+  ADMIN
 }
 
 model ContactMessage {
-  id        Int                  @id @default(autoincrement())
-  uid       String               @unique @default(uuid())
-  firstName String               @map("first_name")
-  lastName  String               @map("last_name")
-  email     String
-  message   String               @db.Text
-  status    ContactMessageStatus @default(PENDING)
-  createdAt DateTime             @default(now()) @map("created_at")
-  updatedAt DateTime             @updatedAt @map("updated_at")
+  id             Int                    @id @default(autoincrement())
+  uid            String                 @unique @default(uuid())
+  firstName      String                 @map("first_name")
+  lastName       String                 @map("last_name")
+  email          String
+  message        String                 @db.Text
+  status         ContactMessageStatus   @default(PENDING)
+  emailMessageId String?                @map("email_message_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  replies        ContactReply[]
 
   @@index([status])
   @@index([createdAt])
+  @@index([emailMessageId])
   @@map("contact_messages")
+}
+
+model ContactReply {
+  id               Int                @id @default(autoincrement())
+  uid              String             @unique @default(uuid())
+  contactMessageId Int                @map("contact_message_id")
+  contactMessage   ContactMessage     @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  sender           ContactReplySender
+  senderName       String?            @map("sender_name")
+  senderEmail      String?            @map("sender_email")
+  content          String             @db.Text
+  htmlContent      String?            @map("html_content") @db.Text
+  emailMessageId   String?            @unique @map("email_message_id")
+  inReplyTo        String?            @map("in_reply_to")
+  references       String[]           @default([])
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  @@index([contactMessageId])
+  @@index([emailMessageId])
+  @@map("contact_replies")
 }

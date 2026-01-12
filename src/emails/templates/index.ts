@@ -12,8 +12,10 @@ import {
 import {
   contactMessageUserConfirmation,
   contactMessageAdminNotification,
+  contactMessageReply,
   ContactMessageUserVars,
   ContactMessageAdminVars,
+  ContactMessageReplyVars,
 } from "./contact.templates";
 
 // Map each template type string to the specific variable type it expects
@@ -24,6 +26,7 @@ export interface EmailTemplateVars {
   ADMIN_PASSWORD_CHANGED: LogoVars;
   CONTACT_MESSAGE_USER_CONFIRMATION: ContactMessageUserVars;
   CONTACT_MESSAGE_ADMIN_NOTIFICATION: ContactMessageAdminVars;
+  CONTACT_MESSAGE_REPLY: ContactMessageReplyVars;
   // Add more templates here
 }
 
@@ -39,6 +42,7 @@ const typedTemplates: {
   ADMIN_PASSWORD_CHANGED: adminPasswordChanged,
   CONTACT_MESSAGE_USER_CONFIRMATION: contactMessageUserConfirmation,
   CONTACT_MESSAGE_ADMIN_NOTIFICATION: contactMessageAdminNotification,
+  CONTACT_MESSAGE_REPLY: contactMessageReply,
 };
 
 /**

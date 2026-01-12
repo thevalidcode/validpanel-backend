@@ -13,6 +13,81 @@ export interface ContactMessageAdminVars extends LogoVars {
   uid: string;
 }
 
+export interface ContactMessageReplyVars extends LogoVars {
+  firstName: string;
+  replyMessage: string;
+  originalMessage: string;
+  originalDate: string;
+}
+
+/**
+ * Admin reply to a contact message
+ */
+export const contactMessageReply = ({
+  firstName,
+  replyMessage,
+  originalMessage,
+  originalDate,
+  logo,
+}: ContactMessageReplyVars): TemplateResult => {
+  const bodyContent = `
+    <table role="presentation" style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="padding-bottom:20px;">
+          <p style="font-size:16px; line-height:1.6; margin:0 0 20px 0; color:#333;">
+            ${replyMessage.replace(/\n/g, "<br>")}
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" style="width:100%; margin-top:30px; border-collapse:collapse;">
+      <tr>
+        <td style="
+          border-left:3px solid #D1D5DB;
+          padding-left:15px;
+          color:#6B7280;
+        ">
+          <p style="margin:0 0 10px 0; font-size:12px; color:#9CA3AF;">
+            On ${originalDate}, you wrote:
+          </p>
+          <p style="margin:0; font-size:14px; line-height:1.6; color:#6B7280;">
+            ${originalMessage.replace(/\n/g, "<br>")}
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" style="width:100%; margin-top:30px; border-collapse:collapse;">
+      <tr>
+        <td style="padding-top:20px; border-top:1px solid #E5E7EB;">
+          <p style="margin:0; font-size:14px; color:#6B7280;">
+            Best regards,<br>
+            <strong style="color:#333;">Valid Panel Support Team</strong>
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" style="width:100%; margin-top:30px; border-collapse:collapse;">
+      <tr>
+        <td style="text-align:center; padding:15px; background:#F9FAFB; border-radius:8px;">
+          <p style="margin:0; font-size:13px; color:#6B7280;">
+            Need more help? Visit our 
+            <a href="https://validpanel.com/contact-us" style="color:#7C3AED; text-decoration:none;">Support Center</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  `;
+
+  return Layout({
+    subject: `Re: Your message to Valid Panel`,
+    children: bodyContent,
+    logoUrl: logo,
+  });
+};
+
 /**
  * User confirmation email after submitting a contact message
  */

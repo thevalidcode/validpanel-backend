@@ -47,3 +47,7 @@ jobs:
               && pm2 restart core-platform \
               || pm2 start app/index.js --name core-platform
             pm2 save
+
+            chmod 755 app/scripts/receiveEmail.js
+            chown mail:mail app/scripts/receiveEmail.js
+            systemctl reload sendmail

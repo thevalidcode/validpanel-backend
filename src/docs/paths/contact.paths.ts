@@ -3,15 +3,22 @@ import {
   ContactMessageCreateRequestSchema,
   ContactMessageUidSchema,
   ContactMessageUpdateStatusSchema,
+  ContactMessageReplySchema,
+  ContactReplyUidSchema,
 } from "../../schemas/contact.schema";
 
 import {
   ContactMessageCreatedResponse,
   ContactMessageListResponse,
-  ContactMessageObjectResponse,
+  ContactMessageWithRepliesResponse,
   ContactMessageUpdatedResponse,
   ContactMessageDeletedResponse,
   ContactMessageNotFoundResponse,
+  ContactMessageReplyResponse,
+  ContactReplyListResponse,
+  ContactReplyObjectResponse,
+  ContactReplyNotFoundResponse,
+  ContactReplyDeletedResponse,
 } from "../responses/contact.response";
 import {
   BadRequest,
@@ -45,7 +52,7 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/contact/admin",
-  summary: "Get all contact messages (admin only)",
+  summary: "Get all contact messages with reply count (admin only)",
   tags: ["Contact"],
   security: [{ CookieAuth: [] }],
   responses: {
@@ -56,18 +63,19 @@ registry.registerPath({
   },
 });
 
-// GET /contact/admin/{uid} - Get contact message by UID (admin only)
+// GET /contact/admin/{uid} - Get contact message by UID with all replies (admin only)
 registry.registerPath({
   method: "get",
   path: "/contact/admin/{uid}",
-  summary: "Get contact message by UID (admin only)",
+  summary: "Get contact message by UID with all replies (admin only)",
+  description: "Returns the contact message along with all replies in chronological order",
   tags: ["Contact"],
   security: [{ CookieAuth: [] }],
   request: {
     params: ContactMessageUidSchema,
   },
   responses: {
-    200: ContactMessageObjectResponse,
+    200: ContactMessageWithRepliesResponse,
     400: BadRequest,
     403: Forbidden,
     404: ContactMessageNotFoundResponse,
@@ -114,6 +122,95 @@ registry.registerPath({
     200: ContactMessageDeletedResponse,
     400: BadRequest,
     403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// ============================================
+// CONTACT REPLY ENDPOINTS
+// ============================================
+
+// GET /contact/admin/{uid}/replies - Get all replies for a contact message (admin only)
+registry.registerPath({
+  method: "get",
+  path: "/contact/admin/{uid}/replies",
+  summary: "Get all replies for a contact message (admin only)",
+  description: "Returns all replies for a specific contact message in chronological order",
+  tags: ["Contact Replies"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: ContactMessageUidSchema,
+  },
+  responses: {
+    200: ContactReplyListResponse,
+    400: BadRequest,
+    403: Forbidden,
+    404: ContactMessageNotFoundResponse,
+    500: ServerError,
+  },
+});
+
+// POST /contact/admin/{uid}/reply - Reply to contact message (admin only)
+registry.registerPath({
+  method: "post",
+  path: "/contact/admin/{uid}/reply",
+  summary: "Reply to contact message via email (admin only)",
+  description: "Sends a reply email to the contact with proper email threading headers (In-Reply-To and References). The reply is stored as a ContactReply and the contact message status is updated to REPLIED.",
+  tags: ["Contact Replies"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: ContactMessageUidSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: ContactMessageReplySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: ContactMessageReplyResponse,
+    400: BadRequest,
+    403: Forbidden,
+    404: ContactMessageNotFoundResponse,
+    500: ServerError,
+  },
+});
+
+// GET /contact/admin/replies/{replyUid} - Get a specific contact reply by UID (admin only)
+registry.registerPath({
+  method: "get",
+  path: "/contact/admin/replies/{replyUid}",
+  summary: "Get a specific contact reply by UID (admin only)",
+  tags: ["Contact Replies"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: ContactReplyUidSchema,
+  },
+  responses: {
+    200: ContactReplyObjectResponse,
+    400: BadRequest,
+    403: Forbidden,
+    404: ContactReplyNotFoundResponse,
+    500: ServerError,
+  },
+});
+
+// DELETE /contact/admin/replies/{replyUid} - Delete a contact reply (admin only)
+registry.registerPath({
+  method: "delete",
+  path: "/contact/admin/replies/{replyUid}",
+  summary: "Delete a contact reply (admin only)",
+  tags: ["Contact Replies"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: ContactReplyUidSchema,
+  },
+  responses: {
+    200: ContactReplyDeletedResponse,
+    400: BadRequest,
+    403: Forbidden,
+    404: ContactReplyNotFoundResponse,
     500: ServerError,
   },
 });

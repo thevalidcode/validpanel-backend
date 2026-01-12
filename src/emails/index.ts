@@ -7,6 +7,12 @@ interface DispatchEmailParams {
   to: string;
   subject: string;
   html: string;
+  headers?: Record<string, string>;
+}
+
+interface DispatchEmailResult {
+  success: boolean;
+  messageId?: string;
 }
 
 interface BuildTemplateResult {
@@ -70,9 +76,16 @@ async function dispatchEmail({
   to,
   subject,
   html,
-}: DispatchEmailParams): Promise<boolean> {
+  headers,
+}: DispatchEmailParams): Promise<DispatchEmailResult> {
   try {
-    const result = await transporter.sendMail({ from, to, subject, html });
+    const result = await transporter.sendMail({ 
+      from, 
+      to, 
+      subject, 
+      html,
+      headers: headers || {},
+    });
 
     await prisma.emailLog.create({
       data: {
@@ -87,7 +100,7 @@ async function dispatchEmail({
       },
     });
 
-    return true;
+    return { success: true, messageId: result.messageId };
   } catch (err: any) {
     await prisma.emailLog.create({
       data: {
@@ -102,7 +115,7 @@ async function dispatchEmail({
     });
 
     console.error(`Failed to send email to ${to}:`, err.message);
-    return false;
+    return { success: false };
   }
 }
 
@@ -113,15 +126,16 @@ export async function sendEmailToAdmins(
   type: keyof EmailTemplateVars,
   data: Record<string, any>,
   from = '"Valid Panel" <contact@validpanel.com>'
-): Promise<void> {
+): Promise<DispatchEmailResult> {
   try {
     const { logoUrl } = await loadGeneralSettings();
     const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
 
-    const adminEmail = "backend@validpanel.com"; // Could be multiple emails later
-    await dispatchEmail({ from, to: adminEmail, subject, html });
+    const adminEmail = "backend@validpanel.com";
+    return await dispatchEmail({ from, to: adminEmail, subject, html });
   } catch (err: any) {
     console.error(`sendEmailToAdmins error: ${err.message}`);
+    return { success: false };
   }
 }
 
@@ -133,14 +147,15 @@ export async function sendUserEmail(
   type: keyof EmailTemplateVars,
   data: Record<string, any> = {},
   from = '"Valid Panel" <notifications@validpanel.com>'
-): Promise<void> {
+): Promise<DispatchEmailResult> {
   try {
     const { logoUrl } = await loadGeneralSettings();
     const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
 
-    await dispatchEmail({ from, to, subject, html });
+    return await dispatchEmail({ from, to, subject, html });
   } catch (err: any) {
     console.error(`sendUserEmail error for ${to}: ${err.message}`);
+    return { success: false };
   }
 }
 
@@ -152,14 +167,47 @@ export async function sendAdminEmail(
   data: Record<string, any> = {},
   to?: string,
   from = '"Valid Panel" <admin@validpanel.com>'
-): Promise<void> {
+): Promise<DispatchEmailResult> {
   try {
     const { logoUrl } = await loadGeneralSettings();
     const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
 
     const adminEmail = to || "backend@validpanel.com";
-    await dispatchEmail({ from, to: adminEmail, subject, html });
+    return await dispatchEmail({ from, to: adminEmail, subject, html });
   } catch (err: any) {
     console.error(`sendAdminEmail error: ${err.message}`);
+    return { success: false };
+  }
+}
+
+// ----------------------------
+// Send Reply Email (with threading headers)
+// ----------------------------
+export async function sendReplyEmail(
+  to: string,
+  type: keyof EmailTemplateVars,
+  data: Record<string, any> = {},
+  replyToMessageId?: string | null,
+  references?: string[],
+  from = '"Valid Panel Support" <support@validpanel.com>'
+): Promise<DispatchEmailResult> {
+  try {
+    const { logoUrl } = await loadGeneralSettings();
+    const { subject, html } = await buildEmailTemplate(type, data, logoUrl);
+
+    // Build threading headers if we have a message ID to reply to
+    const headers: Record<string, string> = {};
+    if (replyToMessageId) {
+      headers["In-Reply-To"] = replyToMessageId;
+      // Use provided references or fall back to single message ID
+      headers["References"] = references?.length 
+        ? references.join(" ") 
+        : replyToMessageId;
+    }
+
+    return await dispatchEmail({ from, to, subject, html, headers });
+  } catch (err: any) {
+    console.error(`sendReplyEmail error for ${to}: ${err.message}`);
+    return { success: false };
   }
 }

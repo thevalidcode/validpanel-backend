@@ -26,6 +26,7 @@ import paymentRouter from "./routes/payment.routes";
 import transactionRouter from "./routes/transaction.routes";
 import rateRouter from "./routes/rate.routes";
 import contactRouter from "./routes/contact.routes";
+import emailRouter from "./routes/email.routes";
 import authRoutes from "./routes/auth.routes";
 
 const app = express();
@@ -73,6 +74,7 @@ app.use("/v1/transactions", dynamicCors, transactionRouter);
 app.use("/v1/files", dynamicCors, filesRouter);
 app.use("/v1/rates", dynamicCors, rateRouter);
 app.use("/v1/contact", dynamicCors, contactRouter);
+app.use("/v1/emails", dynamicCors, emailRouter);
 
 // Webhook Routes (no CORS - these are called by external services)
 app.use("/v1/webhooks", openCors, webhookRouter);

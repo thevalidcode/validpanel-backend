@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { ContactMessageSchema } from "../../schemas/contact.schema";
+import {
+  ContactMessageSchema,
+  ContactMessageListItemSchema,
+  ContactMessageWithRepliesSchema,
+  ContactReplySchema,
+} from "../../schemas/contact.schema";
 
 export const ContactMessageCreatedResponse = {
   description: "Contact message successfully received",
@@ -16,10 +21,10 @@ export const ContactMessageCreatedResponse = {
 };
 
 export const ContactMessageListResponse = {
-  description: "List of all contact messages (admin only)",
+  description: "List of all contact messages with reply count (admin only)",
   content: {
     "application/json": {
-      schema: z.array(ContactMessageSchema),
+      schema: z.array(ContactMessageListItemSchema),
     },
   },
 };
@@ -29,6 +34,15 @@ export const ContactMessageObjectResponse = {
   content: {
     "application/json": {
       schema: ContactMessageSchema,
+    },
+  },
+};
+
+export const ContactMessageWithRepliesResponse = {
+  description: "Contact message with all replies",
+  content: {
+    "application/json": {
+      schema: ContactMessageWithRepliesSchema,
     },
   },
 };
@@ -61,6 +75,67 @@ export const ContactMessageNotFoundResponse = {
     "application/json": {
       schema: z.object({
         error: z.literal("Contact message not found"),
+      }),
+    },
+  },
+};
+
+// Contact Reply Responses
+export const ContactReplyListResponse = {
+  description: "List of all replies for a contact message",
+  content: {
+    "application/json": {
+      schema: z.array(ContactReplySchema),
+    },
+  },
+};
+
+export const ContactReplyObjectResponse = {
+  description: "Single contact reply object",
+  content: {
+    "application/json": {
+      schema: ContactReplySchema.extend({
+        contactMessage: z.object({
+          uid: z.string(),
+          firstName: z.string(),
+          lastName: z.string(),
+          email: z.string(),
+        }),
+      }),
+    },
+  },
+};
+
+export const ContactMessageReplyResponse = {
+  description: "Successfully sent reply to contact message",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal(true),
+        message: z.literal("Reply sent successfully"),
+        data: ContactReplySchema,
+      }),
+    },
+  },
+};
+
+export const ContactReplyNotFoundResponse = {
+  description: "Contact reply not found",
+  content: {
+    "application/json": {
+      schema: z.object({
+        error: z.literal("Contact reply not found"),
+      }),
+    },
+  },
+};
+
+export const ContactReplyDeletedResponse = {
+  description: "Successfully deleted contact reply",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Contact reply deleted successfully"),
       }),
     },
   },

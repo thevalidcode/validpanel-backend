@@ -33,7 +33,7 @@ router.get(
   contact.getContactMessages
 );
 
-// Get contact message by UID (admin only)
+// Get contact message by UID with all replies (admin only)
 router.get(
   "/admin/:uid",
   authenticateAdmin,
@@ -58,6 +58,46 @@ router.delete(
   checkAdminPermission(["MANAGE_CONTACT_MESSAGES"]),
   limitContactMessageDelete,
   contact.deleteContactMessage
+);
+
+/**
+ * ADMIN ROUTES FOR CONTACT REPLIES
+ */
+
+// Get all replies for a contact message (admin only)
+router.get(
+  "/admin/:uid/replies",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_CONTACT_MESSAGES"]),
+  limitContactMessageView,
+  contact.getContactReplies
+);
+
+// Reply to contact message (admin only)
+router.post(
+  "/admin/:uid/reply",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_CONTACT_MESSAGES"]),
+  limitContactMessageUpdate,
+  contact.replyToContactMessage
+);
+
+// Get a specific contact reply by UID (admin only)
+router.get(
+  "/admin/replies/:replyUid",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_CONTACT_MESSAGES"]),
+  limitContactMessageView,
+  contact.getContactReplyByUid
+);
+
+// Delete a contact reply (admin only)
+router.delete(
+  "/admin/replies/:replyUid",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_CONTACT_MESSAGES"]),
+  limitContactMessageDelete,
+  contact.deleteContactReply
 );
 
 export default router;

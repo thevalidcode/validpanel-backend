@@ -15,5 +15,6 @@ import "./payment.paths";
 import "./transaction.paths";
 import "./rate.paths";
 import "./contact.paths";
+import "./email.paths";
 
 export { registry };
