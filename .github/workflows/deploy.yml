@@ -48,8 +48,4 @@ jobs:
               || pm2 start app/index.js --name core-platform
             pm2 save
 
-            sudo chmod 755 app/scripts/receiveEmail.js
-            sudo chown mail:mail app/scripts/receiveEmail.js
-            sudo chmod 600 .env
-            sudo chown mail:mail .env
-            sudo systemctl reload sendmail
+            sudo ~/scripts/fix-perms.sh
