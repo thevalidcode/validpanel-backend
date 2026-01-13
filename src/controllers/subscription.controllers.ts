@@ -12,6 +12,8 @@ import {
 import * as paymentServices from "../services/subscription/payment.services";
 import { AdminAuthSchema } from "../schemas/admin.schema";
 import { finalizeSubscriptionPayment } from "../services/subscription/finalize-subscription-payment";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
+import { env } from "../config/env.config";
 
 export const getActiveSubscriptionForUser = async (
   req: Request,
@@ -229,6 +231,10 @@ export const downgradePlan = async (
       return;
     }
 
+    const currentPlan = await prisma.subscriptionPlan.findUnique({
+      where: { id: subscription.planId },
+    });
+
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: {
@@ -244,6 +250,20 @@ export const downgradePlan = async (
         userId: user.id,
       },
     });
+
+    // Send downgrade scheduled email in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(user.email, "SUBSCRIPTION_DOWNGRADE_SCHEDULED", {
+        firstName: user.fullName?.split(" ")[0] || "User",
+        currentPlanName: currentPlan?.name || "Current Plan",
+        newPlanName: plan.name,
+        effectiveDate: subscription.expiresAt?.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) || "End of current billing cycle",
+      });
+    }
 
     res.status(200).json({
       success:
@@ -495,6 +515,19 @@ export const updateSubscription = async (
           where: { id: subscription.id },
           data: { status: "CANCELED" },
         });
+
+        // Send cancellation email in production
+        if (env.NODE_ENV === "production") {
+          await sendUserEmail(subscription.user.email, "SUBSCRIPTION_CANCELLED", {
+            firstName: subscription.user.fullName?.split(" ")[0] || "User",
+            planName: subscription.plan.name,
+            cancelledAt: new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          });
+        }
         return;
       }
 

@@ -79,10 +79,10 @@ async function dispatchEmail({
   headers,
 }: DispatchEmailParams): Promise<DispatchEmailResult> {
   try {
-    const result = await transporter.sendMail({ 
-      from, 
-      to, 
-      subject, 
+    const result = await transporter.sendMail({
+      from,
+      to,
+      subject,
       html,
       headers: headers || {},
     });
@@ -200,8 +200,8 @@ export async function sendReplyEmail(
     if (replyToMessageId) {
       headers["In-Reply-To"] = replyToMessageId;
       // Use provided references or fall back to single message ID
-      headers["References"] = references?.length 
-        ? references.join(" ") 
+      headers["References"] = references?.length
+        ? references.join(" ")
         : replyToMessageId;
     }
 

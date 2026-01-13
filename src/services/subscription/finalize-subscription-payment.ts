@@ -4,6 +4,8 @@ import { TransactionType } from "../../../prisma/generated";
 import { calculateExpiryForUpgrade } from "../../utils/calculateExpiresAt";
 import { buildNotification } from "../notification.services";
 import { Prisma } from "../../../prisma/generated";
+import { sendUserEmail, sendEmailToAdmins } from "../../emails";
+import { env } from "../../config/env.config";
 
 interface FinalizeSubscriptionPaymentInput {
   subscriptionId: number;
@@ -188,6 +190,75 @@ const finalizeSubscriptionPaymentInternal = async (
       where: { id: user.id },
       data: { onboardingStep: "STORE_DETAILS" },
     });
+  }
+
+  // 11. Send subscription activation emails in production
+  if (env.NODE_ENV === "production") {
+    // Send appropriate email based on transaction type
+    if (isUpgrade) {
+      const previousPlan = await tx.subscriptionPlan.findUnique({
+        where: { id: subscription.planId },
+      });
+
+      await sendUserEmail(user.email, "SUBSCRIPTION_UPGRADE", {
+        firstName: user.fullName?.split(" ")[0] || "User",
+        oldPlanName: previousPlan?.name || "Previous Plan",
+        newPlanName: updatedSubscription.plan.name,
+        newPlanPrice: amount.toFixed(2),
+        currency: "USD",
+        expiresAt: expiresAt?.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) || "N/A",
+      });
+    } else if (isRenewal && type === "SUBSCRIPTION_RENEWAL") {
+      await sendUserEmail(user.email, "SUBSCRIPTION_RENEWED", {
+        firstName: user.fullName?.split(" ")[0] || "User",
+        planName: updatedSubscription.plan.name,
+        planPrice: amount.toFixed(2),
+        currency: "USD",
+        renewedAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        expiresAt: expiresAt?.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) || "N/A",
+      });
+    } else {
+      // New subscription activated (manual payment approved)
+      await sendUserEmail(user.email, "SUBSCRIPTION_ACTIVATED", {
+        firstName: user.fullName?.split(" ")[0] || "User",
+        planName: updatedSubscription.plan.name,
+        expiresAt: expiresAt?.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) || "N/A",
+      });
+
+      // Send admin notification for new subscription
+      await sendEmailToAdmins("ADMIN_NEW_SUBSCRIPTION", {
+        storeName: "N/A",
+        storeId: "N/A",
+        planName: updatedSubscription.plan.name,
+        amount: amount.toFixed(2),
+        currency: "USD",
+        ownerName: user.fullName || "Unknown",
+        ownerEmail: user.email,
+        subscribedAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    }
   }
 };
 

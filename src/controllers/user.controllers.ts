@@ -18,7 +18,7 @@ import { prisma } from "../config/db.config";
 import { OnboardingStep } from "../../prisma/generated";
 import { buildNotification } from "../services/notification.services";
 import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
-import { sendUserEmail } from "../emails";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { CreateStore } from "../services/store";
 
 function getMonthRange(date: Date) {
@@ -301,6 +301,26 @@ export const createUser = async (req: Request, res: Response) => {
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    // Send welcome email and admin notification in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(email, "WELCOME_USER", {
+        firstName: fullName.split(" ")[0],
+        email,
+      });
+
+      await sendEmailToAdmins("ADMIN_NEW_USER", {
+        userName: fullName,
+        userEmail: email,
+        registeredAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    }
 
     const { password: pass, resetToken, resetTokenExpiry, ...safeUser } = user;
 

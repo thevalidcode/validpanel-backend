@@ -6,6 +6,8 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { PaystackWebhookData } from "../schemas/webhook.schema";
 import { buildNotification } from "../services/notification.services";
 import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
+import { env } from "../config/env.config";
 
 export const initPaystackPayment = async (
   paymentData: any,
@@ -169,6 +171,45 @@ const processSuccess = async (
       },
     });
   });
+
+  // Send payment success email in production
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(user.email, "PAYMENT_SUCCESS", {
+      firstName: user.fullName?.split(" ")[0] || "User",
+      amount: amount.toFixed(2),
+      currency: data.currency,
+      planName: subscription.plan.name,
+      transactionId: data.reference || String(data.metadata.transactionId),
+      paymentMethod: "Paystack",
+      paymentDate: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+
+    // Send admin notification
+    await sendEmailToAdmins("ADMIN_PAYMENT_RECEIVED", {
+      storeName: "N/A",
+      storeId: "N/A",
+      ownerName: user.fullName || "Unknown",
+      ownerEmail: user.email,
+      amount: amount.toFixed(2),
+      currency: data.currency,
+      planName: subscription.plan.name,
+      transactionId: data.reference || String(data.metadata.transactionId),
+      paymentMethod: "Paystack",
+      receivedAt: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+  }
 };
 
 const processFailure = async (
@@ -181,6 +222,9 @@ const processFailure = async (
 
   if (!user) throw new Error("User not found");
   const amountInDecimal = new Decimal(data.amount / 100);
+
+  let subscriptionPlanName = "";
+
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.update({
       where: { id: data.metadata.subscriptionId },
@@ -189,6 +233,9 @@ const processFailure = async (
       },
       include: { plan: true },
     });
+
+    subscriptionPlanName = subscription.plan.name;
+
     await tx.transaction.update({
       where: { id: data.metadata.transactionId },
       data: {
@@ -226,6 +273,22 @@ const processFailure = async (
       },
     });
   });
+
+  // Send payment failed email in production
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(user.email, "PAYMENT_FAILED", {
+      firstName: user.fullName?.split(" ")[0] || "User",
+      amount: amountInDecimal.toFixed(2),
+      currency: data.currency,
+      planName: subscriptionPlanName,
+      reason: data.status === "reversed" ? "Payment was reversed" : "Payment declined",
+      paymentDate: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    });
+  }
 };
 
 export default { processSuccess, processFailure };

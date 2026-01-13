@@ -6,6 +6,8 @@ import {
 import { Decimal } from "../../../prisma/generated/runtime/client";
 import { prisma } from "../../config/db.config";
 import { buildNotification } from "../../services/notification.services";
+import { sendUserEmail } from "../../emails";
+import { env } from "../../config/env.config";
 
 const BATCH_SIZE = 20;
 const CONCURRENCY = 5;
@@ -123,6 +125,14 @@ const handleRenewal = async (
  * Expire subscription
  */
 const expireSubscription = async (subscription: Subscription) => {
+  const user = await prisma.user.findUnique({
+    where: { id: subscription.userId },
+  });
+
+  const plan = await prisma.subscriptionPlan.findUnique({
+    where: { id: subscription.planId },
+  });
+
   await prisma.subscription.update({
     where: { id: subscription.id },
     data: { status: "EXPIRED" },
@@ -131,7 +141,7 @@ const expireSubscription = async (subscription: Subscription) => {
   const notification = buildNotification({
     category: "SUBSCRIPTION",
     type: "SUBSCRIPTION_EXPIRED",
-    planName: subscription.planId.toString(),
+    planName: plan?.name || subscription.planId.toString(),
     status: "warning",
     expiresAt: subscription.expiresAt,
     meta: { planId: subscription.planId },
@@ -146,6 +156,23 @@ const expireSubscription = async (subscription: Subscription) => {
       meta: notification.meta,
     },
   });
+
+  // Send expiration email in production
+  if (env.NODE_ENV === "production" && user) {
+    await sendUserEmail(user.email, "SUBSCRIPTION_EXPIRED", {
+      firstName: user.fullName?.split(" ")[0] || "User",
+      planName: plan?.name || "Your Plan",
+      expiredAt: subscription.expiresAt?.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }) || new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    });
+  }
 };
 
 /**

@@ -9,6 +9,8 @@ import { UserPublic } from "../../schemas/user.schema";
 import { Decimal } from "@prisma/client/runtime/client";
 import { finalizeSubscriptionPayment } from "./finalize-subscription-payment";
 import convertCurrency from "../../utils/ConvertCurrency";
+import { sendUserEmail, sendEmailToAdmins } from "../../emails";
+import { env } from "../../config/env.config";
 
 export const createSubscriptionPayment = async (
   user: UserPublic,
@@ -169,6 +171,35 @@ export const createSubscriptionPayment = async (
         return initPaystackPayment(paymentData, parsedSecretKey);
 
       case "MANUAL":
+        // Send manual payment pending emails in production
+        if (env.NODE_ENV === "production") {
+          await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
+            firstName: user.fullName?.split(" ")[0] || "User",
+            amount: totalAmount.toFixed(2),
+            currency,
+            planName: subscription.plan.name,
+            paymentReference: payment.uid,
+          });
+
+          await sendEmailToAdmins("ADMIN_MANUAL_PAYMENT_PENDING", {
+            storeName: "N/A",
+            storeId: "N/A",
+            ownerName: user.fullName || "Unknown",
+            ownerEmail: user.email,
+            amount: totalAmount.toFixed(2),
+            currency,
+            planName: subscription.plan.name,
+            paymentReference: payment.uid,
+            submittedAt: new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          });
+        }
+
         return {
           message:
             "Pay manually. Our team will verify and activate your subscription.",
@@ -338,6 +369,35 @@ export const upgradePlan = async (
         return initPaystackPayment(paymentData, parsedSecretKey);
 
       case "MANUAL":
+        // Send manual upgrade payment pending emails in production
+        if (env.NODE_ENV === "production") {
+          await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
+            firstName: user.fullName?.split(" ")[0] || "User",
+            amount: upgradeAmount.toFixed(2),
+            currency,
+            planName: newSubscription.plan.name,
+            paymentReference: payment.uid,
+          });
+
+          await sendEmailToAdmins("ADMIN_MANUAL_PAYMENT_PENDING", {
+            storeName: "N/A",
+            storeId: "N/A",
+            ownerName: user.fullName || "Unknown",
+            ownerEmail: user.email,
+            amount: upgradeAmount.toFixed(2),
+            currency,
+            planName: newSubscription.plan.name,
+            paymentReference: payment.uid,
+            submittedAt: new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          });
+        }
+
         return {
           message:
             "Pay manually. Our team will verify and complete your upgrade.",

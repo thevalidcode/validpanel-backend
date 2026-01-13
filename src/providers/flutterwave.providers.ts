@@ -6,6 +6,8 @@ import { Decimal } from "@prisma/client/runtime/client";
 import { buildNotification } from "../services/notification.services";
 import { calculateExpiryForUpgrade } from "../utils/calculateExpiresAt";
 import convertCurrency from "../utils/ConvertCurrency";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
+import { env } from "../config/env.config";
 
 export const initFlutterwavePayment = async (
   paymentData: any,
@@ -167,6 +169,46 @@ export const processSuccess = async (
       },
     });
   });
+
+  // Send payment success email in production
+  if (env.NODE_ENV === "production") {
+    const amountInDecimal = new Decimal(data.data.amount / 100);
+    await sendUserEmail(user.email, "PAYMENT_SUCCESS", {
+      firstName: user.fullName?.split(" ")[0] || "User",
+      amount: amountInDecimal.toFixed(2),
+      currency: data.data.currency,
+      planName: subscription.plan.name,
+      transactionId: data.data.tx_ref || String(data.meta_data.transactionId),
+      paymentMethod: "Flutterwave",
+      paymentDate: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+
+    // Send admin notification
+    await sendEmailToAdmins("ADMIN_PAYMENT_RECEIVED", {
+      storeName: "N/A",
+      storeId: "N/A",
+      ownerName: user.fullName || "Unknown",
+      ownerEmail: user.email,
+      amount: amountInDecimal.toFixed(2),
+      currency: data.data.currency,
+      planName: subscription.plan.name,
+      transactionId: data.data.tx_ref || String(data.meta_data.transactionId),
+      paymentMethod: "Flutterwave",
+      receivedAt: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+  }
 };
 
 const processFailure = async (
@@ -179,6 +221,9 @@ const processFailure = async (
 
   if (!user) throw new Error("User not found");
   const amountInDecimal = new Decimal(data.data.amount / 100);
+
+  let subscriptionPlanName = "";
+
   await prisma.$transaction(async (tx) => {
     const subscription = await tx.subscription.update({
       where: { id: data.meta_data.subscriptionId },
@@ -187,6 +232,9 @@ const processFailure = async (
       },
       include: { plan: true },
     });
+
+    subscriptionPlanName = subscription.plan.name;
+
     await tx.transaction.update({
       where: { id: data.meta_data.transactionId },
       data: {
@@ -224,6 +272,22 @@ const processFailure = async (
       },
     });
   });
+
+  // Send payment failed email in production
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(user.email, "PAYMENT_FAILED", {
+      firstName: user.fullName?.split(" ")[0] || "User",
+      amount: amountInDecimal.toFixed(2),
+      currency: data.data.currency,
+      planName: subscriptionPlanName,
+      reason: data.data.status === "reversed" ? "Payment was reversed" : "Payment declined",
+      paymentDate: new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    });
+  }
 };
 
 export default { processSuccess, processFailure };

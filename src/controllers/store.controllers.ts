@@ -10,6 +10,8 @@ import { AuthSchema } from "../schemas/user.schema";
 import { buildNotification } from "../services/notification.services";
 import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
 import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
+import { sendUserEmail, sendEmailToAdmins } from "../emails";
+import { env } from "../config/env.config";
 
 export const getStoreByUid = async (
   req: Request,
@@ -182,6 +184,46 @@ export const createStore = async (
       throw err;
     }
 
+    // Send store created email and admin notifications in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(store.owner.email, "STORE_CREATED", {
+        firstName: store.owner.fullName?.split(" ")[0] || "User",
+        storeName: store.name,
+        storeDomain: store.uid,
+        storeType: store.type,
+      });
+
+      await sendEmailToAdmins("ADMIN_NEW_STORE", {
+        storeName: store.name,
+        storeId: store.uid,
+        ownerName: store.owner.fullName || "Unknown",
+        ownerEmail: store.owner.email,
+        createdAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      // Send approval required notification to admins
+      await sendEmailToAdmins("ADMIN_STORE_APPROVAL_REQUIRED", {
+        storeName: store.name,
+        storeId: store.uid,
+        ownerName: store.owner.fullName || "Unknown",
+        ownerEmail: store.owner.email,
+        description: store.description || undefined,
+        createdAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    }
+
     res.status(201).json({
       success: "Store created successfully",
       store,
@@ -289,6 +331,14 @@ export const deleteStore = async (
     if (store.ownerId !== user.id) {
       res.status(403).json({ error: "Unauthorized to delete this store" });
       return;
+    }
+
+    // Send store deleted email before deletion in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(store.owner.email, "STORE_DELETED", {
+        firstName: store.owner.fullName?.split(" ")[0] || "User",
+        storeName: store.name,
+      });
     }
 
     await DeleteStore(store.owner, store);
@@ -471,6 +521,15 @@ export const approveStore = async (
     });
     await UpdateStore(updatedStore.owner, updatedStore);
 
+    // Send store approved email in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(updatedStore.owner.email, "STORE_APPROVED", {
+        firstName: updatedStore.owner.fullName?.split(" ")[0] || "User",
+        storeName: updatedStore.name,
+        storeDomain: updatedStore.uid,
+      });
+    }
+
     res.status(200).json({ success: "Store approved", store: updatedStore });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to approve store " + err.message });
@@ -515,6 +574,16 @@ export const pauseStore = async (
     });
 
     await UpdateStore(updatedStore.owner, updatedStore);
+
+    // Send store paused email in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(updatedStore.owner.email, "STORE_PAUSED", {
+        firstName: updatedStore.owner.fullName?.split(" ")[0] || "User",
+        storeName: updatedStore.name,
+        reason: "Administrative action",
+      });
+    }
+
     res.status(200).json({ success: "Store paused", store: updatedStore });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to approve store " + err.message });
@@ -550,6 +619,8 @@ export const adminUpdateStore = async (
       return;
     }
 
+    const previousStatus = store.status;
+
     const updatedStore = await prisma.store.update({
       where: { uid },
       include: { owner: true },
@@ -563,6 +634,19 @@ export const adminUpdateStore = async (
     });
 
     await UpdateStore(updatedStore.owner, updatedStore);
+
+    // Send reactivation email if store was reactivated in production
+    if (
+      env.NODE_ENV === "production" &&
+      previousStatus === "DISABLED" &&
+      updatedStore.status === "ACTIVE"
+    ) {
+      await sendUserEmail(updatedStore.owner.email, "STORE_REACTIVATED", {
+        firstName: updatedStore.owner.fullName?.split(" ")[0] || "User",
+        storeName: updatedStore.name,
+      });
+    }
+
     res
       .status(200)
       .json({ success: "Store updated successfully", store: updatedStore });
@@ -592,6 +676,14 @@ export const adminDeleteStore = async (
     if (!store) {
       res.status(404).json({ error: "No store was found for this delete" });
       return;
+    }
+
+    // Send store deleted email before deletion in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(store.owner.email, "STORE_DELETED", {
+        firstName: store.owner.fullName?.split(" ")[0] || "User",
+        storeName: store.name,
+      });
     }
 
     await DeleteStore(store.owner, store);
