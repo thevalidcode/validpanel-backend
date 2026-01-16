@@ -49,6 +49,11 @@ export const getSubscriptionPlanByUidForUser = async (
       where,
     });
 
+    if (subscriptionPlan && subscriptionPlan.status !== "ACTIVE") {
+      res.status(404).json({ error: "Subscription plan not found or inactive" });
+      return;
+    }
+
     res.status(200).json(subscriptionPlan);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
