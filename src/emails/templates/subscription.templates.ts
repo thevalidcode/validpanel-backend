@@ -1,4 +1,5 @@
 import { Layout, LogoVars, TemplateResult } from "../components/EmailLayout";
+import circularIcon from "./components/circularIcon";
 
 // ============================================
 // INTERFACES
@@ -89,18 +90,7 @@ export const subscriptionCreated = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">🎯</span>
-          </div>
+          ${circularIcon('🎯','linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Created!
           </h1>
@@ -223,18 +213,7 @@ export const subscriptionActivated = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #10B981 0%, #34D399 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">✅</span>
-          </div>
+          ${circularIcon('✅','linear-gradient(135deg, #10B981 0%, #34D399 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Activated!
           </h1>
@@ -261,18 +240,7 @@ export const subscriptionActivated = ({
             <tr>
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Status:</td>
               <td style="padding:8px 0;">
-                <span style="
-                  display:inline-block;
-                  background:#D1FAE5;
-                  color:#065F46;
-                  padding:4px 12px;
-                  border-radius:20px;
-                  font-size:12px;
-                  font-weight:600;
-                ">Active</span>
-              </td>
-            </tr>
-            <tr>
+                ${circularIcon('📅','linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)')}
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Valid Until:</td>
               <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${expiresAt}</td>
             </tr>
@@ -340,18 +308,7 @@ export const subscriptionUpgrade = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">⬆️</span>
-          </div>
+          ${circularIcon('⬆️','linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Plan Upgraded!
           </h1>
@@ -466,18 +423,7 @@ export const subscriptionDowngradeScheduled = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">📅</span>
-          </div>
+          ${circularIcon('📅','linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Downgrade Scheduled
           </h1>
@@ -580,18 +526,7 @@ export const subscriptionRenewed = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #10B981 0%, #34D399 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">🔄</span>
-          </div>
+          ${circularIcon('🔄','linear-gradient(135deg, #10B981 0%, #34D399 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Renewed!
           </h1>
@@ -687,18 +622,7 @@ export const subscriptionExpiring = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">⏰</span>
-          </div>
+          ${circularIcon('⏰','linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Expiring Soon
           </h1>
@@ -791,18 +715,7 @@ export const subscriptionExpired = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #EF4444 0%, #F87171 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">⚠️</span>
-          </div>
+          ${circularIcon('⚠️','linear-gradient(135deg, #EF4444 0%, #F87171 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Expired
           </h1>
@@ -886,18 +799,7 @@ export const subscriptionCancelled = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          <div style="
-            width:70px;
-            height:70px;
-            background:linear-gradient(135deg, #6B7280 0%, #9CA3AF 100%);
-            border-radius:50%;
-            margin:0 auto 20px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <span style="font-size:32px;">👋</span>
-          </div>
+          ${circularIcon('👋','linear-gradient(135deg, #6B7280 0%, #9CA3AF 100%)')}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Subscription Cancelled
           </h1>

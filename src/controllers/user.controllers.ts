@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
 import { env } from "../config/env.config";
 import {
-  AuthSchema,
   createUserRequestSchema,
   AuthenticateUserSchema,
   updateUserSchema,
@@ -20,6 +19,7 @@ import { buildNotification } from "../services/notification.services";
 import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
 import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { CreateStore } from "../services/store";
+import { UidSchema } from "../schemas/common.schema";
 
 function getMonthRange(date: Date) {
   return {
@@ -40,7 +40,7 @@ export const userAnalytics = async (req: Request, res: Response) => {
 
     const thisMonth = getMonthRange(now);
     const lastMonth = getMonthRange(
-      new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      new Date(now.getFullYear(), now.getMonth() - 1, 1),
     );
 
     const sevenDaysAgo = new Date();
@@ -145,7 +145,7 @@ export const userAnalytics = async (req: Request, res: Response) => {
     timeRanges.forEach((range) => {
       const start = getRangeStart(range);
       const filteredEvents = weeklyEvents.filter(
-        (e) => new Date(e.createdAt) >= start
+        (e) => new Date(e.createdAt) >= start,
       );
 
       const map = new Map<string, number>();
@@ -169,7 +169,7 @@ export const userAnalytics = async (req: Request, res: Response) => {
         ([name, value]) => ({
           name,
           value,
-        })
+        }),
       );
     });
 
@@ -192,8 +192,8 @@ export const userAnalytics = async (req: Request, res: Response) => {
             totalStoreChange === 0
               ? "No change this month"
               : totalStoreChange > 0
-              ? `+${totalStoreChange} this month`
-              : `${totalStoreChange} this month`,
+                ? `+${totalStoreChange} this month`
+                : `${totalStoreChange} this month`,
         },
         active: {
           value: activeStores,
@@ -201,8 +201,8 @@ export const userAnalytics = async (req: Request, res: Response) => {
             activeStoreChange === 0
               ? "No change this month"
               : activeStoreChange > 0
-              ? `+${activeStoreChange} this month`
-              : `${activeStoreChange} this month`,
+                ? `+${activeStoreChange} this month`
+                : `${activeStoreChange} this month`,
         },
       },
       subscription: {
@@ -292,7 +292,7 @@ export const createUser = async (req: Request, res: Response) => {
       env.JWT_SECRET,
       {
         expiresIn: "7d",
-      }
+      },
     );
 
     res.cookie("auth_token", token, {
@@ -385,6 +385,7 @@ export const setupStore = async (req: Request, res: Response) => {
             plan: existingSubscription.plan.name,
             ownerId: userId,
           },
+          include: { owner: true },
         });
 
         const notificationDetails = buildNotification({
@@ -420,7 +421,7 @@ export const setupStore = async (req: Request, res: Response) => {
       },
       {
         timeout: 10000,
-      }
+      },
     );
 
     try {
@@ -441,13 +442,53 @@ export const setupStore = async (req: Request, res: Response) => {
       throw err;
     }
 
+    // Send store created email and admin notifications in production
+    if (env.NODE_ENV === "production") {
+      await sendUserEmail(store.owner.email, "STORE_CREATED", {
+        firstName: store.owner.fullName?.split(" ")[0] || "User",
+        storeName: store.name,
+        storeDomain: store.uid,
+        storeType: store.type,
+      });
+
+      await sendEmailToAdmins("ADMIN_NEW_STORE", {
+        storeName: store.name,
+        storeId: store.uid,
+        ownerName: store.owner.fullName || "Unknown",
+        ownerEmail: store.owner.email,
+        createdAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      // Send approval required notification to admins
+      await sendEmailToAdmins("ADMIN_STORE_APPROVAL_REQUIRED", {
+        storeName: store.name,
+        storeId: store.uid,
+        ownerName: store.owner.fullName || "Unknown",
+        ownerEmail: store.owner.email,
+        description: store.description || undefined,
+        createdAt: new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+    }
+
     const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
 
     res.status(201).json({
       message: "Store setup successful",
       store,
       user: safeUser,
-      onboardingStep: "COMPLETE" as OnboardingStep,
+      onboardingStep: "COMPLETE",
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Internal server error" });
@@ -476,7 +517,7 @@ export const me = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { email, apiKey: account.apiKey, uid: account.uid },
       env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.cookie("auth_token", token, {
@@ -511,19 +552,46 @@ export const me = async (req: Request, res: Response) => {
 };
 
 export const getUserByUid = async (req: Request, res: Response) => {
-  const { uid } = req.params;
+  const parsed = UidSchema.safeParse(req.params);
+  if (!parsed.success)
+    return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { uid } = parsed.data;
   try {
     const user = await prisma.user.findUnique({
       where: { uid },
-      select: {
-        id: true,
-        uid: true,
-        email: true,
-        fullName: true,
-        status: true,
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
+    res.status(200).json({ user: safeUser });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
+
+export const completeTour = async (req: Request, res: Response) => {
+  const { uid } = req.auth!;
+  try {
+    const foundUser = await prisma.user.findUnique({
+      where: { uid },
+    });
+
+    if (!foundUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await prisma.user.update({
+      where: { uid },
+      data: {
+        hasSeenTour: true,
       },
     });
-    res.status(200).json({ user });
+
+    res.status(200).json({ success: "Tour completed successfully" });
   } catch {
     res.status(500).json({ error: "Failed to fetch user" });
   }
@@ -566,7 +634,7 @@ export const verifySession = async (req: Request, res: Response) => {
     env.JWT_SECRET,
     {
       expiresIn: "7d",
-    }
+    },
   );
 
   res.cookie("auth_token", token, {

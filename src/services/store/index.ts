@@ -4,13 +4,15 @@ import {
   SubscriptionPlan,
   User,
 } from "../../../prisma/generated";
+import { env } from "../../config/env.config";
 import { callInternalAPIForUsers } from "../../utils/internalApi";
 
 export async function CreateStore(
   user: User,
   store: Store,
-  subscription: Subscription & { plan: SubscriptionPlan }
+  subscription: Subscription & { plan: SubscriptionPlan },
 ) {
+  if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "POST",
     "/stores",
@@ -30,22 +32,24 @@ export async function CreateStore(
       adminImage: user.image,
       adminEmail: user.email,
       fullName: user.fullName,
-    }
+    },
   );
   return response;
 }
 
 export async function DeleteStore(user: User, store: Store) {
+  if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "DELETE",
     `/stores/${store.uid}`,
     user.uid,
-    store.storeId
+    store.storeId,
   );
   return response;
 }
 
 export async function UpdateStore(user: User, store: Store) {
+  if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "PATCH",
     `/stores/${store.uid}`,
@@ -57,7 +61,7 @@ export async function UpdateStore(user: User, store: Store) {
       logoUrl: store.logoUrl,
       faviconUrl: store.logoUrl,
       status: store.status,
-    }
+    },
   );
   return response;
 }

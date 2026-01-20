@@ -228,6 +228,21 @@ registry.registerPath({
   },
 });
 
+// Tour completed
+registry.registerPath({
+  method: "patch",
+  path: "/users/tour/complete",
+  summary: "Mark user tour as completed",
+  tags: ["Users"],
+  security: [{ CookieAuth: [] }],
+  responses: {
+    200: SuccessResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
 // Activate multiple users
 registry.registerPath({
   method: "patch",

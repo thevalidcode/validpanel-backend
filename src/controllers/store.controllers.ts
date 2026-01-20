@@ -15,7 +15,7 @@ import { env } from "../config/env.config";
 
 export const getStoreByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = StoreUidSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -39,7 +39,7 @@ export const getStoreByUid = async (
 
 export const createStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = CreateStoreSchema.safeParse(req.body);
   const authParsed = AuthSchema.safeParse(req.auth);
@@ -162,7 +162,7 @@ export const createStore = async (
       },
       {
         isolationLevel: "Serializable",
-      }
+      },
     );
 
     /**
@@ -237,7 +237,7 @@ export const createStore = async (
 
 export const updateStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const uidParsed = StoreUidSchema.safeParse(req.params);
   if (!uidParsed.success) {
@@ -302,7 +302,7 @@ export const updateStore = async (
 
 export const deleteStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = StoreUidSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -351,7 +351,7 @@ export const deleteStore = async (
 
 export const getMyStores = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -377,7 +377,7 @@ export const getMyStores = async (
 
 export const getActiveStores = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const stores = await prisma.store.findMany({
@@ -392,7 +392,7 @@ export const getActiveStores = async (
 
 export const adminGetAllStores = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const stores = await prisma.store.findMany({
@@ -409,13 +409,13 @@ export const adminGetAllStores = async (
 
 export const getStoreStats = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const startOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
-      1
+      1,
     );
 
     const [allStores, activeStores, pausedStores, storesThisMonth] =
@@ -460,7 +460,7 @@ export const getStoreStats = async (
 
 export const adminGetStoreByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = StoreUidSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -485,7 +485,7 @@ export const adminGetStoreByUid = async (
 
 export const approveStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = AdminActionSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -538,7 +538,7 @@ export const approveStore = async (
 
 export const pauseStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = AdminActionSchema.safeParse(req.params);
   if (!parsed.success) {
@@ -592,7 +592,7 @@ export const pauseStore = async (
 
 export const adminUpdateStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const uidParsed = StoreUidSchema.safeParse(req.params);
   if (!uidParsed.success) {
@@ -657,7 +657,7 @@ export const adminUpdateStore = async (
 
 export const adminDeleteStore = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = AdminActionSchema.safeParse(req.params);
   if (!parsed.success) {

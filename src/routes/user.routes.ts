@@ -28,31 +28,32 @@ router.delete("/", authenticateUser, users.deleteUser);
 
 // User onboarding routes (authenticated users)
 router.post("/onboarding/setup", authenticateUser, users.setupStore);
+router.patch("/tour/complete", authenticateUser, users.completeTour);
 
 // Admin routes
 router.get(
   "/",
   authenticateAdmin,
   checkAdminPermission(["VIEW_USERS"]),
-  users.getUsers
+  users.getUsers,
 );
 router.delete(
   "/multiple",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_USERS"]),
-  users.deleteUsers
+  users.deleteUsers,
 );
 router.patch(
   "/ban-multiple",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_USERS"]),
-  users.banUsers
+  users.banUsers,
 );
 router.patch(
   "/activate-multiple",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_USERS"]),
-  users.activateMultipleUsers
+  users.activateMultipleUsers,
 );
 
 export default router;

@@ -3,6 +3,8 @@ import {
   forgotPassword,
   passwordChanged,
   ForgotPasswordVars,
+  welcomeUser,
+  WelcomeUserVars,
 } from "./user.templates";
 import {
   adminForgotPassword,
@@ -17,7 +19,6 @@ import {
   ContactMessageAdminVars,
   ContactMessageReplyVars,
 } from "./contact.templates";
-import { welcomeUser, WelcomeUserVars } from "./welcome.templates";
 import {
   storeCreated,
   storeApproved,
@@ -135,7 +136,7 @@ export interface EmailTemplateVars {
 // Typed templates for dev-time safety
 const typedTemplates: {
   [K in keyof EmailTemplateVars]: (
-    vars: EmailTemplateVars[K]
+    vars: EmailTemplateVars[K],
   ) => TemplateResult;
 } = {
   // User auth templates
@@ -198,7 +199,7 @@ const typedTemplates: {
  */
 export function getTemplate<K extends keyof EmailTemplateVars>(
   type: K,
-  variables: Record<string, any>
+  variables: Record<string, any>,
 ): TemplateResult {
   const templateFn = typedTemplates[type as keyof typeof typedTemplates] as
     | ((vars: Record<string, any>) => TemplateResult)
