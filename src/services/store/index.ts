@@ -15,7 +15,7 @@ export async function CreateStore(
   if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "POST",
-    store.type === "SHOP" ? "/shops" : "/stores",
+    "/stores",
     user.uid,
     store.storeId,
     {
@@ -41,7 +41,7 @@ export async function DeleteStore(user: User, store: Store) {
   if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "DELETE",
-    store.type === "SHOP" ? `/shops/${store.uid}` : `/stores/${store.uid}`,
+    `/stores/${store.uid}`,
     user.uid,
     store.storeId,
   );
@@ -52,7 +52,7 @@ export async function UpdateStore(user: User, store: Store) {
   if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "PATCH",
-    store.type === "SHOP" ? `/shops/${store.uid}` : `/stores/${store.uid}`,
+    `/stores/${store.uid}`,
     user.uid,
     store.storeId,
     {
