@@ -15,15 +15,8 @@ import { AdminAuthSchema } from "../schemas/admin.schema";
 
 export const getPaymentGatewaysForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
-
-  if (!authParsed.success) {
-    res.status(400).json({ error: authParsed.error.flatten() });
-    return;
-  }
-
   try {
     const gateways = await prisma.paymentGateway.findMany({
       where: { status: "ACTIVE" },
@@ -51,15 +44,13 @@ export const getPaymentGatewaysForUser = async (
 
 export const getPaymentGatewayByUidForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
-  const authParsed = AuthSchema.safeParse(req.auth);
   const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
 
-  if (!authParsed.success || !paramsParsed.success) {
+  if (!paramsParsed.success) {
     res.status(400).json({
       error: {
-        auth: !authParsed.success ? authParsed.error.flatten() : undefined,
         params: !paramsParsed.success
           ? paramsParsed.error.flatten()
           : undefined,
@@ -94,7 +85,7 @@ export const getPaymentGatewayByUidForUser = async (
 
 export const getPaymentGateways = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
 
@@ -128,7 +119,7 @@ export const getPaymentGateways = async (
 
 export const getPaymentGatewayByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = GetPaymentGatewayByIdSchema.safeParse(req.params);
@@ -172,7 +163,7 @@ export const getPaymentGatewayByUid = async (
 
 export const addPaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = PaymentCreateRequestSchema.safeParse(req.body);
@@ -236,7 +227,7 @@ export const addPaymentGateway = async (
 
 export const updatePaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = PaymentUpdateRequestSchema.safeParse(req.body);
@@ -300,7 +291,7 @@ export const updatePaymentGateway = async (
 
 export const deletePaymentGateway = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = DeletePaymentGatewaySchema.safeParse(req.body);

@@ -40,6 +40,10 @@ export const SubscriptionPlanFeaturesSchema = z.object({
   store_email_notifications: z.boolean(),
   store_custom_emails: z.boolean(),
   store_newsletters: z.boolean(),
+
+  // Shipping features
+  automated_shipping_allowed: z.boolean(),
+  max_shipping_accounts: z.number(),
 });
 
 export type SubscriptionPlanFeatures = z.infer<

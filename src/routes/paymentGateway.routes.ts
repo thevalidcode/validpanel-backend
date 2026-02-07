@@ -65,14 +65,12 @@ router.get(
 
 router.get(
   "/",
-  authenticateUser,
   limitPaymentGatewayView,
   paymentGateways.getPaymentGatewaysForUser
 );
 
 router.get(
   "/:uid",
-  authenticateUser,
   limitPaymentGatewayView,
   paymentGateways.getPaymentGatewayByUidForUser
 );
