@@ -232,6 +232,7 @@ export const createStore = async (
     res.status(500).json({
       error: "Failed to create store",
     });
+    console.log({ error: "Failed to create store" + err });
   }
 };
 

@@ -48,14 +48,13 @@ export const storeCreated = ({
   storeType,
   logo,
 }: StoreCreatedVars): TemplateResult => {
-  const storeUrl = `https://${storeDomain}`;
   const dashboardUrl = "https://validpanel.com/stores";
 
   const bodyContent = `
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          ${circularIcon('🏪','linear-gradient(135deg, #10B981 0%, #34D399 100%)')}
+          ${circularIcon("🏪", "linear-gradient(135deg, #10B981 0%, #34D399 100%)")}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Store Created Successfully!
           </h1>
@@ -84,7 +83,7 @@ export const storeCreated = ({
             </tr>
             <tr>
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Domain:</td>
-              <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${storeDomain}.validpanel.com</td>
+              <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${storeDomain}</td>
             </tr>
             <tr>
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Type:</td>
@@ -172,7 +171,7 @@ export const storeApproved = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          ${circularIcon('✅','linear-gradient(135deg, #10B981 0%, #34D399 100%)')}
+          ${circularIcon("✅", "linear-gradient(135deg, #10B981 0%, #34D399 100%)")}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Your Store is Now Live!
           </h1>
@@ -286,7 +285,7 @@ export const storePaused = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          ${circularIcon('⏸️','linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)')}
+          ${circularIcon("⏸️", "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)")}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Store Paused
           </h1>
@@ -371,7 +370,7 @@ export const storeReactivated = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          ${circularIcon('▶️','linear-gradient(135deg, #10B981 0%, #34D399 100%)')}
+          ${circularIcon("▶️", "linear-gradient(135deg, #10B981 0%, #34D399 100%)")}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Store Reactivated!
           </h1>
@@ -448,7 +447,7 @@ export const storeDeleted = ({
     <table role="presentation" style="width:100%; border-collapse:collapse;">
       <tr>
         <td style="padding-bottom:20px; text-align:center;">
-          ${circularIcon('🗑️','linear-gradient(135deg, #EF4444 0%, #F87171 100%)')}
+          ${circularIcon("🗑️", "linear-gradient(135deg, #EF4444 0%, #F87171 100%)")}
           <h1 style="color:#1F2937; margin:0 0 10px 0; font-size:26px; font-weight:700;">
             Store Deleted
           </h1>
