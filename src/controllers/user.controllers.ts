@@ -254,7 +254,8 @@ export const createUser = async (req: Request, res: Response) => {
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { email, password, fullName } = parsed.data;
+  const { email, password, fullName, referralSource, marketingData } =
+    parsed.data;
 
   try {
     const existingUser = await prisma.user.findFirst({
@@ -277,6 +278,8 @@ export const createUser = async (req: Request, res: Response) => {
         fullName,
         password: hashedPassword,
         apiKey: uuidv4(),
+        referralSource,
+        marketingData: marketingData || undefined,
       },
     });
     await prisma.platformEvent.create({
@@ -604,7 +607,7 @@ export const verifySession = async (req: Request, res: Response) => {
     return;
   }
 
-  const { sessionCode } = parsed.data;
+  const { sessionCode, referralSource, marketingData } = parsed.data;
 
   const session = await prisma.sessionCode.findUnique({
     where: { code: sessionCode },
@@ -624,10 +627,32 @@ export const verifySession = async (req: Request, res: Response) => {
     return;
   }
 
+  // Check if user already updated referral/marketing data
+  const hasExistingReferralData =
+    account.referralSource !== null || account.marketingData !== null;
+
+  if (hasExistingReferralData && (referralSource || marketingData)) {
+    res.status(400).json({
+      error: "User data can only be updated once during initial setup",
+    });
+    return;
+  }
+
   await prisma.sessionCode.update({
     where: { code: sessionCode },
     data: { used: true },
   });
+
+  // Update user with referral/marketing data if provided
+  if (referralSource || marketingData) {
+    await prisma.user.update({
+      where: { id: account.id },
+      data: {
+        ...(referralSource && { referralSource }),
+        ...(marketingData && { marketingData }),
+      },
+    });
+  }
 
   const token = jwt.sign(
     { uid: account.uid, apiKey: account.apiKey, email: account.email },

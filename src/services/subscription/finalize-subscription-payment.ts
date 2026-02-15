@@ -42,7 +42,7 @@ type TxClient = Prisma.TransactionClient;
  */
 const finalizeSubscriptionPaymentInternal = async (
   tx: TxClient,
-  input: FinalizeSubscriptionPaymentInput
+  input: FinalizeSubscriptionPaymentInput,
 ) => {
   const {
     subscriptionId,
@@ -109,19 +109,9 @@ const finalizeSubscriptionPaymentInternal = async (
       currentSubscription: activeSubscription,
       newBillingCycle: billingCycle,
     });
-
-    // 5. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
-    await tx.subscription.updateMany({
-      where: {
-        userId: user.id,
-        status: "ACTIVE",
-        NOT: { id: subscription.id },
-      },
-      data: { status: "EXPIRED" },
-    });
   }
 
-  // 6. Handle renewal
+  // 5. Handle renewal
   if (isRenewal) {
     const baseDate =
       subscription.expiresAt && subscription.expiresAt > new Date()
@@ -133,6 +123,17 @@ const finalizeSubscriptionPaymentInternal = async (
         ? new Date(new Date(baseDate).setFullYear(baseDate.getFullYear() + 1))
         : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
+
+  // 6. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
+  // This must happen for both upgrades and renewals before activating the subscription
+  await tx.subscription.updateMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      NOT: { id: subscription.id },
+    },
+    data: { status: "EXPIRED" },
+  });
 
   // 7. Activate this subscription
   const updatedSubscription = await tx.subscription.update({
@@ -206,11 +207,12 @@ const finalizeSubscriptionPaymentInternal = async (
         newPlanName: updatedSubscription.plan.name,
         newPlanPrice: amount.toFixed(2),
         currency: "USD",
-        expiresAt: expiresAt?.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }) || "N/A",
+        expiresAt:
+          expiresAt?.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }) || "N/A",
       });
     } else if (isRenewal && type === "SUBSCRIPTION_RENEWAL") {
       await sendUserEmail(user.email, "SUBSCRIPTION_RENEWED", {
@@ -223,22 +225,24 @@ const finalizeSubscriptionPaymentInternal = async (
           month: "long",
           day: "numeric",
         }),
-        expiresAt: expiresAt?.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }) || "N/A",
+        expiresAt:
+          expiresAt?.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }) || "N/A",
       });
     } else {
       // New subscription activated (manual payment approved)
       await sendUserEmail(user.email, "SUBSCRIPTION_ACTIVATED", {
         firstName: user.fullName?.split(" ")[0] || "User",
         planName: updatedSubscription.plan.name,
-        expiresAt: expiresAt?.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }) || "N/A",
+        expiresAt:
+          expiresAt?.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }) || "N/A",
       });
 
       // Send admin notification for new subscription
@@ -264,7 +268,7 @@ const finalizeSubscriptionPaymentInternal = async (
 
 export const finalizeSubscriptionPayment = async (
   input: FinalizeSubscriptionPaymentInput,
-  tx?: TxClient
+  tx?: TxClient,
 ) => {
   if (tx) {
     return finalizeSubscriptionPaymentInternal(tx, input);

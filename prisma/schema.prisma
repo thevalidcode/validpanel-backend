@@ -172,6 +172,10 @@ model User {
   resetToken       String?        @map("reset_token")
   resetTokenExpiry DateTime?      @map("reset_token_expiry")
 
+  // Marketing fields
+  referralSource String? @map("referral_source") // How did you hear about us
+  marketingData  Json?   @map("marketing_data") // UTM params, campaigns, landing page, etc.
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   ref           Int?

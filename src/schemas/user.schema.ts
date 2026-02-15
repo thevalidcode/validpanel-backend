@@ -29,6 +29,8 @@ export const UserSchema = z
     updatedAt: z.coerce.date(),
     status: z.nativeEnum(UserStatus),
     onboardingStep: z.nativeEnum(OnboardingStep),
+    referralSource: z.string().nullable(),
+    marketingData: z.record(z.any()).nullable(),
   })
   .openapi("User");
 
@@ -48,6 +50,8 @@ export const UserPublicSchema = z
     spent: z.coerce.string(),
     balance: z.coerce.string(),
     onboardingStep: z.nativeEnum(OnboardingStep),
+    referralSource: z.string().nullable(),
+    marketingData: z.record(z.any()).nullable(),
   })
   .openapi("UserPublic");
 
@@ -83,6 +87,11 @@ export const createUserRequestSchema = z.object({
   email: z.string().email(),
   fullName: z.string().min(4),
   password: z.string().min(6),
+  referralSource: z.string().optional().describe("How did you hear about us"),
+  marketingData: z
+    .record(z.any())
+    .optional()
+    .describe("Additional marketing data (UTM params, campaigns, etc.)"),
 });
 
 export const updateUserSchema = z
@@ -91,6 +100,8 @@ export const updateUserSchema = z
     phoneNumber: z.string().optional(),
     image: z.string().optional(),
     fullName: z.string().optional(),
+    referralSource: z.string().optional(),
+    marketingData: z.record(z.any()).optional(),
   })
   .strict();
 
@@ -126,6 +137,8 @@ export const resetPasswordSchema = z.object({
 
 export const VerifySessionSchema = z.object({
   sessionCode: z.string(),
+  referralSource: z.string().optional().nullable(),
+  marketingData: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export const UidsSchema = z.object({
