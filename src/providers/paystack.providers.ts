@@ -13,14 +13,10 @@ export const initPaystackPayment = async (
   paymentData: any,
   secretKey: { encrypted_key: string; iv: string }
 ) => {
-  const exchangeRates = await prisma.exchangeRate.findFirst({
-    select: { rates: true },
-  });
-  const convertedNGNAmount = convertCurrency(
+  const convertedNGNAmount = await convertCurrency(
     paymentData.amount,
     "USD",
-    "NGN",
-    exchangeRates?.rates!
+    "NGN"
   );
   const response = await axios.post(
     "https://api.paystack.co/transaction/initialize",

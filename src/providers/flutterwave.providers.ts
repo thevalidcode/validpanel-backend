@@ -11,21 +11,12 @@ import { env } from "../config/env.config";
 
 export const initFlutterwavePayment = async (
   paymentData: any,
-  secretKey: { encrypted_key: string; iv: string }
+  secretKey: { encrypted_key: string; iv: string },
 ) => {
-  const exchangeRate = await prisma.exchangeRate.findFirst({
-    select: { rates: true },
-  });
-
-  if (!exchangeRate) {
-    throw new Error("Exchange rate not found");
-  }
-
-  const convertedAmount = convertCurrency(
+  const convertedAmount = await convertCurrency(
     paymentData.amount,
     "USD",
     paymentData.currency,
-    exchangeRate?.rates!
   );
 
   const response = await axios.post(
@@ -35,17 +26,17 @@ export const initFlutterwavePayment = async (
       headers: {
         Authorization: `Bearer ${decryptKey(
           secretKey.encrypted_key,
-          secretKey.iv
+          secretKey.iv,
         )}`,
       },
-    }
+    },
   );
   return { url: response.data.data.link };
 };
 
 export const processSuccess = async (
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["data"]["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"],
 ) => {
   const user = await prisma.user.findFirst({
     where: { email: customer.email },
@@ -213,7 +204,7 @@ export const processSuccess = async (
 
 const processFailure = async (
   data: FlutterwaveWebhookData,
-  customer: FlutterwaveWebhookData["data"]["customer"]
+  customer: FlutterwaveWebhookData["data"]["customer"],
 ) => {
   const user = await prisma.user.findFirst({
     where: { email: customer.email },
@@ -242,8 +233,8 @@ const processFailure = async (
           data.data.status === "reversed"
             ? "REVERSED"
             : data.data.status === "cancelled"
-            ? "CANCELLED"
-            : "FAILED",
+              ? "CANCELLED"
+              : "FAILED",
       },
     });
 
@@ -280,7 +271,10 @@ const processFailure = async (
       amount: amountInDecimal.toFixed(2),
       currency: data.data.currency,
       planName: subscriptionPlanName,
-      reason: data.data.status === "reversed" ? "Payment was reversed" : "Payment declined",
+      reason:
+        data.data.status === "reversed"
+          ? "Payment was reversed"
+          : "Payment declined",
       paymentDate: new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",

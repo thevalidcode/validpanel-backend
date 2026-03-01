@@ -235,6 +235,7 @@ export const getUsers = async (req: Request, res: Response) => {
           },
         },
       },
+      orderBy: { timestamp: "desc" },
     });
 
     // Optionally map to a cleaner format

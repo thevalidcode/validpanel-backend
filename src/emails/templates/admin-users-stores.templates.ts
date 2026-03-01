@@ -133,7 +133,7 @@ export const adminNewStore = ({
               <td style="padding:6px 0; color:#333; font-size:14px; font-weight:600;">${storeName}</td>
             </tr>
             <tr>
-              <td style="padding:6px 0; color:#6B7280; font-size:13px;">Store ID:</td>
+              <td style="padding:6px 0; color:#6B7280; font-size:13px;">Store Domain:</td>
               <td style="padding:6px 0; color:#333; font-size:14px; font-family:monospace;">${storeId}</td>
             </tr>
             <tr>
@@ -217,7 +217,7 @@ export const adminStoreApprovalRequired = ({
               <td style="padding:6px 0; color:#333; font-size:14px; font-weight:600;">${storeName}</td>
             </tr>
             <tr>
-              <td style="padding:6px 0; color:#6B7280; font-size:13px;">Store ID:</td>
+              <td style="padding:6px 0; color:#6B7280; font-size:13px;">Store Domain:</td>
               <td style="padding:6px 0; color:#333; font-size:14px; font-family:monospace;">${storeId}</td>
             </tr>
             ${

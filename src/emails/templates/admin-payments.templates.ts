@@ -38,7 +38,7 @@ export const adminManualPaymentPending = ({
   submittedAt,
   logo,
 }: AdminManualPaymentPendingVars): TemplateResult => {
-  const adminUrl = `https://validpanel.com/admin/payments/pending`;
+  const adminUrl = `https://validpanel.com/admin/payments`;
 
   const bodyContent = `
     <table role="presentation" style="width:100%; border-collapse:collapse;">

@@ -17,7 +17,7 @@ export const createSubscriptionPayment = async (
   type:
     | "SUBSCRIPTION_PAYMENT"
     | "SUBSCRIPTION_RENEWAL" = "SUBSCRIPTION_PAYMENT",
-  input: SubscriptionPaymentInput
+  input: SubscriptionPaymentInput,
 ) => {
   const { platform, currency, subscriptionId, redirectUrl, billingCycle } =
     input;
@@ -32,19 +32,10 @@ export const createSubscriptionPayment = async (
       throw new Error("Pending subscription not found");
     }
 
-    const exchangeRate = await prisma.exchangeRate.findFirst({
-      select: { rates: true },
-    });
-
-    if (!exchangeRate) {
-      throw new Error("Exchange rate not found");
-    }
-
-    const usdAmount = convertCurrency(
+    const usdAmount = await convertCurrency(
       subscription.plan.price,
       subscription.plan.currency,
       "USD",
-      exchangeRate?.rates!
     );
 
     const months = billingCycle === "YEARLY" ? 12 : 1;
@@ -109,7 +100,7 @@ export const createSubscriptionPayment = async (
           amount: new Decimal(0),
           billingCycle,
         },
-        tx
+        tx,
       );
 
       return {
@@ -162,7 +153,7 @@ export const createSubscriptionPayment = async (
       case "FLUTTERWAVE":
         if (totalAmount.lessThan(1)) {
           throw new Error(
-            "Minimum amount for Flutterwave is 1 unit of the currency"
+            "Minimum amount for Flutterwave is 1 unit of the currency",
           );
         }
         return initFlutterwavePayment(paymentData, parsedSecretKey);
@@ -175,7 +166,7 @@ export const createSubscriptionPayment = async (
         if (env.NODE_ENV === "production") {
           await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
             firstName: user.fullName?.split(" ")[0] || "User",
-            amount: totalAmount.toFixed(2),
+            amount: convertCurrency(totalAmount, "USD", currency),
             currency,
             planName: subscription.plan.name,
             paymentReference: payment.uid,
@@ -186,7 +177,7 @@ export const createSubscriptionPayment = async (
             storeId: "N/A",
             ownerName: user.fullName || "Unknown",
             ownerEmail: user.email,
-            amount: totalAmount.toFixed(2),
+            amount: convertCurrency(totalAmount, "USD", currency),
             currency,
             planName: subscription.plan.name,
             paymentReference: payment.uid,
@@ -214,7 +205,7 @@ export const createSubscriptionPayment = async (
 
 export const upgradePlan = async (
   user: UserPublic,
-  input: SubscriptionPaymentInput
+  input: SubscriptionPaymentInput,
 ) => {
   const { platform, currency, subscriptionId, redirectUrl, billingCycle } =
     input;
@@ -266,18 +257,16 @@ export const upgradePlan = async (
       throw new Error("Exchange rate not found");
     }
 
-    const usdAmount = convertCurrency(
+    const usdAmount = await convertCurrency(
       newSubscription.plan.price,
       newSubscription.plan.currency,
       "USD",
-      exchangeRate?.rates!
     );
 
-    const usdBaseAmount = convertCurrency(
+    const usdBaseAmount = await convertCurrency(
       currentSubscription.plan.price,
       currentSubscription.plan.currency,
       "USD",
-      exchangeRate?.rates!
     );
 
     const months = billingCycle === "YEARLY" ? 12 : 1;
@@ -373,7 +362,7 @@ export const upgradePlan = async (
         if (env.NODE_ENV === "production") {
           await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
             firstName: user.fullName?.split(" ")[0] || "User",
-            amount: upgradeAmount.toFixed(2),
+            amount: convertCurrency(upgradeAmount, "USD", currency),
             currency,
             planName: newSubscription.plan.name,
             paymentReference: payment.uid,
@@ -384,7 +373,7 @@ export const upgradePlan = async (
             storeId: "N/A",
             ownerName: user.fullName || "Unknown",
             ownerEmail: user.email,
-            amount: upgradeAmount.toFixed(2),
+            amount: convertCurrency(upgradeAmount, "USD", currency),
             currency,
             planName: newSubscription.plan.name,
             paymentReference: payment.uid,
