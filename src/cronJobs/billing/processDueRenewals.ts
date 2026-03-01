@@ -9,11 +9,14 @@ import { buildNotification } from "../../services/notification.services";
 import { sendUserEmail } from "../../emails";
 import { env } from "../../config/env.config";
 
+const EXPIRING_SOON_DAYS = 7; // Send first warning 7 days before
+const EXPIRING_TOMORROW_DAYS = 1; // Send urgent warning 1 day before
+
 const BATCH_SIZE = 20;
 const CONCURRENCY = 5;
 
 /**
- * Cron job entry point
+ * Cron job entry point - processes subscriptions that have already expired
  */
 export const processDueRenewals = async () => {
   const now = new Date();
@@ -28,6 +31,7 @@ export const processDueRenewals = async () => {
       include: {
         plan: true,
         pendingPlan: true,
+        user: true,
       },
       take: BATCH_SIZE,
       skip: offset,
@@ -45,8 +49,137 @@ export const processDueRenewals = async () => {
 
     offset += BATCH_SIZE;
   }
+};
 
-  console.log("Due renewals processed.");
+/**
+ * Sends warning emails for subscriptions expiring soon
+ */
+export const processExpiringWarnings = async () => {
+  const now = new Date();
+
+  // Get subscriptions expiring in 7 days
+  const sevenDaysFromNow = new Date(now);
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + EXPIRING_SOON_DAYS);
+  const sevenDaysStart = new Date(sevenDaysFromNow);
+  sevenDaysStart.setHours(0, 0, 0, 0);
+  const sevenDaysEnd = new Date(sevenDaysFromNow);
+  sevenDaysEnd.setHours(23, 59, 59, 999);
+
+  const expiringSoon = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      expiresAt: {
+        gte: sevenDaysStart,
+        lte: sevenDaysEnd,
+      },
+    },
+    include: {
+      plan: true,
+      user: true,
+    },
+  });
+
+  for (const subscription of expiringSoon) {
+    await sendExpiringWarning(subscription);
+  }
+
+  // Get subscriptions expiring tomorrow
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + EXPIRING_TOMORROW_DAYS);
+  const tomorrowStart = new Date(tomorrow);
+  tomorrowStart.setHours(0, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrow);
+  tomorrowEnd.setHours(23, 59, 59, 999);
+
+  const expiringTomorrow = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      expiresAt: {
+        gte: tomorrowStart,
+        lte: tomorrowEnd,
+      },
+    },
+    include: {
+      plan: true,
+      user: true,
+    },
+  });
+
+  for (const subscription of expiringTomorrow) {
+    await sendExpiringTomorrowWarning(subscription);
+  }
+};
+
+/**
+ * Sends grace period notifications
+ */
+export const processGracePeriodNotifications = async () => {
+  const now = new Date();
+
+  // Find subscriptions that expired today and have grace period
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const expiredToday = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      expiresAt: {
+        gte: todayStart,
+        lte: todayEnd,
+      },
+      plan: {
+        gracePeriod: {
+          gt: 0,
+        },
+      },
+    },
+    include: {
+      plan: true,
+      user: true,
+    },
+  });
+
+  for (const subscription of expiredToday) {
+    await sendGracePeriodNotification(subscription);
+  }
+
+  // Find subscriptions where grace period expired today
+  const subscriptionsInGrace = await prisma.subscription.findMany({
+    where: {
+      status: "ACTIVE",
+      expiresAt: {
+        lt: now,
+      },
+      plan: {
+        gracePeriod: {
+          gt: 0,
+        },
+      },
+    },
+    include: {
+      plan: true,
+      user: true,
+    },
+  });
+
+  for (const subscription of subscriptionsInGrace) {
+    if (!subscription.expiresAt || !subscription.plan.gracePeriod) continue;
+
+    const graceExpiry = new Date(subscription.expiresAt);
+    graceExpiry.setDate(graceExpiry.getDate() + subscription.plan.gracePeriod);
+
+    // Check if grace period expires today
+    const graceExpiryStart = new Date(graceExpiry);
+    graceExpiryStart.setHours(0, 0, 0, 0);
+    const graceExpiryEnd = new Date(graceExpiry);
+    graceExpiryEnd.setHours(23, 59, 59, 999);
+
+    if (now >= graceExpiryStart && now <= graceExpiryEnd) {
+      await sendGracePeriodExpiredNotification(subscription);
+    }
+  }
 };
 
 /**
@@ -56,7 +189,8 @@ const handleRenewal = async (
   subscription: Subscription & {
     plan: SubscriptionPlan;
     pendingPlan: SubscriptionPlan | null;
-  }
+    user: any;
+  },
 ) => {
   const now = new Date();
 
@@ -75,7 +209,7 @@ const handleRenewal = async (
     if (subscription.plan.gracePeriod) {
       const graceExpiry = new Date(subscription.expiresAt!);
       graceExpiry.setDate(
-        graceExpiry.getDate() + subscription.plan.gracePeriod
+        graceExpiry.getDate() + subscription.plan.gracePeriod,
       );
       inGracePeriod = now <= graceExpiry;
     }
@@ -88,13 +222,27 @@ const handleRenewal = async (
         return;
       }
 
+      // In grace period - send notification if entering grace period today
+      if (subscription.expiresAt) {
+        const expiredDate = new Date(subscription.expiresAt);
+        const now = new Date();
+        const daysSinceExpired = Math.floor(
+          (now.getTime() - expiredDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        // Send grace period notification on first day
+        if (daysSinceExpired === 0) {
+          await sendGracePeriodNotification(subscription);
+        }
+      }
+
       await createRenewalPaymentsBulk([subscription], finalPlan, wasDowngrade);
       return;
     }
 
     const nextExpiry = calculateNextExpiry(
       subscription.expiresAt ?? now,
-      finalPlan.interval
+      finalPlan.interval,
     );
 
     await prisma.subscription.update({
@@ -111,7 +259,7 @@ const handleRenewal = async (
       [subscription],
       finalPlan,
       nextExpiry,
-      wasDowngrade ? "SUBSCRIPTION_DOWNGRADE" : "SUBSCRIPTION_RENEWAL"
+      wasDowngrade ? "SUBSCRIPTION_DOWNGRADE" : "SUBSCRIPTION_RENEWAL",
     );
   } finally {
     await prisma.subscription.update({
@@ -162,15 +310,17 @@ const expireSubscription = async (subscription: Subscription) => {
     await sendUserEmail(user.email, "SUBSCRIPTION_EXPIRED", {
       firstName: user.fullName?.split(" ")[0] || "User",
       planName: plan?.name || "Your Plan",
-      expiredAt: subscription.expiresAt?.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }) || new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
+      expiredAt:
+        subscription.expiresAt?.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }) ||
+        new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
     });
   }
 };
@@ -184,7 +334,7 @@ const createRenewalPaymentsBulk = async (
     pendingPlan: SubscriptionPlan | null;
   })[],
   plan: SubscriptionPlan,
-  wasDowngrade: boolean
+  wasDowngrade: boolean,
 ) => {
   const paymentsData: any[] = [];
   const transactionsData: any[] = [];
@@ -241,7 +391,7 @@ const notifySuccessBulk = async (
   })[],
   plan: SubscriptionPlan,
   expiresAt: Date,
-  type: "SUBSCRIPTION_RENEWAL" | "SUBSCRIPTION_DOWNGRADE"
+  type: "SUBSCRIPTION_RENEWAL" | "SUBSCRIPTION_DOWNGRADE",
 ) => {
   const notificationsData = subscriptions.map((sub) => {
     const n = buildNotification({
@@ -274,4 +424,206 @@ const calculateNextExpiry = (base: Date, interval: "MONTHLY" | "YEARLY") => {
   if (interval === "MONTHLY") d.setMonth(d.getMonth() + 1);
   else d.setFullYear(d.getFullYear() + 1);
   return d;
+};
+
+/**
+ * Send expiring soon warning email (7 days before)
+ */
+const sendExpiringWarning = async (
+  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+) => {
+  if (!subscription.user || !subscription.expiresAt) return;
+
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(subscription.user.email, "SUBSCRIPTION_EXPIRING_SOON", {
+      firstName: subscription.user.fullName?.split(" ")[0] || "User",
+      planName: subscription.plan.name,
+      expiresAt: subscription.expiresAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      daysRemaining: EXPIRING_SOON_DAYS,
+    });
+  }
+
+  // Create notification
+  const notification = buildNotification({
+    category: "SUBSCRIPTION",
+    type: "SUBSCRIPTION_EXPIRED",
+    planName: subscription.plan.name,
+    status: "warning",
+    expiresAt: subscription.expiresAt,
+    meta: { planId: subscription.planId, daysRemaining: EXPIRING_SOON_DAYS },
+  });
+
+  await prisma.notification.create({
+    data: {
+      category: notification.category,
+      title: notification.title,
+      message: notification.message,
+      userId: subscription.userId,
+      meta: notification.meta,
+    },
+  });
+};
+
+/**
+ * Send expiring tomorrow urgent warning email
+ */
+const sendExpiringTomorrowWarning = async (
+  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+) => {
+  if (!subscription.user || !subscription.expiresAt) return;
+
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(
+      subscription.user.email,
+      "SUBSCRIPTION_EXPIRING_TOMORROW",
+      {
+        firstName: subscription.user.fullName?.split(" ")[0] || "User",
+        planName: subscription.plan.name,
+        expiresAt: subscription.expiresAt.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      },
+    );
+  }
+
+  // Create notification
+  const notification = buildNotification({
+    category: "SUBSCRIPTION",
+    type: "SUBSCRIPTION_EXPIRED",
+    planName: subscription.plan.name,
+    status: "warning",
+    expiresAt: subscription.expiresAt,
+    meta: { planId: subscription.planId, daysRemaining: 1 },
+  });
+
+  await prisma.notification.create({
+    data: {
+      category: notification.category,
+      title: notification.title,
+      message: notification.message,
+      userId: subscription.userId,
+      meta: notification.meta,
+    },
+  });
+};
+
+/**
+ * Send grace period notification email
+ */
+const sendGracePeriodNotification = async (
+  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+) => {
+  if (
+    !subscription.user ||
+    !subscription.expiresAt ||
+    !subscription.plan.gracePeriod
+  )
+    return;
+
+  const graceExpiry = new Date(subscription.expiresAt);
+  graceExpiry.setDate(graceExpiry.getDate() + subscription.plan.gracePeriod);
+
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(subscription.user.email, "SUBSCRIPTION_GRACE_PERIOD", {
+      firstName: subscription.user.fullName?.split(" ")[0] || "User",
+      planName: subscription.plan.name,
+      expiredAt: subscription.expiresAt.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      gracePeriodDays: subscription.plan.gracePeriod,
+      graceExpiresAt: graceExpiry.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    });
+  }
+
+  // Create notification
+  const notification = buildNotification({
+    category: "SUBSCRIPTION",
+    type: "SUBSCRIPTION_EXPIRED",
+    planName: subscription.plan.name,
+    status: "warning",
+    expiresAt: graceExpiry,
+    meta: {
+      planId: subscription.planId,
+      gracePeriod: true,
+      graceDays: subscription.plan.gracePeriod,
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      category: notification.category,
+      title: notification.title,
+      message: notification.message,
+      userId: subscription.userId,
+      meta: notification.meta,
+    },
+  });
+};
+
+/**
+ * Send grace period expired notification email
+ */
+const sendGracePeriodExpiredNotification = async (
+  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+) => {
+  if (
+    !subscription.user ||
+    !subscription.expiresAt ||
+    !subscription.plan.gracePeriod
+  )
+    return;
+
+  const graceExpiry = new Date(subscription.expiresAt);
+  graceExpiry.setDate(graceExpiry.getDate() + subscription.plan.gracePeriod);
+
+  if (env.NODE_ENV === "production") {
+    await sendUserEmail(
+      subscription.user.email,
+      "SUBSCRIPTION_GRACE_PERIOD_EXPIRED",
+      {
+        firstName: subscription.user.fullName?.split(" ")[0] || "User",
+        planName: subscription.plan.name,
+        graceExpiredAt: graceExpiry.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      },
+    );
+  }
+
+  // Create notification
+  const notification = buildNotification({
+    category: "SUBSCRIPTION",
+    type: "SUBSCRIPTION_EXPIRED",
+    planName: subscription.plan.name,
+    status: "warning",
+    expiresAt: graceExpiry,
+    meta: {
+      planId: subscription.planId,
+      gracePeriodExpired: true,
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      category: notification.category,
+      title: notification.title,
+      message: notification.message,
+      userId: subscription.userId,
+      meta: notification.meta,
+    },
+  });
 };

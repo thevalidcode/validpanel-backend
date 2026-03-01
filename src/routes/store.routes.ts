@@ -8,14 +8,37 @@ import {
   limitStoreAdminAction,
 } from "../middleware/ratelimit/store.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
+import {
+  requireActiveSubscription,
+  checkStoreCreationLimit,
+  requireActiveOrGracePeriodSubscription,
+} from "../middleware/subscription.middleware";
 
 const router = express.Router();
 
 router.get("/me", authenticateUser, stores.getMyStores);
 router.get("/:uid", authenticateUser, stores.getStoreByUid);
-router.post("/", authenticateUser, limitStoreCreate, stores.createStore);
-router.put("/:uid", authenticateUser, limitStoreUpdate, stores.updateStore);
-router.delete("/:uid", authenticateUser, limitStoreDelete, stores.deleteStore);
+router.post(
+  "/",
+  authenticateUser,
+  checkStoreCreationLimit,
+  limitStoreCreate,
+  stores.createStore
+);
+router.put(
+  "/:uid",
+  authenticateUser,
+  requireActiveOrGracePeriodSubscription,
+  limitStoreUpdate,
+  stores.updateStore
+);
+router.delete(
+  "/:uid",
+  authenticateUser,
+  requireActiveOrGracePeriodSubscription,
+  limitStoreDelete,
+  stores.deleteStore
+);
 
 /**
  *

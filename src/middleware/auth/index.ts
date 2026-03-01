@@ -18,7 +18,15 @@ export const authenticateUser = async (
       return;
     }
 
-    const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      spent,
+      referralSource,
+      marketingData,
+      ...safeUser
+    } = user;
     req.auth = {
       uid,
       type: "user",
@@ -95,7 +103,15 @@ export const authenticateAnyone = async (
         user: { ...safeAdmin, role: admin.role.name },
       };
     } else if (user) {
-      const { password, resetToken, resetTokenExpiry, ...safeUser } = user;
+      const {
+        password,
+        resetToken,
+        resetTokenExpiry,
+        spent,
+        referralSource,
+        marketingData,
+        ...safeUser
+      } = user;
       req.auth = {
         type: "user",
         uid,

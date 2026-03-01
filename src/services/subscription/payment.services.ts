@@ -296,8 +296,8 @@ export const upgradePlan = async (
       data: {
         status: "PENDING",
         planId: newSubscription.plan.id,
-        amount: upgradeAmount,
-        chargedAmount: upgradeAmount,
+        amount: await convertCurrency(upgradeAmount, "USD", currency),
+        chargedAmount: await convertCurrency(upgradeAmount, "USD", currency),
         method: platform,
         subscriptionId: newSubscription.id,
         currency,
@@ -308,7 +308,7 @@ export const upgradePlan = async (
     const transaction = await tx.transaction.create({
       data: {
         status: "PENDING",
-        amount: upgradeAmount,
+        amount: await convertCurrency(upgradeAmount, "USD", currency),
         paymentId: payment.id,
         type: "SUBSCRIPTION_UPGRADE",
         currency,
@@ -327,7 +327,7 @@ export const upgradePlan = async (
 
     const paymentData = {
       tx_ref: payment.uid,
-      amount: upgradeAmount.toNumber(),
+      amount: upgradeAmount, // Use the original USD amount for the gateway, conversion will be handled by the gateway provider
       currency,
       redirect_url: redirectUrl,
       customer: { email: user.email },

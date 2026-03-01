@@ -40,6 +40,10 @@ import {
   subscriptionExpiring,
   subscriptionExpired,
   subscriptionCancelled,
+  subscriptionExpiringSoon,
+  subscriptionExpiringTomorrow,
+  subscriptionGracePeriod,
+  subscriptionGracePeriodExpired,
   SubscriptionCreatedVars,
   SubscriptionActivatedVars,
   SubscriptionUpgradeVars,
@@ -48,6 +52,10 @@ import {
   SubscriptionExpiringVars,
   SubscriptionExpiredVars,
   SubscriptionCancelledVars,
+  SubscriptionExpiringSoonVars,
+  SubscriptionExpiringTomorrowVars,
+  SubscriptionGracePeriodVars,
+  SubscriptionGracePeriodExpiredVars,
 } from "./subscription.templates";
 import {
   paymentSuccess,
@@ -114,6 +122,10 @@ export interface EmailTemplateVars {
   SUBSCRIPTION_EXPIRING: SubscriptionExpiringVars;
   SUBSCRIPTION_EXPIRED: SubscriptionExpiredVars;
   SUBSCRIPTION_CANCELLED: SubscriptionCancelledVars;
+  SUBSCRIPTION_EXPIRING_SOON: SubscriptionExpiringSoonVars;
+  SUBSCRIPTION_EXPIRING_TOMORROW: SubscriptionExpiringTomorrowVars;
+  SUBSCRIPTION_GRACE_PERIOD: SubscriptionGracePeriodVars;
+  SUBSCRIPTION_GRACE_PERIOD_EXPIRED: SubscriptionGracePeriodExpiredVars;
 
   // Payment templates
   PAYMENT_SUCCESS: PaymentSuccessVars;
@@ -171,6 +183,10 @@ const typedTemplates: {
   SUBSCRIPTION_EXPIRING: subscriptionExpiring,
   SUBSCRIPTION_EXPIRED: subscriptionExpired,
   SUBSCRIPTION_CANCELLED: subscriptionCancelled,
+  SUBSCRIPTION_EXPIRING_SOON: subscriptionExpiringSoon,
+  SUBSCRIPTION_EXPIRING_TOMORROW: subscriptionExpiringTomorrow,
+  SUBSCRIPTION_GRACE_PERIOD: subscriptionGracePeriod,
+  SUBSCRIPTION_GRACE_PERIOD_EXPIRED: subscriptionGracePeriodExpired,
 
   // Payment templates
   PAYMENT_SUCCESS: paymentSuccess,
