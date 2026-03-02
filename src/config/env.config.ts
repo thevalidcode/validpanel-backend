@@ -16,7 +16,7 @@ const envSchema = z.object({
   ADMIN_USERNAME: z.string().min(1),
   ADMIN_PASSWORD: z.string().min(1),
   REDIS_URL: z.string().optional().default(""),
-  CORE_SERVICE_SECRET: z.string().default(""),
+  INTERNAL_SERVICE_JWT_SECRET: z.string().default(""),
   GOOGLE_CLIENT_SECRET: z.string(),
   GOOGLE_CLIENT_ID: z.string(),
   RATE_KEY: z.string().min(1),
@@ -35,7 +35,7 @@ const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error(
     "❌ Invalid environment variables:",
-    parsed.error.flatten().fieldErrors
+    parsed.error.flatten().fieldErrors,
   );
   process.exit(1);
 }

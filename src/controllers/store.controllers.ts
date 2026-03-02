@@ -45,7 +45,7 @@ export const createStore = async (
   const authParsed = AuthSchema.safeParse(req.auth);
 
   if (!authParsed.success) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized User." });
     return;
   }
 
@@ -97,22 +97,7 @@ export const createStore = async (
     }
 
     /**
-     * 3. Enforce store limit
-     */
-    const features = subscription.plan
-      .features as SubscriptionPlanFeatures | null;
-    const allowedStores = features?.stores ?? 1;
-    const currentStores = subscription.user.stores.length;
-
-    if (currentStores >= allowedStores) {
-      res.status(403).json({
-        error: "Store limit reached for this subscription",
-      });
-      return;
-    }
-
-    /**
-     * 4. Transaction: create store + logs
+     * 3. Transaction: create store + logs
      */
     const { store, notification, platformEvent } = await prisma.$transaction(
       async (tx) => {
@@ -166,7 +151,7 @@ export const createStore = async (
     );
 
     /**
-     * 5. Post-creation side effects
+     * 4. Post-creation side effects
      */
     try {
       await CreateStore(store.owner, store, subscription);

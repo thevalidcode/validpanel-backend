@@ -15,3 +15,9 @@ export const GoogleCallbackQuerySchema = z.object({
   code: z.coerce.string(),
   state: z.coerce.string(),
 });
+
+export const internalTokenPayloadSchema = z.object({
+  serviceKey: z.string(),
+  service: z.enum(["social-media-store", "shop"]),
+  uid: z.string(),
+});

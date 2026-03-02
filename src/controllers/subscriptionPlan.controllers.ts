@@ -11,7 +11,7 @@ import { validate as isUUID } from "uuid";
 
 export const getSubscriptionPlansForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const subscriptionPlans = await prisma.subscriptionPlan.findMany({
@@ -27,7 +27,7 @@ export const getSubscriptionPlansForUser = async (
 
 export const getSubscriptionPlanByUidForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const paramsParsed = SubscriptionPlanUidSchema.safeParse(req.params);
   if (!paramsParsed.success) {
@@ -41,16 +41,14 @@ export const getSubscriptionPlanByUidForUser = async (
   const { uid } = paramsParsed.data;
 
   try {
-    const where = isUUID(uid)
-      ? { uid, status: "ACTIVE" as const }
-      : { id: Number(uid), status: "ACTIVE" as const };
-
     const subscriptionPlan = await prisma.subscriptionPlan.findUnique({
-      where,
+      where: { uid, status: "ACTIVE" },
     });
 
     if (subscriptionPlan && subscriptionPlan.status !== "ACTIVE") {
-      res.status(404).json({ error: "Subscription plan not found or inactive" });
+      res
+        .status(404)
+        .json({ error: "Subscription plan not found or inactive" });
       return;
     }
 
@@ -62,7 +60,7 @@ export const getSubscriptionPlanByUidForUser = async (
 
 export const getSubscriptionPlans = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
 
@@ -84,7 +82,7 @@ export const getSubscriptionPlans = async (
 
 export const getSubscriptionPlanByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = SubscriptionPlanUidSchema.safeParse(req.params);
@@ -116,7 +114,7 @@ export const getSubscriptionPlanByUid = async (
 
 export const addSubscriptionPlan = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = SubscriptionPlanCreateRequestSchema.safeParse(req.body);
@@ -156,7 +154,7 @@ export const addSubscriptionPlan = async (
 
 export const updateSubscriptionPlan = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const bodyParsed = SubscriptionPlanUpdateRequestSchema.safeParse(req.body);
@@ -191,7 +189,7 @@ export const updateSubscriptionPlan = async (
 
 export const deleteSubscriptionPlanByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = SubscriptionPlanUidSchema.safeParse(req.params);

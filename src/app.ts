@@ -28,6 +28,7 @@ import rateRouter from "./routes/rate.routes";
 import contactRouter from "./routes/contact.routes";
 import emailRouter from "./routes/email.routes";
 import authRoutes from "./routes/auth.routes";
+import internalRoutes from "./routes/internal.routes";
 
 const app = express();
 
@@ -38,7 +39,7 @@ app.use(apiLimiter);
 app.use(express.urlencoded({ extended: true }));
 app.use(
   "/assets",
-  express.static(path.join(__dirname, "..", "public", "assets"))
+  express.static(path.join(__dirname, "..", "public", "assets")),
 );
 
 app.set("trust proxy", 1);
@@ -55,7 +56,7 @@ app.use(
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
-  })
+  }),
 );
 
 // --- Public Routes ---
@@ -76,11 +77,14 @@ app.use("/v1/rates", dynamicCors, rateRouter);
 app.use("/v1/contact", dynamicCors, contactRouter);
 app.use("/v1/emails", dynamicCors, emailRouter);
 
+// --- Internal Routes (for inter-service communication) ---
+app.use("/internal", openCors, internalRoutes);
+
 // Webhook Routes (no CORS - these are called by external services)
 app.use("/v1/webhooks", openCors, webhookRouter);
 
 // --- Docs ---
-app.use("/swagger", swaggerRouter);
+app.use("/swagger", openCors, swaggerRouter);
 
 // Auth Routes (this is for the auth.vaalidpanel.com domain to handle OAuth)
 app.use("/api/auth/core", openCors, authRoutes);

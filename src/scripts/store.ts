@@ -9,7 +9,7 @@ async function main() {
     include: { plan: true },
   });
   const existingStore = await prisma.store.update({
-    where: { storeId: 1 },
+    where: { storeId: 3 },
     data: {
       uid: "validpanel.com",
     },

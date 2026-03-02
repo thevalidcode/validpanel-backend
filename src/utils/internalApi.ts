@@ -28,7 +28,9 @@ function buildRedisKey(parts: (string | number)[]): string {
 
 // Generate a signed internal JWT
 function generateInternalJWT(payload: object): string {
-  return jwt.sign(payload, env.CORE_SERVICE_SECRET, { expiresIn: "15m" });
+  return jwt.sign(payload, env.INTERNAL_SERVICE_JWT_SECRET, {
+    expiresIn: "15m",
+  });
 }
 
 /* ---------------------- TOKEN MANAGER ---------------------- */
@@ -37,7 +39,8 @@ function generateInternalJWT(payload: object): string {
 async function getUserScopedToken(
   uid: string,
   storeId: number,
-  serviceKey: string
+  serviceKey: string,
+  storeType: StoreType,
 ): Promise<string> {
   const redisKey = buildRedisKey([uid, storeId]);
 
@@ -49,7 +52,12 @@ async function getUserScopedToken(
   const token = generateInternalJWT({
     uid,
     storeId,
-    type: "system",
+    service:
+      storeType === "SOCIAL"
+        ? "social-media-store"
+        : storeType === "SHOP"
+          ? "shop"
+          : "digital",
     serviceKey,
   });
 
@@ -62,7 +70,7 @@ async function getUserScopedToken(
 // For admin/global calls (no uid/storeId)
 async function getAdminScopedToken(
   uid: string,
-  serviceKey: string
+  serviceKey: string,
 ): Promise<string> {
   const redisKey = buildRedisKey([uid, serviceKey]);
 
@@ -93,7 +101,7 @@ export async function callInternalAPIForUsers<T = any>(
   endpoint: string, // e.g. "/orders"
   uid: string, // user ID
   storeId: number, // store ID
-  data?: any // optional POST/PUT body
+  data?: any, // optional POST/PUT body
 ): Promise<{ storeType: StoreType; data: T }> {
   try {
     // Validate store
@@ -101,7 +109,12 @@ export async function callInternalAPIForUsers<T = any>(
     if (!store) throw new Error("Store not found");
 
     // Get token
-    const token = await getUserScopedToken(uid, storeId, "core-platform");
+    const token = await getUserScopedToken(
+      uid,
+      storeId,
+      "core-platform",
+      store.type,
+    );
 
     // Build request
     const baseUrl = getBaseUrl(store.type);
@@ -131,7 +144,7 @@ export async function callInternalAPIForAdmins<T = any>(
   endpoint: string, // e.g. "/orders"
   uid: string, // e.g. Admin's Uid
   storeType: StoreType, // which service backend to hit
-  data?: any
+  data?: any,
 ): Promise<T> {
   try {
     // Get admin-scoped token

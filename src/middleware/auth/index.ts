@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyAuthToken } from "./auth.shared";
+import { verifyBrowserToken, verifyInternalUserAuth } from "./auth.shared";
 import { prisma } from "../../config/db.config";
 
 export const authenticateUser = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
-    const payload = verifyAuthToken(req, res);
+    const payload = verifyBrowserToken(req, res);
     if (!payload) return;
     const { email, apiKey, uid } = payload;
 
@@ -38,13 +38,49 @@ export const authenticateUser = async (
   }
 };
 
+export const authenticateInternalUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const payload = verifyInternalUserAuth(req, res);
+    if (!payload) return;
+    const { uid } = payload;
+
+    const user = await prisma.user.findFirst({ where: { uid } });
+    if (!user) {
+      res.status(401).json({ error: "User not found." });
+      return;
+    }
+
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      spent,
+      referralSource,
+      marketingData,
+      ...safeUser
+    } = user;
+    req.auth = {
+      uid,
+      type: "user",
+      user: safeUser,
+    };
+    next();
+  } catch (err: any) {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
 export const authenticateAdmin = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
-    const payload = verifyAuthToken(req, res);
+    const payload = verifyBrowserToken(req, res);
     if (!payload) return;
 
     const { email, apiKey, uid } = payload;
@@ -75,9 +111,9 @@ export const authenticateAdmin = async (
 export const authenticateAnyone = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
-  const payload = verifyAuthToken(req, res);
+  const payload = verifyBrowserToken(req, res);
   if (!payload) return;
 
   const { uid } = payload;

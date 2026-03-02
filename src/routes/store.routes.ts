@@ -9,7 +9,6 @@ import {
 } from "../middleware/ratelimit/store.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 import {
-  requireActiveSubscription,
   checkStoreCreationLimit,
   requireActiveOrGracePeriodSubscription,
 } from "../middleware/subscription.middleware";

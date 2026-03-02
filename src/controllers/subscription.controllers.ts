@@ -12,12 +12,12 @@ import {
 import * as paymentServices from "../services/subscription/payment.services";
 import { AdminAuthSchema } from "../schemas/admin.schema";
 import { finalizeSubscriptionPayment } from "../services/subscription/finalize-subscription-payment";
-import { sendUserEmail, sendEmailToAdmins } from "../emails";
+import { sendUserEmail } from "../emails";
 import { env } from "../config/env.config";
 
 export const getActiveSubscriptionForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
 
@@ -29,7 +29,6 @@ export const getActiveSubscriptionForUser = async (
   try {
     const subscription = await prisma.subscription.findFirst({
       where: { status: "ACTIVE", userId: authParsed.data.user.id },
-      orderBy: { id: "desc" },
       include: { plan: true },
     });
 
@@ -41,7 +40,7 @@ export const getActiveSubscriptionForUser = async (
 
 export const getSubscriptionsForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
 
@@ -66,7 +65,7 @@ export const getSubscriptionsForUser = async (
 
 export const getSubscriptionByUidForUser = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
   const paramsParsed = SubscriptionUidSchema.safeParse(req.params);
@@ -98,7 +97,7 @@ export const getSubscriptionByUidForUser = async (
 
 export const upgradePlan = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
   const parsed = UpgradePlanSchema.safeParse(req.body);
@@ -183,7 +182,7 @@ export const upgradePlan = async (
 
 export const downgradePlan = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   // Validate auth and request body
   const authParsed = AuthSchema.safeParse(req.auth);
@@ -257,11 +256,12 @@ export const downgradePlan = async (
         firstName: user.fullName?.split(" ")[0] || "User",
         currentPlanName: currentPlan?.name || "Current Plan",
         newPlanName: plan.name,
-        effectiveDate: subscription.expiresAt?.toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }) || "End of current billing cycle",
+        effectiveDate:
+          subscription.expiresAt?.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }) || "End of current billing cycle",
       });
     }
 
@@ -277,7 +277,7 @@ export const downgradePlan = async (
 
 export const createSubscription = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const parsed = SubscriptionPaymentSchema.safeParse(req.body);
   const authParsed = AuthSchema.safeParse(req.auth);
@@ -356,7 +356,7 @@ export const createSubscription = async (
         ...parsed.data,
         redirectUrl: `${parsed.data.redirectUrl}?subscriptionId=${subscription.id}`,
         subscriptionId: subscription.id,
-      }
+      },
     );
     res.status(200).json({ status: "success", ...result });
   } catch (err: any) {
@@ -443,7 +443,7 @@ export const renewSubscription = async (req: Request, res: Response) => {
     const now = new Date();
     const renewalWindowStart = new Date(subscription.expiresAt);
     renewalWindowStart.setDate(
-      renewalWindowStart.getDate() - RENEWAL_WINDOW_DAYS
+      renewalWindowStart.getDate() - RENEWAL_WINDOW_DAYS,
     );
 
     if (now < renewalWindowStart) {
@@ -459,7 +459,7 @@ export const renewSubscription = async (req: Request, res: Response) => {
         ...parsed.data,
         subscriptionId: pendingSubscription.id,
         billingCycle: pendingSubscription.billingCycle,
-      }
+      },
     );
     res.status(200).json({ status: "success", ...result });
   } catch (err: any) {
@@ -469,7 +469,7 @@ export const renewSubscription = async (req: Request, res: Response) => {
 
 export const updateSubscription = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const parsed = SubscriptionUpdateRequestSchema.safeParse(req.body);
@@ -518,15 +518,19 @@ export const updateSubscription = async (
 
         // Send cancellation email in production
         if (env.NODE_ENV === "production") {
-          await sendUserEmail(subscription.user.email, "SUBSCRIPTION_CANCELLED", {
-            firstName: subscription.user.fullName?.split(" ")[0] || "User",
-            planName: subscription.plan.name,
-            cancelledAt: new Date().toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            }),
-          });
+          await sendUserEmail(
+            subscription.user.email,
+            "SUBSCRIPTION_CANCELLED",
+            {
+              firstName: subscription.user.fullName?.split(" ")[0] || "User",
+              planName: subscription.plan.name,
+              cancelledAt: new Date().toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }),
+            },
+          );
         }
         return;
       }
@@ -577,7 +581,7 @@ export const updateSubscription = async (
             billingCycle: subscription.billingCycle,
             newPlanId: subscription.planId,
           },
-          tx
+          tx,
         );
       }
 
@@ -615,7 +619,7 @@ export const updateSubscription = async (
 
 export const getSubscriptions = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
 
@@ -649,7 +653,7 @@ export const getSubscriptions = async (
 
 export const getSubscriptionByUid = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   const paramsParsed = SubscriptionUidSchema.safeParse(req.params);
