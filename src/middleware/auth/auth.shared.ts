@@ -67,7 +67,6 @@ export const verifyBrowserToken = (req: Request, res: Response) => {
  *
  * That user on the core platform is an admin to a specific store.
  *
- * Payload requires: `{ serviceKey, service, uid }`
  */
 export const verifyInternalUserAuth = (req: Request, res: Response) => {
   const authHeader = req.headers["authorization"] as string;
@@ -79,7 +78,7 @@ export const verifyInternalUserAuth = (req: Request, res: Response) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, env.INTERNAL_SERVICE_JWT_SECRET);
+    const decoded = jwt.verify(token, env.INTERNAL_SERVICE_USER_JWT_SECRET);
 
     const parsed = internalTokenPayloadSchema.safeParse(decoded);
 
@@ -88,8 +87,8 @@ export const verifyInternalUserAuth = (req: Request, res: Response) => {
       return null;
     }
 
-    return parsed.data; // { serviceKey, service, uid }
-  } catch {
+    return parsed.data;
+  } catch (err: any) {
     res.status(401).json({ error: "Invalid or expired token" });
     return null;
   }

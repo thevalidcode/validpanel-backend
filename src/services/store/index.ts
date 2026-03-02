@@ -1,17 +1,8 @@
-import {
-  Store,
-  Subscription,
-  SubscriptionPlan,
-  User,
-} from "../../../prisma/generated";
+import { Store, User } from "../../../prisma/generated";
 import { env } from "../../config/env.config";
 import { callInternalAPIForUsers } from "../../utils/internalApi";
 
-export async function CreateStore(
-  user: User,
-  store: Store,
-  subscription: Subscription & { plan: SubscriptionPlan },
-) {
+export async function CreateStore(user: User, store: Store) {
   if (env.NODE_ENV !== "production") return;
   const response = await callInternalAPIForUsers(
     "POST",
@@ -25,8 +16,6 @@ export async function CreateStore(
       description: store.description,
       logoUrl: store.logoUrl,
       faviconUrl: store.logoUrl,
-      planId: subscription.planId,
-      features: subscription.plan.features,
       adminId: user.id,
       adminUid: user.uid,
       adminImage: user.image,

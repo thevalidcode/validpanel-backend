@@ -28,7 +28,13 @@ function buildRedisKey(parts: (string | number)[]): string {
 
 // Generate a signed internal JWT
 function generateInternalJWT(payload: object): string {
-  return jwt.sign(payload, env.INTERNAL_SERVICE_JWT_SECRET, {
+  return jwt.sign(payload, env.INTERNAL_SERVICE_USER_JWT_SECRET, {
+    expiresIn: "15m",
+  });
+}
+
+function generateInternalAdminJWT(payload: object): string {
+  return jwt.sign(payload, env.INTERNAL_SERVICE_ADMIN_JWT_SECRET, {
     expiresIn: "15m",
   });
 }
@@ -39,7 +45,6 @@ function generateInternalJWT(payload: object): string {
 async function getUserScopedToken(
   uid: string,
   storeId: number,
-  serviceKey: string,
   storeType: StoreType,
 ): Promise<string> {
   const redisKey = buildRedisKey([uid, storeId]);
@@ -52,13 +57,13 @@ async function getUserScopedToken(
   const token = generateInternalJWT({
     uid,
     storeId,
-    service:
+    aud:
       storeType === "SOCIAL"
         ? "social-media-store"
         : storeType === "SHOP"
           ? "shop"
           : "digital",
-    serviceKey,
+    iss: "core",
   });
 
   // 3. Cache for 14 mins
@@ -70,19 +75,24 @@ async function getUserScopedToken(
 // For admin/global calls (no uid/storeId)
 async function getAdminScopedToken(
   uid: string,
-  serviceKey: string,
+  storeType: StoreType,
 ): Promise<string> {
-  const redisKey = buildRedisKey([uid, serviceKey]);
+  const redisKey = buildRedisKey([uid, storeType]);
 
   // 1. Check Redis
   const cachedToken = await redis.get(redisKey);
   if (cachedToken) return cachedToken;
 
   // 2. Create new token
-  const token = generateInternalJWT({
-    type: "system",
-    service: "core-platform",
-    serviceKey,
+  const token = generateInternalAdminJWT({
+    uid,
+    aud:
+      storeType === "SOCIAL"
+        ? "social-media-store"
+        : storeType === "SHOP"
+          ? "shop"
+          : "digital",
+    iss: "core",
   });
 
   // 3. Cache for 14 mins
@@ -109,12 +119,7 @@ export async function callInternalAPIForUsers<T = any>(
     if (!store) throw new Error("Store not found");
 
     // Get token
-    const token = await getUserScopedToken(
-      uid,
-      storeId,
-      "core-platform",
-      store.type,
-    );
+    const token = await getUserScopedToken(uid, storeId, store.type);
 
     // Build request
     const baseUrl = getBaseUrl(store.type);
@@ -148,7 +153,7 @@ export async function callInternalAPIForAdmins<T = any>(
 ): Promise<T> {
   try {
     // Get admin-scoped token
-    const token = await getAdminScopedToken(uid, "core-platform");
+    const token = await getAdminScopedToken(uid, storeType);
 
     // Build request
     const baseUrl = getBaseUrl(storeType);

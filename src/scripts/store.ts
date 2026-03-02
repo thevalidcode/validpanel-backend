@@ -5,16 +5,11 @@ dotenv.config();
 
 async function main() {
   const user = await prisma.user.findFirst();
-  const subscription = await prisma.subscription.findFirst({
-    include: { plan: true },
-  });
   const existingStore = await prisma.store.update({
-    where: { storeId: 3 },
-    data: {
-      uid: "validpanel.com",
-    },
+    where: { storeId: 1 },
+    data: { type: "SHOP" },
   });
-  const store = await CreateStore(user!, existingStore!, subscription!);
+  const store = await CreateStore(user!, existingStore!);
   console.log(store);
 }
 

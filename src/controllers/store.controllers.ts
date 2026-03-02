@@ -9,7 +9,6 @@ import {
 import { AuthSchema } from "../schemas/user.schema";
 import { buildNotification } from "../services/notification.services";
 import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
-import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
 import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { env } from "../config/env.config";
 
@@ -154,7 +153,7 @@ export const createStore = async (
      * 4. Post-creation side effects
      */
     try {
-      await CreateStore(store.owner, store, subscription);
+      await CreateStore(store.owner, store);
     } catch (err: any) {
       // Revert: delete the created store and related records
       await prisma.$transaction(async (tx) => {

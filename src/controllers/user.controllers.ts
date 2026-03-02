@@ -429,7 +429,7 @@ export const setupStore = async (req: Request, res: Response) => {
     );
 
     try {
-      await CreateStore(user, store, existingSubscription);
+      await CreateStore(user, store);
     } catch (err) {
       console.error("Error creating store in internal API:", err);
       await prisma.store.delete({ where: { uid: store.uid } });
