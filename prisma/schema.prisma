@@ -107,6 +107,7 @@ model PlanPrice {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([planId, interval, currency])
+  @@map("plan_prices")
 }
 
 enum CouponAppliesTo {
