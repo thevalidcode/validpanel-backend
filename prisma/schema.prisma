@@ -140,7 +140,7 @@ model Coupon {
   // Restrictions
   minAmount     Int?              @map("min_amount") // in minor units (e.g. 5000 = ₦50)
   firstTimeOnly Boolean           @default(false) @map("first_time_only")
-  appliesTo     CouponAppliesTo[]
+  appliesTo     CouponAppliesTo[] @map("applies_to")
 
   // Relations
   redemptions CouponRedemption[]
