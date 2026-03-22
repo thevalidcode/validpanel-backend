@@ -6,6 +6,7 @@ import {
   limitSubscriptionPlanUpdate,
   limitSubscriptionPlanDelete,
   limitSubscriptionPlanView,
+  limitSubscriptionPlanPriceCreate,
 } from "../middleware/ratelimit/subscriptionPlan.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
 
@@ -67,7 +68,7 @@ router.post(
   "/admin/:planId/prices",
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
-  limitSubscriptionPlanCreate,
+  limitSubscriptionPlanPriceCreate,
   subscriptionPlans.createPlanPrice,
 );
 
