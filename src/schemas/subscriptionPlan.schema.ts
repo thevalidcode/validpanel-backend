@@ -78,7 +78,7 @@ export const PlanPriceCreateRequestSchema = z.object({
     .string()
     .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid decimal price"),
   tax: z.coerce.number().min(0).max(100).optional().nullable(),
-  amountInMinor: z.coerce.number().int().positive("Amount must be positive"),
+  amountInMinor: z.coerce.number().int(),
   currency: z.coerce.string().toUpperCase().length(3),
   externalId: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
@@ -96,7 +96,7 @@ export const PlanPriceUpdateRequestSchema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/)
     .optional(),
   tax: z.coerce.number().min(0).max(100).optional().nullable(),
-  amountInMinor: z.coerce.number().int().positive().optional(),
+  amountInMinor: z.coerce.number().int().optional(),
   externalId: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
   isDefault: z.boolean().optional(),
