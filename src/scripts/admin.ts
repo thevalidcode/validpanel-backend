@@ -60,7 +60,7 @@ async function main() {
     data: {
       email: ADMIN_EMAIL,
       password: "$2a$12$99/qDtAOKaVraV/ViF9CL..4xEgC6icI0CmylMI5fXuMpRgjRsKL2", // bcrypt hash
-      fullName: "Super Admin",
+      fullName: "Ibeh Precious",
       apiKey: "default_admin_api_key",
       roleId: adminRole.id,
       status: "ACTIVE",

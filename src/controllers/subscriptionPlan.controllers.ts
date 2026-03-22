@@ -290,6 +290,21 @@ export const createPlanPrice = async (
       return;
     }
 
+    const existingPrice = await prisma.planPrice.findFirst({
+      where: {
+        planId,
+        interval: bodyParsed.data.interval,
+        currency: bodyParsed.data.currency,
+      },
+    });
+
+    if (existingPrice) {
+      res.status(409).json({
+        error: `A price for this plan with the interval ${bodyParsed.data.interval} and currency ${bodyParsed.data.currency} already exists.`,
+      });
+      return;
+    }
+
     const created = await prisma.$transaction(async (tx) => {
       if (bodyParsed.data.isActive) {
         // Ensure only one active price exists for each plan interval.

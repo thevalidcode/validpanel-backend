@@ -386,54 +386,6 @@ async function seedCoupons() {
   });
 }
 
-async function removeTestingPlanSafely() {
-  const starterPlan = await prisma.subscriptionPlan.findUnique({
-    where: { uid: "starter-free-plan" },
-    select: { id: true },
-  });
-
-  const testingPlan = await prisma.subscriptionPlan.findFirst({
-    where: {
-      OR: [
-        { name: "Testing" },
-        { uid: "25bef1ab-4214-462f-87ce-e5db1986cbf3" },
-      ],
-    },
-    select: { id: true, uid: true, name: true },
-  });
-
-  if (!testingPlan || !starterPlan || testingPlan.id === starterPlan.id) {
-    return;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.subscription.updateMany({
-      where: { planId: testingPlan.id },
-      data: { planId: starterPlan.id },
-    });
-
-    await tx.subscription.updateMany({
-      where: { pendingPlanId: testingPlan.id },
-      data: { pendingPlanId: starterPlan.id },
-    });
-
-    await tx.payment.updateMany({
-      where: { planId: testingPlan.id },
-      data: { planId: starterPlan.id },
-    });
-
-    await tx.couponRule.updateMany({
-      where: { planId: testingPlan.id },
-      data: { planId: starterPlan.id },
-    });
-
-    await tx.planPrice.deleteMany({ where: { planId: testingPlan.id } });
-    await tx.subscriptionPlan.delete({ where: { id: testingPlan.id } });
-  });
-
-  console.log(`Removed legacy testing plan (${testingPlan.uid})`);
-}
-
 async function main(){
   for (const plan of mockPlans) {
     const upserted = await prisma.subscriptionPlan.upsert({
