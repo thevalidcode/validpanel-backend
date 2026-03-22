@@ -75,11 +75,15 @@ export const listCoupons = async (
     return;
   }
 
-  const coupons = await prisma.coupon.findMany({
-    include: { rules: true },
-    orderBy: { id: "desc" },
-  });
-  res.status(200).json(coupons);
+  try {
+    const coupons = await prisma.coupon.findMany({
+      include: { rules: true },
+      orderBy: { id: "desc" },
+    });
+    res.status(200).json(coupons);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const getCouponByUid = async (
@@ -101,17 +105,21 @@ export const getCouponByUid = async (
     return;
   }
 
-  const coupon = await prisma.coupon.findUnique({
-    where: { uid: paramsParsed.data.uid },
-    include: { rules: true },
-  });
+  try {
+    const coupon = await prisma.coupon.findUnique({
+      where: { uid: paramsParsed.data.uid },
+      include: { rules: true },
+    });
 
-  if (!coupon) {
-    res.status(404).json({ error: "Coupon not found" });
-    return;
+    if (!coupon) {
+      res.status(404).json({ error: "Coupon not found" });
+      return;
+    }
+
+    res.status(200).json(coupon);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
-
-  res.status(200).json(coupon);
 };
 
 export const createCoupon = async (
@@ -138,42 +146,46 @@ export const createCoupon = async (
     return;
   }
 
-  const created = await prisma.coupon.create({
-    data: {
-      code: body.code,
-      type: body.type,
-      value: new Decimal(body.value),
-      currency: body.currency,
-      maxUses: body.maxUses,
-      perUserLimit: body.perUserLimit,
-      isActive: body.isActive ?? true,
-      startsAt: body.startsAt,
-      expiresAt: body.expiresAt,
-      minAmount: body.minAmount,
-      firstTimeOnly: body.firstTimeOnly ?? false,
-      appliesTo: body.appliesTo ?? ["NEW"],
-      contexts: body.contexts?.map(normalizeCouponContext) ?? [],
-      isPublic: body.isPublic ?? false,
-      priority: body.priority ?? 0,
-      autoApply: body.autoApply ?? false,
-      highlightText: body.highlightText,
-      rules: body.rules?.length
-        ? {
-            create: body.rules.map((rule) => ({
-              planId: rule.planId,
-              interval: rule.interval,
-              currency: rule.currency,
-              region: rule.region,
-            })),
-          }
-        : undefined,
-    },
-    include: { rules: true },
-  });
+  try {
+    const created = await prisma.coupon.create({
+      data: {
+        code: body.code,
+        type: body.type,
+        value: new Decimal(body.value),
+        currency: body.currency,
+        maxUses: body.maxUses,
+        perUserLimit: body.perUserLimit,
+        isActive: body.isActive ?? true,
+        startsAt: body.startsAt,
+        expiresAt: body.expiresAt,
+        minAmount: body.minAmount,
+        firstTimeOnly: body.firstTimeOnly ?? false,
+        appliesTo: body.appliesTo ?? ["NEW"],
+        contexts: body.contexts?.map(normalizeCouponContext) ?? [],
+        isPublic: body.isPublic ?? false,
+        priority: body.priority ?? 0,
+        autoApply: body.autoApply ?? false,
+        highlightText: body.highlightText,
+        rules: body.rules?.length
+          ? {
+              create: body.rules.map((rule) => ({
+                planId: rule.planId,
+                interval: rule.interval,
+                currency: rule.currency,
+                region: rule.region,
+              })),
+            }
+          : undefined,
+      },
+      include: { rules: true },
+    });
 
-  res
-    .status(201)
-    .json({ success: "Coupon created successfully.", coupon: created });
+    res
+      .status(201)
+      .json({ success: "Coupon created successfully.", coupon: created });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const updateCoupon = async (
@@ -310,7 +322,8 @@ export const validateCoupon = async (
     return;
   }
 
-  const { code, planId, appliesTo, billingCycle, currency, region } = parsed.data;
+  const { code, planId, appliesTo, billingCycle, currency, region } =
+    parsed.data;
   const normalizedRegion = region?.toUpperCase();
   const coupon = await prisma.coupon.findUnique({
     where: { code },
