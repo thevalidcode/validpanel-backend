@@ -1,5 +1,6 @@
 import { registry } from "../components/registry";
 import {
+  PlanPriceParamsSchema,
   SubscriptionPlanUidSchema,
   SubscriptionPlanCreateRequestSchema,
   SubscriptionPlanUpdateRequestSchema,
@@ -9,6 +10,7 @@ import {
   SubscriptionPlanCreatedResponse,
   SubscriptionPlanUpdatedResponse,
   SubscriptionPlanDeletedResponse,
+  PlanPriceDeletedResponse,
   SubscriptionPlanUsersObject,
   SubscriptionPlanForUsersListResponse,
   SubscriptionPlanForAdminsListResponse,
@@ -99,7 +101,7 @@ registry.registerPath({
     },
   },
   responses: {
-    200: SubscriptionPlanCreatedResponse,
+    201: SubscriptionPlanCreatedResponse,
     400: BadRequest,
     403: Forbidden,
     500: ServerError,
@@ -109,11 +111,12 @@ registry.registerPath({
 // PATCH /subscription-plans
 registry.registerPath({
   method: "patch",
-  path: "/subscription-plans/admin/{uid",
+  path: "/subscription-plans/admin/{uid}",
   summary: "Update a subscription plan",
   tags: ["Subscription Plans"],
   security: [{ CookieAuth: [] }],
   request: {
+    params: SubscriptionPlanUidSchema,
     body: {
       content: {
         "application/json": {
@@ -133,7 +136,7 @@ registry.registerPath({
 // DELETE /subscription-plans
 registry.registerPath({
   method: "delete",
-  path: "/subscription-plans",
+  path: "/subscription-plans/admin/{uid}",
   summary: "Delete a subscription plan",
   tags: ["Subscription Plans"],
   security: [{ CookieAuth: [] }],
@@ -142,6 +145,24 @@ registry.registerPath({
   },
   responses: {
     200: SubscriptionPlanDeletedResponse,
+    400: BadRequest,
+    403: Forbidden,
+    500: ServerError,
+  },
+});
+
+// DELETE /subscription-plans/admin/{planId}/prices/{priceId}
+registry.registerPath({
+  method: "delete",
+  path: "/subscription-plans/admin/{planId}/prices/{priceId}",
+  summary: "Delete a plan price",
+  tags: ["Subscription Plans"],
+  security: [{ CookieAuth: [] }],
+  request: {
+    params: PlanPriceParamsSchema,
+  },
+  responses: {
+    200: PlanPriceDeletedResponse,
     400: BadRequest,
     403: Forbidden,
     500: ServerError,

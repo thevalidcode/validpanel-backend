@@ -20,7 +20,7 @@ router.patch(
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanUpdate,
-  subscriptionPlans.updateSubscriptionPlan
+  subscriptionPlans.updateSubscriptionPlan,
 );
 
 router.post(
@@ -28,7 +28,7 @@ router.post(
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanCreate,
-  subscriptionPlans.addSubscriptionPlan
+  subscriptionPlans.addSubscriptionPlan,
 );
 
 router.get(
@@ -36,7 +36,7 @@ router.get(
   authenticateAdmin,
   checkAdminPermission(["VIEW_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanView,
-  subscriptionPlans.getSubscriptionPlans
+  subscriptionPlans.getSubscriptionPlans,
 );
 
 router.get(
@@ -44,7 +44,7 @@ router.get(
   authenticateAdmin,
   checkAdminPermission(["VIEW_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanView,
-  subscriptionPlans.getSubscriptionPlanByUid
+  subscriptionPlans.getSubscriptionPlanByUid,
 );
 
 router.delete(
@@ -52,7 +52,39 @@ router.delete(
   authenticateAdmin,
   checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
   limitSubscriptionPlanDelete,
-  subscriptionPlans.deleteSubscriptionPlanByUid
+  subscriptionPlans.deleteSubscriptionPlanByUid,
+);
+
+router.get(
+  "/admin/:planId/prices",
+  authenticateAdmin,
+  checkAdminPermission(["VIEW_SUBSCRIPTION_PLANS"]),
+  limitSubscriptionPlanView,
+  subscriptionPlans.getPlanPrices,
+);
+
+router.post(
+  "/admin/:planId/prices",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
+  limitSubscriptionPlanCreate,
+  subscriptionPlans.createPlanPrice,
+);
+
+router.patch(
+  "/admin/:planId/prices/:priceId",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
+  limitSubscriptionPlanUpdate,
+  subscriptionPlans.updatePlanPrice,
+);
+
+router.delete(
+  "/admin/:planId/prices/:priceId",
+  authenticateAdmin,
+  checkAdminPermission(["MANAGE_SUBSCRIPTION_PLANS"]),
+  limitSubscriptionPlanDelete,
+  subscriptionPlans.deletePlanPrice,
 );
 
 /**
@@ -62,13 +94,13 @@ router.delete(
 router.get(
   "/",
   limitSubscriptionPlanView,
-  subscriptionPlans.getSubscriptionPlansForUser
+  subscriptionPlans.getSubscriptionPlansForUser,
 );
 
 router.get(
   "/:uid",
   limitSubscriptionPlanView,
-  subscriptionPlans.getSubscriptionPlanByUidForUser
+  subscriptionPlans.getSubscriptionPlanByUidForUser,
 );
 
 export default router;

@@ -2,14 +2,15 @@ import { z } from "zod";
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   BillingInterval,
-  SubscriptionPlan,
   SubscriptionPlanStatus,
 } from "../../prisma/generated";
-import { Decimal } from "@prisma/client/runtime/client";
 
 extendZodWithOpenApi(z);
 
-// Convert features type to Zod schema
+// =======================
+// FEATURES SCHEMA
+// =======================
+
 export const SubscriptionPlanFeaturesSchema = z.object({
   // Capacity limits
   stores: z.number(),
@@ -49,51 +50,122 @@ export type SubscriptionPlanFeatures = z.infer<
   typeof SubscriptionPlanFeaturesSchema
 >;
 
-// Main schema
-export const SubscriptionPlanSchema: z.ZodType<SubscriptionPlan> = z
-  .object({
-    id: z.number(),
-    discountForAnnually: z.number(),
-    tax: z.number(),
-    uid: z.string().uuid(),
-    interval: z.nativeEnum(BillingInterval),
-    price: z.custom<Decimal>(),
-    currency: z.string().toUpperCase().length(3),
-    name: z.string(),
-    description: z.string(),
-    gracePeriod: z.number(),
-    status: z.nativeEnum(SubscriptionPlanStatus),
-    features: SubscriptionPlanFeaturesSchema, // <- typed here
-    createdAt: z.coerce.date(),
-    updatedAt: z.coerce.date(),
-  })
-  .openapi("SubscriptionPlan");
+// =======================
+// PLAN PRICE SCHEMA
+// =======================
 
-// Create request schema
-export const SubscriptionPlanCreateRequestSchema = z.object({
+export const PlanPriceSchema = z.object({
+  id: z.number(),
+  planId: z.number(),
   interval: z.nativeEnum(BillingInterval),
-  price: z.string(),
+  price: z.coerce.string(),
+  tax: z.coerce.number().nullable().optional(),
+  amountInMinor: z.number(),
   currency: z.string().toUpperCase().length(3),
-  name: z.string(),
-  discountForAnnually: z.coerce.number().optional().nullable(),
-  tax: z.coerce.number().optional().nullable(),
-  description: z.string().optional().nullable(),
-  gracePeriod: z.coerce.number().optional().nullable(),
-  features: SubscriptionPlanFeaturesSchema, // <- typed here
+  externalId: z.string().nullable().optional(),
+  isActive: z.boolean(),
+  isDefault: z.boolean(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
 });
 
-// Update request schema
-export const SubscriptionPlanUpdateRequestSchema = z.object({
-  interval: z.nativeEnum(BillingInterval).optional(),
-  price: z.string().optional(),
-  currency: z.string().toUpperCase().length(3).optional(),
-  name: z.string().optional(),
-  discountForAnnually: z.number().optional().nullable(),
-  tax: z.coerce.number().optional().nullable(),
-  gracePeriod: z.coerce.number().optional().nullable(),
-  description: z.string().optional().nullable(),
-  features: SubscriptionPlanFeaturesSchema.partial().optional(), // <- allow partial updates
+export type PlanPrice = z.infer<typeof PlanPriceSchema>;
+
+// Create a plan price
+export const PlanPriceCreateRequestSchema = z.object({
+  interval: z.nativeEnum(BillingInterval),
+  price: z.coerce
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid decimal price"),
+  tax: z.coerce.number().min(0).max(100).optional().nullable(),
+  amountInMinor: z.coerce.number().int().positive("Amount must be positive"),
+  currency: z.coerce.string().toUpperCase().length(3),
+  externalId: z.string().optional().nullable(),
+  isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
 });
+
+export type PlanPriceCreateRequest = z.infer<
+  typeof PlanPriceCreateRequestSchema
+>;
+
+// Update a plan price
+export const PlanPriceUpdateRequestSchema = z.object({
+  price: z.coerce
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/)
+    .optional(),
+  tax: z.coerce.number().min(0).max(100).optional().nullable(),
+  amountInMinor: z.coerce.number().int().positive().optional(),
+  externalId: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+});
+
+export type PlanPriceUpdateRequest = z.infer<
+  typeof PlanPriceUpdateRequestSchema
+>;
+
+export const PlanPriceParamsSchema = z.object({
+  planId: z.coerce.number().int().positive(),
+  priceId: z.coerce.number().int().positive(),
+});
+
+export type PlanPriceParams = z.infer<typeof PlanPriceParamsSchema>;
+
+// =======================
+// SUBSCRIPTION PLAN - REFACTORED
+// =======================
+
+/**
+ * Response schema for a single subscription plan
+ * Includes available prices grouped by interval and currency
+ */
+export const SubscriptionPlanResponseSchema = z.object({
+  id: z.number(),
+  uid: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  status: z.nativeEnum(SubscriptionPlanStatus),
+  features: SubscriptionPlanFeaturesSchema,
+  gracePeriod: z.coerce.number().nullable(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  prices: z.array(PlanPriceSchema),
+});
+
+export type SubscriptionPlanResponse = z.infer<
+  typeof SubscriptionPlanResponseSchema
+>;
+
+// Create request schema - REFACTORED
+// No longer accepts pricing fields - create those separately via PlanPrice
+export const SubscriptionPlanCreateRequestSchema = z.object({
+  name: z.string(),
+  description: z.string().optional().nullable(),
+  status: z.nativeEnum(SubscriptionPlanStatus).optional(),
+  gracePeriod: z.coerce.number().optional().nullable(),
+  features: SubscriptionPlanFeaturesSchema,
+  // Optional: create initial prices during plan creation
+  prices: z.array(PlanPriceCreateRequestSchema).optional(),
+});
+
+export type SubscriptionPlanCreateRequest = z.infer<
+  typeof SubscriptionPlanCreateRequestSchema
+>;
+
+// Update request schema - REFACTORED
+export const SubscriptionPlanUpdateRequestSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional().nullable(),
+  status: z.nativeEnum(SubscriptionPlanStatus).optional(),
+  gracePeriod: z.coerce.number().optional().nullable(),
+  features: SubscriptionPlanFeaturesSchema.partial().optional(),
+});
+
+export type SubscriptionPlanUpdateRequest = z.infer<
+  typeof SubscriptionPlanUpdateRequestSchema
+>;
 
 // UID schema
 export const SubscriptionPlanUidSchema = z.object({

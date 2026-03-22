@@ -23,13 +23,22 @@ export const getSubscription = async (
           select: {
             id: true,
             description: true,
-            discountForAnnually: true,
-            tax: true,
             name: true,
-            price: true,
             gracePeriod: true,
-            interval: true,
             features: true,
+            prices: {
+              where: { isActive: true },
+              select: {
+                id: true,
+                interval: true,
+                price: true,
+                tax: true,
+                currency: true,
+                amountInMinor: true,
+                externalId: true,
+                isDefault: true,
+              },
+            },
           },
         },
       },
@@ -62,7 +71,6 @@ export const getStore = async (req: Request, res: Response): Promise<void> => {
 
     if (!store) {
       res.status(404).json({ error: "Store not found" });
-      console.log("first")
       return;
     }
 

@@ -10,6 +10,8 @@ import {
   limitSessionVerify,
 } from "../middleware/ratelimit/auth.ratelimit";
 import { checkAdminPermission } from "../middleware/permission";
+import { limitStoreCreate } from "../middleware/ratelimit";
+import { checkStoreCreationLimit } from "../middleware/subscription.middleware";
 
 router.post("/me", limitLogin, users.me);
 router.post("/verify-session", limitSessionVerify, users.verifySession);
@@ -27,7 +29,13 @@ router.patch("/", authenticateUser, users.updateUser);
 router.delete("/", authenticateUser, users.deleteUser);
 
 // User onboarding routes (authenticated users)
-router.post("/onboarding/setup", authenticateUser, users.setupStore);
+router.post(
+  "/onboarding/setup",
+  authenticateUser,
+  checkStoreCreationLimit,
+  limitStoreCreate,
+  users.setupStore,
+);
 router.patch("/tour/complete", authenticateUser, users.completeTour);
 
 // Admin routes

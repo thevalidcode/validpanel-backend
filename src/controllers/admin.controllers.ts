@@ -330,6 +330,12 @@ export const overview = async (req: Request, res: Response) => {
       where: {
         id: { in: topSubscriptionsRaw.map((s) => s.planId) },
       },
+      include: {
+        prices: {
+          where: { isActive: true },
+          orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        },
+      },
     });
 
     const topSubscriptions = plans.map((plan) => {
@@ -337,11 +343,16 @@ export const overview = async (req: Request, res: Response) => {
         topSubscriptionsRaw.find((s) => s.planId === plan.id)?._count.planId ??
         0;
 
+      const chosenPrice =
+        plan.prices.find((p) => p.isDefault) ??
+        plan.prices.find((p) => p.interval === "MONTHLY") ??
+        plan.prices[0];
+
       return {
         planName: plan.name,
-        billingCycle: plan.interval,
+        billingCycle: chosenPrice?.interval ?? "MONTHLY",
         subscribers: count,
-        revenue: formatCurrency(count * Number(plan.price)),
+        revenue: formatCurrency(count * Number(chosenPrice?.price ?? 0)),
         isTrending: count > 500,
       };
     });

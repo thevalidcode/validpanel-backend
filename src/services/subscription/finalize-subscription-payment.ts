@@ -124,8 +124,8 @@ const finalizeSubscriptionPaymentInternal = async (
         : new Date(new Date(baseDate).setMonth(baseDate.getMonth() + 1));
   }
 
-  // 6. Expire any existing ACTIVE subscriptions to avoid unique constraint violation
-  // This must happen for both upgrades and renewals before activating the subscription
+  // 6. Expire any existing ACTIVE subscriptions before activating this one.
+  // We keep EXPIRED history intact (no deletes).
   await tx.subscription.updateMany({
     where: {
       userId: user.id,
@@ -159,6 +159,37 @@ const finalizeSubscriptionPaymentInternal = async (
     where: { id: paymentId },
     data: { status: "SUCCESS" },
   });
+
+  if (payment.couponId && payment.discountAmount.gt(0)) {
+    const savedMinor = Math.round(Number(payment.discountAmount) * 100);
+
+    await tx.couponRedemption.upsert({
+      where: {
+        couponId_userId: {
+          couponId: payment.couponId,
+          userId,
+        },
+      },
+      update: {
+        amountSaved: savedMinor,
+      },
+      create: {
+        couponId: payment.couponId,
+        userId,
+        subscriptionId,
+        amountSaved: savedMinor,
+      },
+    });
+
+    await tx.coupon.update({
+      where: { id: payment.couponId },
+      data: {
+        usedCount: {
+          increment: 1,
+        },
+      },
+    });
+  }
 
   // 9. Create notification
   const notification = buildNotification({

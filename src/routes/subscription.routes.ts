@@ -49,7 +49,7 @@ router.get(
   "/",
   authenticateUser,
   limitSubscriptionView,
-  subscriptions.getSubscriptionsForUser
+  subscriptions.getCurrentSubscriptionsForUser
 );
 
 router.get(

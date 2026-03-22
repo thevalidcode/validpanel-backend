@@ -39,7 +39,7 @@ model Store {
   type        StoreType
   status      StoreStatus @default(PENDING)
   timestamp   DateTime    @default(now())
-  ownerId     Int
+  ownerId     Int         @map("owner_id")
   owner       User        @relation(fields: [ownerId], references: [id])
 
   @@map("stores")
@@ -51,6 +51,7 @@ enum SubscriptionStatus {
   FAILED
   EXPIRED
   TRIAL
+  PAST_DUE
   CANCELED
 }
 
@@ -67,26 +68,134 @@ enum SubscriptionPlanStatus {
 }
 
 model SubscriptionPlan {
-  id                  Int                    @id @default(autoincrement())
-  uid                 String                 @unique @default(uuid())
-  name                String
-  price               Decimal                @db.Decimal(10, 2)
-  currency            String
-  description         String?
-  status              SubscriptionPlanStatus @default(ACTIVE)
-  features            Json
-  tax                 Int?
-  discountForAnnually Int?                   @map("discount_for_annually")
-  interval            BillingInterval
-  createdAt           DateTime               @default(now()) @map("created_at")
-  updatedAt           DateTime               @updatedAt @map("updated_at")
-  gracePeriod         Int?                   @map("grace_period") // number of days allowed for overdue subscription
+  id          Int                    @id @default(autoincrement())
+  uid         String                 @unique @default(uuid())
+  name        String
+  description String?
+  status      SubscriptionPlanStatus @default(ACTIVE)
+  features    Json
 
-  subscriptions        Subscription[] @relation("ActivePlan") // active subscriptions
-  pendingSubscriptions Subscription[] @relation("PendingPlan") // scheduled downgrades
+  gracePeriod Int? @map("grace_period")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  prices               PlanPrice[]
+  subscriptions        Subscription[] @relation("ActivePlan")
+  pendingSubscriptions Subscription[] @relation("PendingPlan")
   Payment              Payment[]
 
   @@map("subscription_plans")
+}
+
+model PlanPrice {
+  id     Int              @id @default(autoincrement())
+  planId Int              @map("plan_id")
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  interval      BillingInterval
+  price         Decimal         @db.Decimal(10, 2)
+  tax           Int?
+  amountInMinor Int             @map("amount_in_minor")
+  currency      String
+
+  externalId String? @map("external_id") // Stripe price ID
+  isActive   Boolean @default(true) @map("is_active")
+  isDefault  Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([planId, interval, currency])
+}
+
+enum CouponAppliesTo {
+  NEW
+  RENEWAL
+  UPGRADE
+}
+
+model Coupon {
+  id  Int    @id @default(autoincrement())
+  uid String @unique @default(uuid())
+
+  code String @unique // e.g. SAVE20
+
+  type  DiscountType // PERCENTAGE | FIXED
+  value Decimal      @db.Decimal(10, 2)
+
+  currency String? // required if FIXED
+
+  // Usage control
+  maxUses      Int? @map("max_uses")
+  usedCount    Int  @default(0) @map("used_count")
+  perUserLimit Int? @map("per_user_limit") // e.g. 1 per user
+
+  // Status & lifecycle
+  isActive  Boolean   @default(true) @map("is_active")
+  startsAt  DateTime? @map("starts_at")
+  expiresAt DateTime? @map("expires_at")
+
+  // Restrictions
+  minAmount     Int?              @map("min_amount") // in minor units (e.g. 5000 = ₦50)
+  firstTimeOnly Boolean           @default(false) @map("first_time_only")
+  appliesTo     CouponAppliesTo[]
+
+  // Relations
+  redemptions CouponRedemption[]
+  rules       CouponRule[]
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  // Frontend
+  contexts      String[] //HOME_PAGE, PRICING_PAGE
+  isPublic      Boolean  @map("is_public")
+  priority      Int
+  autoApply     Boolean  @map("auto_apply")
+  highlightText String?  @map("highlight_text")
+
+  @@map("coupons")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model CouponRule {
+  id Int @id @default(autoincrement())
+
+  couponId Int    @map("coupon_id")
+  coupon   Coupon @relation(fields: [couponId], references: [id])
+
+  planId   Int?             @map("plan_id") // restrict to specific plan
+  interval BillingInterval? // monthly or yearly
+  currency String? // restrict to currency
+  region   String? // "NG", "US"
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("coupon_rules")
+}
+
+model CouponRedemption {
+  id Int @id @default(autoincrement())
+
+  couponId Int    @map("coupon_id")
+  coupon   Coupon @relation(fields: [couponId], references: [id])
+
+  userId         Int  @map("user_id")
+  subscriptionId Int? @map("subscription_id")
+
+  amountSaved Int @map("amount_saved") // in minor units
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([couponId, userId]) // enforce per-user limit if needed
+  @@map("coupon_redemptions")
 }
 
 model Subscription {
@@ -103,15 +212,16 @@ model Subscription {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  renewalProcessingAt DateTime?
-  renewedAt           DateTime?
+  renewalProcessingAt DateTime? @map("renewal_processing_at")
+  renewedAt           DateTime? @map("renewed_at")
 
   user        User              @relation(fields: [userId], references: [id])
   plan        SubscriptionPlan  @relation("ActivePlan", fields: [planId], references: [id])
   pendingPlan SubscriptionPlan? @relation("PendingPlan", fields: [pendingPlanId], references: [id])
   Payment     Payment[]
+  coupon      Coupon?           @relation(fields: [couponId], references: [id])
+  couponId    Int?              @map("coupon_id")
 
-  @@unique([userId, status]) // Guarantees a user can only have one active or pending subscrition
   @@index([status, startedAt])
   @@map("subscriptions")
 }
@@ -129,6 +239,12 @@ model Payment {
   subscriptionId Int?          @map("subscription_id")
   createdAt      DateTime      @default(now()) @map("created_at")
 
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(10, 2) // how much was discounted
+  taxAmount      Decimal? @map("tax_amount") @db.Decimal(10, 2) // how much was taxed
+  finalAmount    Decimal  @map("final_amount") @db.Decimal(10, 2) // what user actually paid
+  couponId       Int?     @map("coupon_id") // reference to coupon used
+
+  coupon       Coupon?          @relation(fields: [couponId], references: [id])
   user         User             @relation(fields: [userId], references: [id])
   subscription Subscription?    @relation(fields: [subscriptionId], references: [id])
   plan         SubscriptionPlan @relation(fields: [planId], references: [id])
@@ -156,7 +272,7 @@ model User {
   refCode          Int?           @unique @default(autoincrement()) @map("ref_code")
   uid              String         @unique @default(uuid())
   email            String         @unique
-  fullName         String
+  fullName         String         @map("full_name")
   phoneNumber      String?        @map("phone_number")
   image            String?
   onboardingStep   OnboardingStep @default(PLAN) @map("onboarding_step")
@@ -204,9 +320,9 @@ model Admin {
   email            String      @unique
   image            String?
   password         String
-  fullName         String
+  fullName         String      @map("full_name")
   apiKey           String      @unique @map("api_key")
-  roleId           Int
+  roleId           Int         @map("role_id")
   role             AdminRole   @relation(fields: [roleId], references: [id])
   status           AdminStatus @default(ACTIVE)
   timestamp        DateTime    @default(now())
@@ -475,8 +591,8 @@ model UploadLog {
   size       Int
   url        String
   filename   String
-  userId     Int?
-  adminId    Int?
+  userId     Int?     @map("user_id")
+  adminId    Int?     @map("admin_id")
   collection String
   mimetype   String
   timestamp  DateTime @default(now())
@@ -508,8 +624,8 @@ model AdminPermission {
 
 model AdminRolePermission {
   id           Int             @id @default(autoincrement())
-  roleId       Int
-  permissionId Int             @map("permissin_id")
+  roleId       Int             @map("role_id")
+  permissionId Int             @map("permission_id")
   role         AdminRole       @relation(fields: [roleId], references: [id])
   permission   AdminPermission @relation(fields: [permissionId], references: [id])
 

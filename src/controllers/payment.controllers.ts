@@ -5,7 +5,7 @@ import { AdminAuthSchema } from "../schemas/admin.schema";
 
 export const getPaymentsForUsers = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -21,6 +21,9 @@ export const getPaymentsForUsers = async (
       orderBy: { id: "desc" },
       include: {
         plan: true,
+        coupon: {
+          select: { code: true, type: true, value: true, currency: true },
+        },
         user: {
           select: {
             email: true,
@@ -41,7 +44,7 @@ export const getPaymentsForUsers = async (
 
 export const getPaymentsForAdmins = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const authParsed = AdminAuthSchema.safeParse(req.auth);
   if (!authParsed.success) {
@@ -62,6 +65,9 @@ export const getPaymentsForAdmins = async (
             uid: true,
             image: true,
           },
+        },
+        coupon: {
+          select: { code: true, type: true, value: true, currency: true },
         },
       },
     });

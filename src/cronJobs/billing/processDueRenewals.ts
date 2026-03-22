@@ -1,19 +1,43 @@
-import {
-  Payment,
-  Subscription,
-  SubscriptionPlan,
-} from "../../../prisma/generated";
+import { Subscription, PlanPrice } from "../../../prisma/generated";
 import { Decimal } from "../../../prisma/generated/runtime/client";
 import { prisma } from "../../config/db.config";
 import { buildNotification } from "../../services/notification.services";
 import { sendUserEmail } from "../../emails";
 import { env } from "../../config/env.config";
+import { computePricingBreakdown } from "../../core/pricing/pricing-core";
 
 const EXPIRING_SOON_DAYS = 7; // Send first warning 7 days before
 const EXPIRING_TOMORROW_DAYS = 1; // Send urgent warning 1 day before
 
 const BATCH_SIZE = 20;
 const CONCURRENCY = 5;
+
+type RenewalPlanShape = {
+  id: number;
+  name: string;
+  gracePeriod: number | null;
+  prices: PlanPrice[];
+};
+
+const pickPriceForCycle = (
+  prices: PlanPrice[],
+  billingCycle: "MONTHLY" | "YEARLY",
+  preferredCurrency?: string,
+) => {
+  const active = prices.filter((p) => p.isActive);
+  const byCycle = active.filter((p) => p.interval === billingCycle);
+  const byCurrency = preferredCurrency
+    ? byCycle.find((p) => p.currency === preferredCurrency)
+    : undefined;
+
+  return (
+    byCurrency ??
+    byCycle.find((p) => p.isDefault) ??
+    byCycle[0] ??
+    active.find((p) => p.isDefault) ??
+    active[0]
+  );
+};
 
 /**
  * Cron job entry point - processes subscriptions that have already expired
@@ -29,8 +53,8 @@ export const processDueRenewals = async () => {
         expiresAt: { lte: now },
       },
       include: {
-        plan: true,
-        pendingPlan: true,
+        plan: { include: { prices: true } },
+        pendingPlan: { include: { prices: true } },
         user: true,
       },
       take: BATCH_SIZE,
@@ -74,7 +98,7 @@ export const processExpiringWarnings = async () => {
       },
     },
     include: {
-      plan: true,
+      plan: { include: { prices: true } },
       user: true,
     },
   });
@@ -100,7 +124,7 @@ export const processExpiringWarnings = async () => {
       },
     },
     include: {
-      plan: true,
+      plan: { include: { prices: true } },
       user: true,
     },
   });
@@ -136,7 +160,7 @@ export const processGracePeriodNotifications = async () => {
       },
     },
     include: {
-      plan: true,
+      plan: { include: { prices: true } },
       user: true,
     },
   });
@@ -159,7 +183,7 @@ export const processGracePeriodNotifications = async () => {
       },
     },
     include: {
-      plan: true,
+      plan: { include: { prices: true } },
       user: true,
     },
   });
@@ -187,8 +211,8 @@ export const processGracePeriodNotifications = async () => {
  */
 const handleRenewal = async (
   subscription: Subscription & {
-    plan: SubscriptionPlan;
-    pendingPlan: SubscriptionPlan | null;
+    plan: RenewalPlanShape;
+    pendingPlan: (RenewalPlanShape & Record<string, any>) | null;
     user: any;
   },
 ) => {
@@ -214,7 +238,12 @@ const handleRenewal = async (
       inGracePeriod = now <= graceExpiry;
     }
 
-    const price = new Decimal(finalPlan.price);
+    const selectedPrice = pickPriceForCycle(
+      finalPlan.prices,
+      subscription.billingCycle,
+      subscription.user?.currency,
+    );
+    const price = new Decimal(selectedPrice?.price ?? 0);
 
     if (price.gt(0)) {
       if (!inGracePeriod) {
@@ -242,7 +271,7 @@ const handleRenewal = async (
 
     const nextExpiry = calculateNextExpiry(
       subscription.expiresAt ?? now,
-      finalPlan.interval,
+      subscription.billingCycle,
     );
 
     await prisma.subscription.update({
@@ -330,10 +359,10 @@ const expireSubscription = async (subscription: Subscription) => {
  */
 const createRenewalPaymentsBulk = async (
   subscriptions: (Subscription & {
-    plan: SubscriptionPlan;
-    pendingPlan: SubscriptionPlan | null;
+    plan: RenewalPlanShape;
+    pendingPlan: (RenewalPlanShape & Record<string, any>) | null;
   })[],
-  plan: SubscriptionPlan,
+  plan: RenewalPlanShape,
   wasDowngrade: boolean,
 ) => {
   const paymentsData: any[] = [];
@@ -343,8 +372,21 @@ const createRenewalPaymentsBulk = async (
     const user = await prisma.user.findUnique({ where: { id: sub.userId } });
     if (!user) continue;
 
-    const amount = new Decimal(plan.price);
+    const selectedPrice = pickPriceForCycle(
+      plan.prices,
+      sub.billingCycle,
+      user.currency,
+    );
+    const amount = new Decimal(selectedPrice?.price ?? 0);
     if (amount.lte(0)) continue;
+
+    const currency = (selectedPrice?.currency ?? user.currency).toUpperCase();
+    const breakdown = computePricingBreakdown({
+      subtotal: amount,
+      taxRate: selectedPrice?.tax ?? 0,
+      couponApplied: false,
+      subtotalCurrency: currency,
+    });
 
     const existing = await prisma.payment.findFirst({
       where: { subscriptionId: sub.id, status: "PENDING" },
@@ -356,8 +398,11 @@ const createRenewalPaymentsBulk = async (
       subscriptionId: sub.id,
       planId: plan.id,
       amount,
-      chargedAmount: amount,
-      currency: plan.currency,
+      chargedAmount: new Decimal(breakdown.total),
+      discountAmount: new Decimal(0),
+      taxAmount: new Decimal(breakdown.taxAmount),
+      finalAmount: new Decimal(breakdown.total),
+      currency,
       method: "CRON",
       userId: sub.userId,
     });
@@ -365,8 +410,8 @@ const createRenewalPaymentsBulk = async (
     transactionsData.push({
       status: "PENDING",
       subscriptionId: sub.id,
-      amount,
-      currency: plan.currency,
+      amount: new Decimal(breakdown.total),
+      currency,
       type: wasDowngrade ? "SUBSCRIPTION_DOWNGRADE" : "SUBSCRIPTION_RENEWAL",
       userUid: user.uid,
     });
@@ -386,10 +431,10 @@ const createRenewalPaymentsBulk = async (
  */
 const notifySuccessBulk = async (
   subscriptions: (Subscription & {
-    plan: SubscriptionPlan;
-    pendingPlan: SubscriptionPlan | null;
+    plan: RenewalPlanShape;
+    pendingPlan: RenewalPlanShape | null;
   })[],
-  plan: SubscriptionPlan,
+  plan: RenewalPlanShape,
   expiresAt: Date,
   type: "SUBSCRIPTION_RENEWAL" | "SUBSCRIPTION_DOWNGRADE",
 ) => {
@@ -430,7 +475,7 @@ const calculateNextExpiry = (base: Date, interval: "MONTHLY" | "YEARLY") => {
  * Send expiring soon warning email (7 days before)
  */
 const sendExpiringWarning = async (
-  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+  subscription: Subscription & { plan: RenewalPlanShape; user: any },
 ) => {
   if (!subscription.user || !subscription.expiresAt) return;
 
@@ -472,7 +517,7 @@ const sendExpiringWarning = async (
  * Send expiring tomorrow urgent warning email
  */
 const sendExpiringTomorrowWarning = async (
-  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+  subscription: Subscription & { plan: RenewalPlanShape; user: any },
 ) => {
   if (!subscription.user || !subscription.expiresAt) return;
 
@@ -517,7 +562,7 @@ const sendExpiringTomorrowWarning = async (
  * Send grace period notification email
  */
 const sendGracePeriodNotification = async (
-  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+  subscription: Subscription & { plan: RenewalPlanShape; user: any },
 ) => {
   if (
     !subscription.user ||
@@ -576,7 +621,7 @@ const sendGracePeriodNotification = async (
  * Send grace period expired notification email
  */
 const sendGracePeriodExpiredNotification = async (
-  subscription: Subscription & { plan: SubscriptionPlan; user: any },
+  subscription: Subscription & { plan: RenewalPlanShape; user: any },
 ) => {
   if (
     !subscription.user ||

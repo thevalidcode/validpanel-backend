@@ -4,13 +4,130 @@ import { prisma } from "../../config/db.config";
 import { initFlutterwavePayment } from "../../providers/flutterwave.providers";
 import { initPaystackPayment } from "../../providers/paystack.providers";
 import type { SubscriptionPaymentInput } from "../../schemas/subscription.schema";
-import { TransactionType } from "../../../prisma/generated";
+import { CouponAppliesTo, TransactionType } from "../../../prisma/generated";
 import { UserPublic } from "../../schemas/user.schema";
 import { Decimal } from "@prisma/client/runtime/client";
 import { finalizeSubscriptionPayment } from "./finalize-subscription-payment";
-import convertCurrency from "../../utils/ConvertCurrency";
 import { sendUserEmail, sendEmailToAdmins } from "../../emails";
 import { env } from "../../config/env.config";
+import { resolvePriceForSubscription } from "./pricing-resolution";
+import {
+  computeCouponDiscountAmount,
+  computePricingBreakdown,
+} from "../../core/pricing/pricing-core";
+
+const ZERO = new Decimal(0);
+
+const applyCouponToAmount = async (
+  tx: any,
+  params: {
+    couponCode?: string;
+    amount: Decimal;
+    currency: string;
+    userId: number;
+    planId: number;
+    billingCycle: "MONTHLY" | "YEARLY";
+    appliesTo: CouponAppliesTo;
+  },
+) => {
+  const {
+    couponCode,
+    amount,
+    currency,
+    userId,
+    planId,
+    billingCycle,
+    appliesTo,
+  } = params;
+
+  if (!couponCode) {
+    return {
+      coupon: null,
+      discountAmount: ZERO,
+    };
+  }
+
+  const coupon = await tx.coupon.findUnique({
+    where: { code: couponCode },
+    include: { rules: true },
+  });
+
+  if (!coupon || !coupon.isActive) {
+    throw new Error("Invalid or inactive coupon");
+  }
+
+  const now = new Date();
+  if (coupon.startsAt && coupon.startsAt > now) {
+    throw new Error("Coupon is not active yet");
+  }
+  if (coupon.expiresAt && coupon.expiresAt < now) {
+    throw new Error("Coupon has expired");
+  }
+
+  if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) {
+    throw new Error("Coupon usage limit reached");
+  }
+
+  if (coupon.perUserLimit) {
+    const userRedemptions = await tx.couponRedemption.count({
+      where: { couponId: coupon.id, userId },
+    });
+    if (userRedemptions >= coupon.perUserLimit) {
+      throw new Error("Per-user coupon limit reached");
+    }
+  }
+
+  if (coupon.firstTimeOnly) {
+    const hasPayment = await tx.payment.count({
+      where: { userId, status: "SUCCESS" },
+    });
+    if (hasPayment > 0) {
+      throw new Error("Coupon is only valid for first-time payments");
+    }
+  }
+
+  if (coupon.appliesTo.length && !coupon.appliesTo.includes(appliesTo)) {
+    throw new Error(`Coupon is not valid for ${appliesTo.toLowerCase()} flow`);
+  }
+
+  const matchingRule = coupon.rules.length
+    ? coupon.rules.find(
+        (rule: any) =>
+          (!rule.planId || rule.planId === planId) &&
+          (!rule.interval || rule.interval === billingCycle) &&
+          (!rule.currency || rule.currency === currency),
+      )
+    : true;
+
+  if (!matchingRule) {
+    throw new Error("Coupon does not apply to this plan/interval/currency");
+  }
+
+  let discountAmount = ZERO;
+  if (
+    coupon.type === "FIXED" &&
+    coupon.currency &&
+    coupon.currency !== currency
+  ) {
+    throw new Error("Coupon currency does not match payment currency");
+  }
+
+  discountAmount = computeCouponDiscountAmount(
+    amount,
+    currency,
+    {
+      type: coupon.type,
+      value: coupon.value,
+      currency: coupon.currency,
+    },
+    true,
+  );
+
+  return {
+    coupon,
+    discountAmount,
+  };
+};
 
 export const createSubscriptionPayment = async (
   user: UserPublic,
@@ -32,35 +149,45 @@ export const createSubscriptionPayment = async (
       throw new Error("Pending subscription not found");
     }
 
-    const usdAmount = await convertCurrency(
-      subscription.plan.price,
-      subscription.plan.currency,
-      "USD",
-    );
+    const resolvedPrice = await resolvePriceForSubscription({
+      planId: subscription.planId,
+      interval: billingCycle,
+      currency,
+    });
 
-    const months = billingCycle === "YEARLY" ? 12 : 1;
+    const amount = new Decimal(resolvedPrice.price);
 
-    const targetBase = new Decimal(usdAmount).mul(months);
-    const discountRate =
-      billingCycle === "YEARLY"
-        ? subscription.plan.discountForAnnually || 0
-        : 0;
-    const discountAmount = discountRate
-      ? targetBase.mul(new Decimal(discountRate)).div(100)
-      : new Decimal(0);
+    const couponResult = await applyCouponToAmount(tx, {
+      couponCode: input.couponCode,
+      amount,
+      currency,
+      userId: user.id,
+      planId: subscription.planId,
+      billingCycle,
+      appliesTo: type === "SUBSCRIPTION_RENEWAL" ? "RENEWAL" : "NEW",
+    });
 
-    const discountedTarget = targetBase.minus(discountAmount);
+    const breakdown = computePricingBreakdown({
+      subtotal: amount,
+      taxRate: resolvedPrice.tax ?? 0,
+      couponApplied: Boolean(couponResult.coupon),
+      couponDiscountAmount: couponResult.discountAmount,
+      subtotalCurrency: currency,
+    });
 
-    const taxRate = new Decimal(subscription.plan.tax || 0);
-    const taxAmount = discountedTarget.mul(taxRate.div(100));
-    const totalAmount = discountedTarget.plus(taxAmount);
+    const taxAmount = new Decimal(breakdown.taxAmount);
+    const finalAmount = new Decimal(breakdown.total);
 
     const payment = await tx.payment.create({
       data: {
         status: "PENDING",
         planId: subscription.planId,
-        amount: totalAmount,
-        chargedAmount: totalAmount,
+        amount,
+        chargedAmount: finalAmount,
+        discountAmount: couponResult.discountAmount,
+        taxAmount,
+        finalAmount,
+        couponId: couponResult.coupon?.id,
         method: platform,
         currency,
         userId: user.id,
@@ -71,7 +198,7 @@ export const createSubscriptionPayment = async (
     const transaction = await tx.transaction.create({
       data: {
         status: "PENDING",
-        amount: totalAmount,
+        amount: finalAmount,
         type,
         currency,
         userUid: user.uid,
@@ -89,7 +216,7 @@ export const createSubscriptionPayment = async (
     });
 
     // FREE PLAN: finalize immediately, no gateway
-    if (subscription.plan.price.lte(0)) {
+    if (finalAmount.lte(0)) {
       await finalizeSubscriptionPayment(
         {
           subscriptionId: subscription.id,
@@ -127,9 +254,10 @@ export const createSubscriptionPayment = async (
 
     const paymentData = {
       tx_ref: payment.uid,
-      amount: totalAmount.toNumber(),
+      amount: finalAmount.toNumber(),
       currency,
-      redirect_url: redirectUrl,
+      redirect_url:
+        redirectUrl + `?status=success&platform=${platform.toLowerCase()}`,
       customer: { email: user.email },
       customizations: {
         title: "Valid Panel Subscription Payment",
@@ -151,7 +279,7 @@ export const createSubscriptionPayment = async (
 
     switch (platform) {
       case "FLUTTERWAVE":
-        if (totalAmount.lessThan(1)) {
+        if (finalAmount.lessThan(1)) {
           throw new Error(
             "Minimum amount for Flutterwave is 1 unit of the currency",
           );
@@ -166,7 +294,7 @@ export const createSubscriptionPayment = async (
         if (env.NODE_ENV === "production") {
           await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
             firstName: user.fullName?.split(" ")[0] || "User",
-            amount: convertCurrency(totalAmount, "USD", currency),
+            amount: finalAmount,
             currency,
             planName: subscription.plan.name,
             paymentReference: payment.uid,
@@ -177,7 +305,7 @@ export const createSubscriptionPayment = async (
             storeId: "N/A",
             ownerName: user.fullName || "Unknown",
             ownerEmail: user.email,
-            amount: convertCurrency(totalAmount, "USD", currency),
+            amount: finalAmount,
             currency,
             planName: subscription.plan.name,
             paymentReference: payment.uid,
@@ -194,7 +322,7 @@ export const createSubscriptionPayment = async (
         return {
           message:
             "Pay manually. Our team will verify and activate your subscription.",
-          url: input.redirectUrl,
+          url: `${input.redirectUrl}?platform=manual`,
         };
 
       default:
@@ -249,55 +377,57 @@ export const upgradePlan = async (
       throw new Error("Target plan not found");
     }
 
-    const exchangeRate = await prisma.exchangeRate.findFirst({
-      select: { rates: true },
+    const targetPrice = await resolvePriceForSubscription({
+      planId: newSubscription.planId,
+      interval: billingCycle,
+      currency,
+    });
+    const currentPrice = await resolvePriceForSubscription({
+      planId: currentSubscription.planId,
+      interval: currentSubscription.billingCycle,
+      currency,
     });
 
-    if (!exchangeRate) {
-      throw new Error("Exchange rate not found");
-    }
-
-    const usdAmount = await convertCurrency(
-      newSubscription.plan.price,
-      newSubscription.plan.currency,
-      "USD",
+    const payableBeforeTax = new Decimal(targetPrice.price).minus(
+      new Decimal(currentPrice.price),
     );
-
-    const usdBaseAmount = await convertCurrency(
-      currentSubscription.plan.price,
-      currentSubscription.plan.currency,
-      "USD",
-    );
-
-    const months = billingCycle === "YEARLY" ? 12 : 1;
-
-    const targetBase = new Decimal(usdAmount).mul(months);
-    const discountRate =
-      billingCycle === "YEARLY"
-        ? newSubscription.plan.discountForAnnually || 0
-        : 0;
-    const discountAmount = discountRate
-      ? targetBase.mul(new Decimal(discountRate)).div(100)
-      : new Decimal(0);
-
-    const discountedTarget = targetBase.minus(discountAmount);
-    const currentBase = new Decimal(usdBaseAmount).mul(months);
-    const payableBeforeTax = discountedTarget.minus(currentBase);
 
     if (payableBeforeTax.lte(0)) {
       throw new Error("Invalid upgrade. New plan must cost more");
     }
 
-    const taxRate = new Decimal(newSubscription.plan.tax || 0);
-    const taxAmount = payableBeforeTax.mul(taxRate.div(100));
-    const upgradeAmount = payableBeforeTax.plus(taxAmount);
+    const couponResult = await applyCouponToAmount(tx, {
+      couponCode: input.couponCode,
+      amount: payableBeforeTax,
+      currency,
+      userId: user.id,
+      planId: newSubscription.planId,
+      billingCycle,
+      appliesTo: "UPGRADE",
+    });
+
+    const breakdown = computePricingBreakdown({
+      subtotal: payableBeforeTax,
+      taxRate: targetPrice.tax ?? 0,
+      couponApplied: Boolean(couponResult.coupon),
+      couponDiscountAmount: couponResult.discountAmount,
+      subtotalCurrency: currency,
+    });
+
+    const taxAmount = new Decimal(breakdown.taxAmount);
+    const finalAmount = new Decimal(breakdown.total);
+    const upgradeAmount = payableBeforeTax;
 
     const payment = await tx.payment.create({
       data: {
         status: "PENDING",
         planId: newSubscription.plan.id,
-        amount: await convertCurrency(upgradeAmount, "USD", currency),
-        chargedAmount: await convertCurrency(upgradeAmount, "USD", currency),
+        amount: upgradeAmount,
+        chargedAmount: finalAmount,
+        discountAmount: couponResult.discountAmount,
+        taxAmount,
+        finalAmount,
+        couponId: couponResult.coupon?.id,
         method: platform,
         subscriptionId: newSubscription.id,
         currency,
@@ -308,7 +438,7 @@ export const upgradePlan = async (
     const transaction = await tx.transaction.create({
       data: {
         status: "PENDING",
-        amount: await convertCurrency(upgradeAmount, "USD", currency),
+        amount: finalAmount,
         paymentId: payment.id,
         type: "SUBSCRIPTION_UPGRADE",
         currency,
@@ -327,7 +457,7 @@ export const upgradePlan = async (
 
     const paymentData = {
       tx_ref: payment.uid,
-      amount: upgradeAmount, // Use the original USD amount for the gateway, conversion will be handled by the gateway provider
+      amount: finalAmount.toNumber(),
       currency,
       redirect_url: redirectUrl,
       customer: { email: user.email },
@@ -362,7 +492,7 @@ export const upgradePlan = async (
         if (env.NODE_ENV === "production") {
           await sendUserEmail(user.email, "PAYMENT_PENDING_MANUAL", {
             firstName: user.fullName?.split(" ")[0] || "User",
-            amount: convertCurrency(upgradeAmount, "USD", currency),
+            amount: finalAmount,
             currency,
             planName: newSubscription.plan.name,
             paymentReference: payment.uid,
@@ -373,7 +503,7 @@ export const upgradePlan = async (
             storeId: "N/A",
             ownerName: user.fullName || "Unknown",
             ownerEmail: user.email,
-            amount: convertCurrency(upgradeAmount, "USD", currency),
+            amount: finalAmount,
             currency,
             planName: newSubscription.plan.name,
             paymentReference: payment.uid,
@@ -390,7 +520,7 @@ export const upgradePlan = async (
         return {
           message:
             "Pay manually. Our team will verify and complete your upgrade.",
-          url: input.redirectUrl,
+          url: `${input.redirectUrl}?platform=manual`,
         };
 
       default:

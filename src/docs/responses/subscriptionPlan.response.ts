@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { SubscriptionPlanSchema } from "../../schemas/subscriptionPlan.schema";
+import { SubscriptionPlanResponseSchema } from "../../schemas/subscriptionPlan.schema";
 
 export const SubscriptionPlanForAdminsListResponse = {
   description: "List of all subscription plans for admins",
   content: {
     "application/json": {
-      schema: z.array(SubscriptionPlanSchema),
+      schema: z.array(SubscriptionPlanResponseSchema),
     },
   },
 };
@@ -14,7 +14,7 @@ export const SubscriptionPlanForUsersListResponse = {
   description: "List of all subscription plans for users",
   content: {
     "application/json": {
-      schema: z.array(SubscriptionPlanSchema),
+      schema: z.array(SubscriptionPlanResponseSchema),
     },
   },
 };
@@ -24,7 +24,7 @@ export const SubscriptionPlanAdminsObject = {
   content: {
     "application/json": {
       schema: z.object({
-        SubscriptionPlanSchema,
+        data: SubscriptionPlanResponseSchema,
       }),
     },
   },
@@ -35,7 +35,7 @@ export const SubscriptionPlanUsersObject = {
   content: {
     "application/json": {
       schema: z.object({
-        SubscriptionPlanSchema,
+        data: SubscriptionPlanResponseSchema,
       }),
     },
   },
@@ -69,6 +69,17 @@ export const SubscriptionPlanDeletedResponse = {
     "application/json": {
       schema: z.object({
         success: z.literal("Subscription Plan deleted successfully."),
+      }),
+    },
+  },
+};
+
+export const PlanPriceDeletedResponse = {
+  description: "Successfully deleted a plan price",
+  content: {
+    "application/json": {
+      schema: z.object({
+        success: z.literal("Plan price deleted successfully."),
       }),
     },
   },

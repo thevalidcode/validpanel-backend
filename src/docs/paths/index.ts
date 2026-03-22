@@ -16,5 +16,6 @@ import "./transaction.paths";
 import "./rate.paths";
 import "./contact.paths";
 import "./email.paths";
+import "./coupon.paths";
 
 export { registry };

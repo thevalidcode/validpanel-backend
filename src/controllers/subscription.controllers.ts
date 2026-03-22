@@ -14,13 +14,14 @@ import { AdminAuthSchema } from "../schemas/admin.schema";
 import { finalizeSubscriptionPayment } from "../services/subscription/finalize-subscription-payment";
 import { sendUserEmail } from "../emails";
 import { env } from "../config/env.config";
+import { resolvePriceForSubscription } from "../services/subscription/pricing-resolution";
+import { Decimal } from "@prisma/client/runtime/client";
 
 export const getActiveSubscriptionForUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   const authParsed = AuthSchema.safeParse(req.auth);
-
   if (!authParsed.success) {
     res.status(400).json({ error: authParsed.error.flatten() });
     return;
@@ -29,7 +30,13 @@ export const getActiveSubscriptionForUser = async (
   try {
     const subscription = await prisma.subscription.findFirst({
       where: { status: "ACTIVE", userId: authParsed.data.user.id },
-      include: { plan: true },
+      include: {
+        plan: {
+          include: {
+            prices: { where: { isActive: true } },
+          },
+        },
+      },
     });
 
     res.status(200).json(subscription);
@@ -38,7 +45,7 @@ export const getActiveSubscriptionForUser = async (
   }
 };
 
-export const getSubscriptionsForUser = async (
+export const getCurrentSubscriptionsForUser = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
@@ -51,13 +58,19 @@ export const getSubscriptionsForUser = async (
   const { user } = authParsed.data;
 
   try {
-    const subscriptions = await prisma.subscription.findMany({
-      where: { status: "ACTIVE", userId: user.id },
-      orderBy: { id: "desc" },
-      include: { plan: true },
+    const subscription = await prisma.subscription.findFirst({
+      where: { userId: user.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        plan: {
+          include: {
+            prices: { where: { isActive: true } },
+          },
+        },
+      },
     });
 
-    res.status(200).json(subscriptions);
+    res.status(200).json(subscription);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -304,6 +317,12 @@ export const createSubscription = async (
       return;
     }
 
+    await resolvePriceForSubscription({
+      planId,
+      interval: billingCycle,
+      currency: parsed.data.currency,
+    });
+
     // Check for existing active subscription
     const activeSubscription = await prisma.subscription.findFirst({
       where: {
@@ -389,6 +408,12 @@ export const renewSubscription = async (req: Request, res: Response) => {
       res.status(404).json({ error: "Subscription plan not found" });
       return;
     }
+
+    await resolvePriceForSubscription({
+      planId,
+      interval: parsed.data.billingCycle,
+      currency: parsed.data.currency,
+    });
 
     const subscription = await prisma.subscription.findFirst({
       where: { userId: user.id, status: "ACTIVE" },
@@ -570,6 +595,11 @@ export const updateSubscription = async (
 
       // Only finalize when manually confirming payment
       if (isManualOverride) {
+        const selectedPrice = await resolvePriceForSubscription({
+          planId: subscription.planId,
+          interval: subscription.billingCycle,
+          currency: payment.currency,
+        });
         await finalizeSubscriptionPayment(
           {
             subscriptionId: subscription.id,
@@ -577,7 +607,7 @@ export const updateSubscription = async (
             transactionId: transaction.id,
             paymentId: payment.id,
             type: transaction.type,
-            amount: subscription.plan.price,
+            amount: new Decimal(selectedPrice.price),
             billingCycle: subscription.billingCycle,
             newPlanId: subscription.planId,
           },
@@ -596,6 +626,7 @@ export const updateSubscription = async (
     });
     return;
   } catch (error: any) {
+    console.log(error);
     const message = error.message;
 
     if (message === "SUBSCRIPTION_NOT_FOUND") {
