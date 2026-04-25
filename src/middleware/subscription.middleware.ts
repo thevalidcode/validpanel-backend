@@ -232,3 +232,85 @@ export const requireActiveOrGracePeriodSubscription = async (
     });
   }
 };
+
+/**
+ * Middleware factory that blocks access unless a plan feature exists and is enabled.
+ * This is intended for authenticated user routes that depend on subscription capabilities.
+ */
+export const requireSubscriptionFeature = (featureName: string) => {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (req.auth?.type === "admin") {
+        next();
+        return;
+      }
+
+      const authParsed = AuthSchema.safeParse(req.auth);
+      if (!authParsed.success) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const auth = authParsed.data;
+
+      const subscription = await prisma.subscription.findFirst({
+        where: {
+          userId: auth.user.id,
+          status: "ACTIVE",
+        },
+        include: {
+          plan: true,
+        },
+      });
+
+      if (!subscription) {
+        res.status(403).json({
+          error: "Active subscription required",
+          message: "You need an active subscription to use this feature.",
+        });
+        return;
+      }
+
+      if (subscription.expiresAt && subscription.expiresAt < new Date()) {
+        res.status(403).json({
+          error: "Subscription expired",
+          message:
+            "Your subscription has expired. Please renew to continue using this feature.",
+        });
+        return;
+      }
+
+      const features =
+        (subscription.plan.features as Record<string, unknown> | null) || {};
+
+      if (!(featureName in features)) {
+        res.status(403).json({
+          error: "Feature not available",
+          message: `The feature "${featureName}" is not available in your subscription plan`,
+          upgradeRequired: true,
+        });
+        return;
+      }
+
+      if (!features[featureName]) {
+        res.status(403).json({
+          error: "Feature not enabled",
+          message: `The feature "${featureName}" is not enabled in your subscription plan`,
+          upgradeRequired: true,
+        });
+        return;
+      }
+
+      next();
+    } catch (err: any) {
+      res.status(500).json({
+        error: "Failed to verify feature access",
+        message: err.message,
+      });
+    }
+  };
+};

@@ -16,7 +16,6 @@ declare module "express" {
             id: number;
             email: string;
             status: UserStatus;
-            apiKey: string;
             balance: Decimal;
           };
         }
@@ -28,7 +27,6 @@ declare module "express" {
             id: number;
             role: string;
             uid: string;
-            apiKey: string;
             status: AdminStatus;
           };
         };

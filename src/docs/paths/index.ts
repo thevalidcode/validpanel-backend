@@ -17,5 +17,7 @@ import "./rate.paths";
 import "./contact.paths";
 import "./email.paths";
 import "./coupon.paths";
+import "./reseller.paths";
+import "./resellerStore.paths";
 
 export { registry };

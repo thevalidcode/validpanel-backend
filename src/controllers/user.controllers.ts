@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { Request, Response } from "express";
+import crypto from "crypto";
 import { env } from "../config/env.config";
 import {
   createUserRequestSchema,
@@ -20,6 +21,10 @@ import { SubscriptionPlanFeatures } from "../schemas/subscriptionPlan.schema";
 import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { CreateStore } from "../services/store";
 import { UidSchema } from "../schemas/common.schema";
+import { encryptKey } from "../utils/encrypt";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 function getMonthRange(date: Date) {
   return {
@@ -272,13 +277,17 @@ export const createUser = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const rawApiKey = uuidv4();
+    const encryptedApiKey = encryptKey(rawApiKey);
     const user = await prisma.user.create({
       data: {
         email,
         uid: uuidv4(),
         fullName,
         password: hashedPassword,
-        apiKey: uuidv4(),
+        encryptedApiKey: encryptedApiKey.encryptedKey,
+        apiKeyIv: encryptedApiKey.iv,
+        apiKeyHash: hashApiKey(rawApiKey),
         referralSource,
         marketingData: marketingData || undefined,
       },
@@ -291,13 +300,9 @@ export const createUser = async (req: Request, res: Response) => {
         userId: user.id,
       },
     });
-    const token = jwt.sign(
-      { email, apiKey: user.apiKey, uid: user.uid },
-      env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
+    const token = jwt.sign({ email, uid: user.uid }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.cookie("auth_token", token, {
       httpOnly: true,
@@ -326,7 +331,15 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
 
-    const { password: pass, resetToken, resetTokenExpiry, ...safeUser } = user;
+    const {
+      password: pass,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
+      ...safeUser
+    } = user;
 
     res.status(201).json({
       success: "Successfully created user",
@@ -485,7 +498,15 @@ export const setupStore = async (req: Request, res: Response) => {
       });
     }
 
-    const { password: _, resetToken, resetTokenExpiry, ...safeUser } = user;
+    const {
+      password: _,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: __encryptedApiKey,
+      apiKeyIv: __apiKeyIv,
+      apiKeyHash: __apiKeyHash,
+      ...safeUser
+    } = user;
 
     res.status(201).json({
       message: "Store setup successful",
@@ -494,6 +515,7 @@ export const setupStore = async (req: Request, res: Response) => {
       onboardingStep: "COMPLETE",
     });
   } catch (err: any) {
+    console.log(err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
@@ -506,7 +528,33 @@ export const me = async (req: Request, res: Response) => {
   const { email, password } = parsed.data;
 
   try {
-    const account = await prisma.user.findFirst({ where: { email } });
+    const account = await prisma.user.findFirst({
+      where: { email },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        image: true,
+        status: true,
+        onboardingStep: true,
+        hasSeenTour: true,
+        balance: true,
+        spent: true,
+        currency: true,
+        timestamp: true,
+        lastSeen: true,
+        updatedAt: true,
+        refCode: true,
+        ref: true,
+        referralSource: true,
+        marketingData: true,
+        password: true,
+        resetToken: true,
+        resetTokenExpiry: true,
+      },
+    });
 
     if (!account)
       return res.status(400).json({ error: "Incorrect login details" });
@@ -517,11 +565,9 @@ export const me = async (req: Request, res: Response) => {
     if (!isMatch)
       return res.status(400).json({ error: "Incorrect login details" });
 
-    const token = jwt.sign(
-      { email, apiKey: account.apiKey, uid: account.uid },
-      env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const token = jwt.sign({ email, uid: account.uid }, env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     res.cookie("auth_token", token, {
       httpOnly: true,
@@ -563,6 +609,30 @@ export const getUserByUid = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { uid },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        image: true,
+        status: true,
+        onboardingStep: true,
+        hasSeenTour: true,
+        balance: true,
+        spent: true,
+        currency: true,
+        timestamp: true,
+        lastSeen: true,
+        updatedAt: true,
+        refCode: true,
+        ref: true,
+        referralSource: true,
+        marketingData: true,
+        password: true,
+        resetToken: true,
+        resetTokenExpiry: true,
+      },
     });
 
     if (!user) {
@@ -581,6 +651,7 @@ export const completeTour = async (req: Request, res: Response) => {
   try {
     const foundUser = await prisma.user.findUnique({
       where: { uid },
+      select: { id: true },
     });
 
     if (!foundUser) {
@@ -620,6 +691,30 @@ export const verifySession = async (req: Request, res: Response) => {
 
   const account = await prisma.user.findFirst({
     where: { email: session.email },
+    select: {
+      id: true,
+      uid: true,
+      email: true,
+      fullName: true,
+      phoneNumber: true,
+      image: true,
+      status: true,
+      onboardingStep: true,
+      hasSeenTour: true,
+      balance: true,
+      spent: true,
+      currency: true,
+      timestamp: true,
+      lastSeen: true,
+      updatedAt: true,
+      refCode: true,
+      ref: true,
+      referralSource: true,
+      marketingData: true,
+      password: true,
+      resetToken: true,
+      resetTokenExpiry: true,
+    },
   });
 
   if (!account) {
@@ -655,7 +750,7 @@ export const verifySession = async (req: Request, res: Response) => {
   }
 
   const token = jwt.sign(
-    { uid: account.uid, apiKey: account.apiKey, email: account.email },
+    { uid: account.uid, email: account.email },
     env.JWT_SECRET,
     {
       expiresIn: "7d",
@@ -803,7 +898,10 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
   try {
     // Find user by email
-    const user = await prisma.user.findFirst({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: { email },
+      select: { id: true, email: true },
+    });
     if (!user) {
       return res.status(404).json({ error: "User with this email not found." });
     }
@@ -843,6 +941,12 @@ export const resetPassword = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findFirst({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        resetToken: true,
+        resetTokenExpiry: true,
+      },
     });
 
     if (!user) {

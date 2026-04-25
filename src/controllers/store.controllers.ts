@@ -8,9 +8,36 @@ import {
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
 import { buildNotification } from "../services/notification.services";
-import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
+import { CreateStore, DeleteStore } from "../services/store";
 import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { env } from "../config/env.config";
+
+async function ensureUserCanEnableReselling(userId: number): Promise<boolean> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+    },
+    include: {
+      plan: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (
+    !subscription ||
+    (subscription.expiresAt && subscription.expiresAt < new Date())
+  ) {
+    return false;
+  }
+
+  const features =
+    (subscription.plan.features as Record<string, unknown> | null) || {};
+
+  return Boolean(features.reselling);
+}
 
 export const getStoreByUid = async (
   req: Request,
@@ -53,12 +80,30 @@ export const createStore = async (
     return;
   }
 
-  const { type, domain, name, description, subscriptionId, logoUrl, color } =
-    parsed.data;
+  const {
+    type,
+    domain,
+    name,
+    description,
+    subscriptionId,
+    logoUrl,
+    color,
+    resellingEnabled,
+  } = parsed.data;
 
   const { user } = authParsed.data;
 
   try {
+    if (resellingEnabled) {
+      const canEnableReselling = await ensureUserCanEnableReselling(user.id);
+      if (!canEnableReselling) {
+        res.status(403).json({
+          error: "Reselling feature is not enabled for your plan",
+        });
+        return;
+      }
+    }
+
     /**
      * 1. Ensure domain is unique
      */
@@ -100,7 +145,7 @@ export const createStore = async (
      */
     const { store, notification, platformEvent } = await prisma.$transaction(
       async (tx) => {
-        const store = await tx.store.create({
+        const store = (await tx.store.create({
           data: {
             uid: domain,
             type,
@@ -111,11 +156,12 @@ export const createStore = async (
             plan: subscription.plan.name,
             status: "PENDING",
             ownerId: user.id,
-          },
+            resellingEnabled,
+          } as any,
           include: {
             owner: true,
           },
-        });
+        })) as any;
 
         const notificationDetails = buildNotification({
           category: "STORE",
@@ -243,7 +289,8 @@ export const updateStore = async (
   }
 
   const { uid } = uidParsed.data;
-  const { name, description, logoUrl, color, status } = bodyParsed.data;
+  const { name, description, logoUrl, color, status, resellingEnabled } =
+    bodyParsed.data;
   const { user } = authParsed.data;
 
   try {
@@ -263,19 +310,40 @@ export const updateStore = async (
       return;
     }
 
-    const updatedStore = await prisma.store.update({
-      where: { uid },
-      include: { owner: true },
-      data: {
-        name: name || store.name,
-        color: color || store.color,
-        logoUrl: logoUrl || store.logoUrl,
-        status: status || store.status,
-        description: description || store.description,
-      },
-    });
+    if (resellingEnabled === true) {
+      const canEnableReselling = await ensureUserCanEnableReselling(user.id);
+      if (!canEnableReselling) {
+        res.status(403).json({
+          error: "Reselling feature is not enabled for your plan",
+        });
+        return;
+      }
+    }
 
-    await UpdateStore(updatedStore.owner, updatedStore);
+    const updatedStore = await prisma.$transaction(async (tx) => {
+      const data = await tx.store.update({
+        where: { uid },
+        include: { owner: true },
+        data: {
+          name: name ?? store.name,
+          color: color ?? store.color,
+          logoUrl: logoUrl ?? store.logoUrl,
+          status: status ?? store.status,
+          description: description ?? store.description,
+          resellingEnabled:
+            resellingEnabled ?? (store as any).resellingEnabled ?? false,
+        } as any,
+      });
+
+      await tx.resellerStore.update({
+        where: { storeId: data.storeId },
+        data: {
+          isActive:
+            resellingEnabled ?? (store as any).resellingEnabled ?? false,
+        },
+      });
+      return data;
+    });
 
     res
       .status(200)
@@ -504,7 +572,6 @@ export const approveStore = async (
       });
       return { updatedStore };
     });
-    await UpdateStore(updatedStore.owner, updatedStore);
 
     // Send store approved email in production
     if (env.NODE_ENV === "production") {
@@ -558,8 +625,6 @@ export const pauseStore = async (
       return { updatedStore };
     });
 
-    await UpdateStore(updatedStore.owner, updatedStore);
-
     // Send store paused email in production
     if (env.NODE_ENV === "production") {
       await sendUserEmail(updatedStore.owner.email, "STORE_PAUSED", {
@@ -571,7 +636,8 @@ export const pauseStore = async (
 
     res.status(200).json({ success: "Store paused", store: updatedStore });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to approve store " + err.message });
+    console.log(err);
+    res.status(500).json({ error: "Failed to pause store " + err.message });
   }
 };
 
@@ -592,7 +658,8 @@ export const adminUpdateStore = async (
   }
 
   const { uid } = uidParsed.data;
-  const { name, description, logoUrl, color, status } = bodyParsed.data;
+  const { name, description, logoUrl, color, status, resellingEnabled } =
+    bodyParsed.data;
 
   try {
     const store = await prisma.store.findUnique({
@@ -606,19 +673,19 @@ export const adminUpdateStore = async (
 
     const previousStatus = store.status;
 
-    const updatedStore = await prisma.store.update({
+    const updatedStore = (await prisma.store.update({
       where: { uid },
       include: { owner: true },
       data: {
-        name: name || store.name,
-        color: color || store.color,
-        logoUrl: logoUrl || store.logoUrl,
-        status: status || store.status,
-        description: description || store.description,
-      },
-    });
-
-    await UpdateStore(updatedStore.owner, updatedStore);
+        name: name ?? store.name,
+        color: color ?? store.color,
+        logoUrl: logoUrl ?? store.logoUrl,
+        status: status ?? store.status,
+        description: description ?? store.description,
+        resellingEnabled:
+          resellingEnabled ?? (store as any).resellingEnabled ?? false,
+      } as any,
+    })) as any;
 
     // Send reactivation email if store was reactivated in production
     if (

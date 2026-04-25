@@ -14,7 +14,6 @@ export const AdminSchema = z
     id: z.number(),
     email: z.string().email(),
     uid: z.string(),
-    apiKey: z.string(),
     image: z.string().nullable(),
     fullName: z.string(),
     lastSeen: z.coerce.date(),

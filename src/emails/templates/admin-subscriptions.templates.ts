@@ -10,6 +10,7 @@ export interface AdminNewSubscriptionVars extends LogoVars {
   ownerName: string;
   ownerEmail: string;
   subscribedAt: string;
+  couponCode?: string;
 }
 
 export interface AdminSubscriptionExpiringVars extends LogoVars {
@@ -32,6 +33,7 @@ export const adminNewSubscription = ({
   ownerName,
   ownerEmail,
   subscribedAt,
+  couponCode,
   logo,
 }: AdminNewSubscriptionVars): TemplateResult => {
   const adminUrl = `https://validpanel.com/admin/stores/${storeId}/subscription`;
@@ -92,6 +94,16 @@ export const adminNewSubscription = ({
               <td style="padding:6px 0; color:#6B7280; font-size:13px;">Date:</td>
               <td style="padding:6px 0; color:#333; font-size:14px;">${subscribedAt}</td>
             </tr>
+            ${
+              couponCode
+                ? `
+            <tr>
+              <td style="padding:6px 0; color:#6B7280; font-size:13px;">Coupon:</td>
+              <td style="padding:6px 0; color:#333; font-size:14px; font-weight:600;">${couponCode}</td>
+            </tr>
+            `
+                : ""
+            }
           </table>
         </td>
       </tr>

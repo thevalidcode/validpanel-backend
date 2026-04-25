@@ -44,6 +44,9 @@ export const SubscriptionPlanFeaturesSchema = z.object({
 
   // Shipping features
   max_shipping_accounts: z.number(),
+
+  // Commerce network features
+  reselling: z.boolean().default(false),
 });
 
 export type SubscriptionPlanFeatures = z.infer<

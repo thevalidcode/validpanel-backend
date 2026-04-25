@@ -1,7 +1,13 @@
 import { prisma } from "../config/db.config";
 import dotenv from 'dotenv';
+import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
+import { encryptKey } from "../utils/encrypt";
 dotenv.config();
 const ADMIN_EMAIL = "ibeprecious49@gmail.com";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 async function main() {
   /* 1. Ensure permission exists */
@@ -56,12 +62,16 @@ async function main() {
   }
 
   /* 5b. Admin does not exist, create */
+  const rawApiKey = uuidv4();
+  const encryptedApiKey = encryptKey(rawApiKey);
   const admin = await prisma.admin.create({
     data: {
       email: ADMIN_EMAIL,
       password: "$2a$12$99/qDtAOKaVraV/ViF9CL..4xEgC6icI0CmylMI5fXuMpRgjRsKL2", // bcrypt hash
       fullName: "Ibeh Precious",
-      apiKey: "default_admin_api_key",
+      encryptedApiKey: encryptedApiKey.encryptedKey,
+      apiKeyIv: encryptedApiKey.iv,
+      apiKeyHash: hashApiKey(rawApiKey),
       roleId: adminRole.id,
       status: "ACTIVE",
     },

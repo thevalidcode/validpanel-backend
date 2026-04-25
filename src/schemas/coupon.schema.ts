@@ -20,6 +20,7 @@ export const CouponRuleSchema = z
 export const CouponSchema = z
   .object({
     code: z.string().trim().min(2).max(50),
+    couponOwnerEmail: z.string().email().optional().nullable(),
     type: z.nativeEnum(DiscountType),
     value: z.coerce.string().regex(/^\d+(\.\d{1,2})?$/),
     currency: z.string().length(3).toUpperCase().optional().nullable(),
@@ -42,6 +43,7 @@ export const CouponSchema = z
 
 export const CouponPublicSchema = z.object({
   code: z.string().trim().min(2).max(50),
+  couponOwnerEmail: z.string().email().optional().nullable(),
   type: z.nativeEnum(DiscountType),
   value: z.coerce.string().regex(/^\d+(\.\d{1,2})?$/),
   currency: z.string().length(3).toUpperCase().optional().nullable(),
@@ -49,6 +51,7 @@ export const CouponPublicSchema = z.object({
 
 export const CouponCreateSchema = z.object({
   code: z.string().trim().min(2).max(50),
+  couponOwnerEmail: z.string().email().optional().nullable(),
   type: z.nativeEnum(DiscountType),
   value: z.coerce.string().regex(/^\d+(\.\d{1,2})?$/),
   currency: z.string().length(3).toUpperCase().optional().nullable(),

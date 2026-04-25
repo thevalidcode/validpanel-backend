@@ -7,11 +7,15 @@ import axios from "axios";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { env } from "../config/env.config";
+import { encryptKey } from "../utils/encrypt";
 import {
   GoogleCallbackQuerySchema,
   RedirectToGoogleQuerySchema,
   RoleEnum,
 } from "../schemas/auth.schema";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 const isValidPanelDomain = async (url: string): Promise<boolean> => {
   try {
@@ -143,12 +147,16 @@ export const googleCallback = async (
 
     if (!user) {
       user = await prisma.$transaction(async (tx) => {
+        const rawApiKey = uuidv4();
+        const encrypted = encryptKey(rawApiKey);
         return tx.user.create({
           data: {
             email: googleUser.email,
             image: googleUser.picture,
             password: await bcrypt.hash(Date.now().toString(), 10),
-            apiKey: uuidv4(),
+            encryptedApiKey: encrypted.encryptedKey,
+            apiKeyIv: encrypted.iv,
+            apiKeyHash: hashApiKey(rawApiKey),
             fullName: googleUser.name || "ValidPanel User",
           },
         });

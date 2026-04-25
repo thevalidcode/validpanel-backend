@@ -65,6 +65,32 @@ const getPublicCouponWhere = (input: {
   return where;
 };
 
+const publicCouponSelect = {
+  id: true,
+  uid: true,
+  code: true,
+  type: true,
+  value: true,
+  currency: true,
+  maxUses: true,
+  usedCount: true,
+  perUserLimit: true,
+  isActive: true,
+  startsAt: true,
+  expiresAt: true,
+  minAmount: true,
+  firstTimeOnly: true,
+  appliesTo: true,
+  createdAt: true,
+  updatedAt: true,
+  contexts: true,
+  isPublic: true,
+  priority: true,
+  autoApply: true,
+  highlightText: true,
+  rules: true,
+};
+
 export const listCoupons = async (
   req: Request,
   res: Response,
@@ -147,9 +173,12 @@ export const createCoupon = async (
   }
 
   try {
+    const normalizedCouponOwnerEmail = body.couponOwnerEmail?.trim() || null;
+
     const created = await prisma.coupon.create({
       data: {
         code: body.code,
+        couponOwnerEmail: normalizedCouponOwnerEmail,
         type: body.type,
         value: new Decimal(body.value),
         currency: body.currency,
@@ -210,6 +239,9 @@ export const updateCoupon = async (
   }
 
   const data: any = { ...bodyParsed.data };
+  if ("couponOwnerEmail" in bodyParsed.data) {
+    data.couponOwnerEmail = bodyParsed.data.couponOwnerEmail?.trim() || null;
+  }
   if (bodyParsed.data.value) {
     data.value = new Decimal(bodyParsed.data.value);
   }
@@ -327,7 +359,7 @@ export const validateCoupon = async (
   const normalizedRegion = region?.toUpperCase();
   const coupon = await prisma.coupon.findUnique({
     where: { code },
-    include: { rules: true },
+    select: publicCouponSelect,
   });
 
   if (!coupon || !coupon.isActive) {
@@ -384,7 +416,7 @@ export const listPublicCoupons = async (
   try {
     const coupons = await prisma.coupon.findMany({
       where: getPublicCouponWhere(queryParsed.data),
-      include: { rules: true },
+      select: publicCouponSelect,
       orderBy: [{ priority: "desc" }, { id: "desc" }],
     });
 
@@ -407,7 +439,7 @@ export const listPublicCouponsByContext = async (
   try {
     const coupons = await prisma.coupon.findMany({
       where: getPublicCouponWhere({ context: queryParsed.data.context }),
-      include: { rules: true },
+      select: publicCouponSelect,
       orderBy: [{ priority: "desc" }, { id: "desc" }],
     });
 

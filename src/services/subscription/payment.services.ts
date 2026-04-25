@@ -269,6 +269,7 @@ export const createSubscriptionPayment = async (
         type,
         paymentId: payment.id,
         transactionId: transaction.id,
+        couponCode: input.couponCode,
       },
     };
 
@@ -472,6 +473,7 @@ export const upgradePlan = async (
         paymentId: payment.id,
         transactionId: transaction.id,
         billingCycle,
+        couponCode: input.couponCode,
       },
     };
 

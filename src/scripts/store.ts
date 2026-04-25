@@ -4,13 +4,13 @@ import { CreateStore } from "../services/store";
 dotenv.config();
 
 async function main() {
-  const user = await prisma.user.findFirst();
-  const existingStore = await prisma.store.update({
-    where: { storeId: 1 },
-    data: { type: "SHOP" },
-  });
-  const store = await CreateStore(user!, existingStore!);
-  console.log(store);
+  // const user = await prisma.user.findFirst();
+  // const existingStore = await prisma.store.update({
+  //   where: { storeId: 1 },
+  //   data: { type: "SHOP" },
+  // });
+  // const store = await CreateStore(user!, existingStore!);
+  // console.log(store);
 }
 
 main()

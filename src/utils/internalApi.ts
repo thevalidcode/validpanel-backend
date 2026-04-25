@@ -5,6 +5,22 @@ import { redis } from "../config/redis.config";
 import { prisma } from "../config/db.config";
 import { StoreType } from "../../prisma/generated";
 
+function extractInternalApiErrorMessage(err: any): string {
+  const statusCode = err?.response?.status;
+  const responseError = err?.response?.data?.error;
+
+  const responseMessage =
+    (typeof responseError === "string" && responseError) ||
+    responseError?.message ||
+    err?.response?.data?.message;
+
+  const fallback = err?.message || "Internal API request failed";
+
+  return statusCode
+    ? `[${statusCode}] ${responseMessage || fallback}`
+    : responseMessage || fallback;
+}
+
 /* ---------------------- HELPERS ---------------------- */
 
 // Map store type to base URL
@@ -123,7 +139,7 @@ export async function callInternalAPIForUsers<T = any>(
 
     // Build request
     const baseUrl = getBaseUrl(store.type);
-    const url = `${baseUrl}${endpoint}`;
+    const url = `${baseUrl}/internal${endpoint}`;
 
     const response = await axios.request<T>({
       url,
@@ -136,7 +152,7 @@ export async function callInternalAPIForUsers<T = any>(
 
     return { storeType: store.type, data: response.data };
   } catch (err: any) {
-    throw new Error(`${err.response?.data?.error.message || err.message}`);
+    throw new Error(extractInternalApiErrorMessage(err));
   }
 }
 
@@ -157,7 +173,7 @@ export async function callInternalAPIForAdmins<T = any>(
 
     // Build request
     const baseUrl = getBaseUrl(storeType);
-    const url = `${baseUrl}${endpoint}`;
+    const url = `${baseUrl}/internal${endpoint}`;
 
     const response = await axios.request<T>({
       url,
@@ -170,6 +186,6 @@ export async function callInternalAPIForAdmins<T = any>(
 
     return response.data;
   } catch (err: any) {
-    throw new Error(`${err.response?.data?.error.message || err.message}`);
+    throw new Error(extractInternalApiErrorMessage(err));
   }
 }

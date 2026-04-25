@@ -33,6 +33,7 @@ export const FlutterwaveWebhookSchema = z.object({
       paymentId: z.coerce.number(),
       newPlanId: z.coerce.number().optional().nullable(),
       transactionId: z.coerce.number(),
+      couponCode: z.string().trim().min(2).optional().nullable(),
     })
     .passthrough(),
 });
@@ -60,6 +61,7 @@ export const PaystackWebhookSchema = z.object({
         paymentId: z.coerce.number(),
         newPlanId: z.coerce.number().optional().nullable(),
         transactionId: z.coerce.number(),
+        couponCode: z.string().trim().min(2).optional().nullable(),
       })
       .passthrough(),
     customer: z.object({

@@ -87,6 +87,7 @@ import {
   AdminDailySummaryVars,
   AdminContactMessageVars,
 } from "./admin-notification.templates";
+import { couponUsedOwner, CouponUsedOwnerVars } from "./coupon.templates";
 
 // Map each template type string to the specific variable type it expects
 export interface EmailTemplateVars {
@@ -143,6 +144,9 @@ export interface EmailTemplateVars {
   ADMIN_SUBSCRIPTIONS_EXPIRING: AdminSubscriptionExpiringVars;
   ADMIN_DAILY_SUMMARY: AdminDailySummaryVars;
   ADMIN_CONTACT_MESSAGE: AdminContactMessageVars;
+
+  // Coupon templates
+  COUPON_USED_OWNER: CouponUsedOwnerVars;
 }
 
 // Typed templates for dev-time safety
@@ -204,6 +208,9 @@ const typedTemplates: {
   ADMIN_SUBSCRIPTIONS_EXPIRING: adminSubscriptionsExpiring,
   ADMIN_DAILY_SUMMARY: adminDailySummary,
   ADMIN_CONTACT_MESSAGE: adminContactMessage,
+
+  // Coupon templates
+  COUPON_USED_OWNER: couponUsedOwner,
 };
 
 /**

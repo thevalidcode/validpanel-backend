@@ -10,10 +10,10 @@ export const authenticateUser = async (
   try {
     const payload = verifyBrowserToken(req, res);
     if (!payload) return;
-    const { email, apiKey, uid } = payload;
+    const { email, uid } = payload;
 
-    const user = await prisma.user.findFirst({ where: { email } });
-    if (!user || user.apiKey !== apiKey) {
+    const user = await prisma.user.findFirst({ where: { email, uid } });
+    if (!user) {
       res.status(401).json({ error: "Invalid user API key or not found" });
       return;
     }
@@ -22,6 +22,9 @@ export const authenticateUser = async (
       password,
       resetToken,
       resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
       spent,
       referralSource,
       marketingData,
@@ -58,6 +61,9 @@ export const authenticateInternalUser = async (
       password,
       resetToken,
       resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
       spent,
       referralSource,
       marketingData,
@@ -83,18 +89,26 @@ export const authenticateAdmin = async (
     const payload = verifyBrowserToken(req, res);
     if (!payload) return;
 
-    const { email, apiKey, uid } = payload;
+    const { email, uid } = payload;
 
     const admin = await prisma.admin.findFirst({
-      where: { email },
+      where: { email, uid },
       include: { role: true },
     });
-    if (!admin || admin.apiKey !== apiKey) {
+    if (!admin) {
       res.status(401).json({ error: "Invalid admin API key or not found" });
       return;
     }
 
-    const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+    const {
+      password,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: _encryptedApiKey,
+      apiKeyIv: _apiKeyIv,
+      apiKeyHash: _apiKeyHash,
+      ...safeAdmin
+    } = admin;
 
     req.auth = {
       uid,
@@ -132,7 +146,15 @@ export const authenticateAnyone = async (
     }
 
     if (admin) {
-      const { password, resetToken, resetTokenExpiry, ...safeAdmin } = admin;
+      const {
+        password,
+        resetToken,
+        resetTokenExpiry,
+        encryptedApiKey: _encryptedApiKey,
+        apiKeyIv: _apiKeyIv,
+        apiKeyHash: _apiKeyHash,
+        ...safeAdmin
+      } = admin;
       req.auth = {
         type: "admin",
         uid,
@@ -143,6 +165,9 @@ export const authenticateAnyone = async (
         password,
         resetToken,
         resetTokenExpiry,
+        encryptedApiKey: _encryptedApiKey,
+        apiKeyIv: _apiKeyIv,
+        apiKeyHash: _apiKeyHash,
         spent,
         referralSource,
         marketingData,

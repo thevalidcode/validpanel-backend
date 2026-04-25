@@ -15,6 +15,7 @@ export const StoreSchema: z.ZodType<Store> = z
     ssl: z.boolean(),
     status: z.nativeEnum(StoreStatus),
     type: z.nativeEnum(StoreType),
+    resellingEnabled: z.boolean(),
     ownerId: z.number(),
     timestamp: z.coerce.date(),
     plan: z.string(),
@@ -29,10 +30,11 @@ export const CreateStoreSchema = z.object({
   domain: z.string().min(3).max(100),
   logoUrl: z.string().optional(),
   color: z.string().optional(),
+  resellingEnabled: z.boolean().optional().default(false).nullable(),
 });
 
 export const UpdateStoreSchema = z.object({
-  description: z.string().min(3).max(500).optional(),
+  description: z.string().optional().nullable(),
   logoUrl: z.string().optional(),
   color: z.string().optional(),
   status: z.nativeEnum(StoreStatus).optional(),
@@ -40,6 +42,7 @@ export const UpdateStoreSchema = z.object({
     .string()
     .min(2, "Store name must be at least 2 characters long")
     .optional(),
+  resellingEnabled: z.boolean().optional().default(false).nullable(),
 });
 
 export const StoreUidSchema = z.object({

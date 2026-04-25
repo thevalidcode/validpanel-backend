@@ -91,6 +91,11 @@ const finalizeSubscriptionPaymentInternal = async (
   let expiresAt = subscription.expiresAt;
   let planId = subscription.planId;
   let finalBillingCycle = subscription.billingCycle;
+  let couponOwnerNotificationData: {
+    ownerEmail: string;
+    couponCode: string;
+    amountSaved: string;
+  } | null = null;
 
   // 4. Handle upgrade
   if (isUpgrade) {
@@ -161,6 +166,11 @@ const finalizeSubscriptionPaymentInternal = async (
   });
 
   if (payment.couponId && payment.discountAmount.gt(0)) {
+    const coupon = await tx.coupon.findUnique({
+      where: { id: payment.couponId },
+      select: { code: true, couponOwnerEmail: true },
+    });
+
     const savedMinor = Math.round(Number(payment.discountAmount) * 100);
 
     await tx.couponRedemption.upsert({
@@ -189,6 +199,19 @@ const finalizeSubscriptionPaymentInternal = async (
         },
       },
     });
+
+    if (coupon?.code) {
+      const globalOwnerEmail =
+        (await tx.setting.findFirst({
+          select: { adminEmail: true },
+        }))?.adminEmail || "backend@validpanel.com";
+
+      couponOwnerNotificationData = {
+        ownerEmail: coupon.couponOwnerEmail || globalOwnerEmail,
+        couponCode: coupon.code,
+        amountSaved: payment.discountAmount.toFixed(2),
+      };
+    }
   }
 
   // 9. Create notification
@@ -238,6 +261,7 @@ const finalizeSubscriptionPaymentInternal = async (
         newPlanName: updatedSubscription.plan.name,
         newPlanPrice: amount.toFixed(2),
         currency: "USD",
+        couponCode: couponOwnerNotificationData?.couponCode,
         expiresAt:
           expiresAt?.toLocaleDateString("en-US", {
             year: "numeric",
@@ -251,6 +275,7 @@ const finalizeSubscriptionPaymentInternal = async (
         planName: updatedSubscription.plan.name,
         planPrice: amount.toFixed(2),
         currency: "USD",
+        couponCode: couponOwnerNotificationData?.couponCode,
         renewedAt: new Date().toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
@@ -268,6 +293,7 @@ const finalizeSubscriptionPaymentInternal = async (
       await sendUserEmail(user.email, "SUBSCRIPTION_ACTIVATED", {
         firstName: user.fullName?.split(" ")[0] || "User",
         planName: updatedSubscription.plan.name,
+        couponCode: couponOwnerNotificationData?.couponCode,
         expiresAt:
           expiresAt?.toLocaleDateString("en-US", {
             year: "numeric",
@@ -283,6 +309,7 @@ const finalizeSubscriptionPaymentInternal = async (
         planName: updatedSubscription.plan.name,
         amount: amount.toFixed(2),
         currency: "USD",
+        couponCode: couponOwnerNotificationData?.couponCode,
         ownerName: user.fullName || "Unknown",
         ownerEmail: user.email,
         subscribedAt: new Date().toLocaleDateString("en-US", {
@@ -293,6 +320,33 @@ const finalizeSubscriptionPaymentInternal = async (
           minute: "2-digit",
         }),
       });
+    }
+
+    if (couponOwnerNotificationData) {
+      const ownerName = couponOwnerNotificationData.ownerEmail.includes("@")
+        ? couponOwnerNotificationData.ownerEmail.split("@")[0]
+        : couponOwnerNotificationData.ownerEmail;
+
+      await sendUserEmail(
+        couponOwnerNotificationData.ownerEmail,
+        "COUPON_USED_OWNER",
+        {
+          couponCode: couponOwnerNotificationData.couponCode,
+          ownerName,
+          subscriberName: user.fullName || "Unknown",
+          subscriberEmail: user.email,
+          planName: updatedSubscription.plan.name,
+          amountSaved: couponOwnerNotificationData.amountSaved,
+          currency: payment.currency,
+          usedAt: new Date().toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        },
+      );
     }
   }
 };

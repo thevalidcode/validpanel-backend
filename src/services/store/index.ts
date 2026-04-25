@@ -1,14 +1,23 @@
 import { Store, User } from "../../../prisma/generated";
-import { env } from "../../config/env.config";
-import { callInternalAPIForUsers } from "../../utils/internalApi";
+import { callInternalAPIForAdmins } from "../../utils/internalApi";
+import {
+  deleteInternalResellerStore,
+  upsertInternalResellerStore,
+} from "../resellerStore.service";
 
 export async function CreateStore(user: User, store: Store) {
-  if (env.NODE_ENV !== "production") return;
-  const response = await callInternalAPIForUsers(
+  await upsertInternalResellerStore({
+    name: store.name,
+    url: `api.${store.uid}/v2`,
+    type: store.type,
+    image: store.logoUrl || null,
+  });
+
+  const response = await callInternalAPIForAdmins(
     "POST",
     "/stores",
     user.uid,
-    store.storeId,
+    store.type,
     {
       storeId: store.storeId,
       name: store.name,
@@ -21,36 +30,20 @@ export async function CreateStore(user: User, store: Store) {
       adminImage: user.image,
       adminEmail: user.email,
       fullName: user.fullName,
+      resellingEnabled: Boolean((store as any).resellingEnabled),
     },
   );
   return response;
 }
 
 export async function DeleteStore(user: User, store: Store) {
-  if (env.NODE_ENV !== "production") return;
-  const response = await callInternalAPIForUsers(
+  await deleteInternalResellerStore(`api.${store.uid}/v2`);
+
+  const response = await callInternalAPIForAdmins(
     "DELETE",
     `/stores/${store.uid}`,
     user.uid,
-    store.storeId,
-  );
-  return response;
-}
-
-export async function UpdateStore(user: User, store: Store) {
-  if (env.NODE_ENV !== "production") return;
-  const response = await callInternalAPIForUsers(
-    "PATCH",
-    `/stores/${store.uid}`,
-    user.uid,
-    store.storeId,
-    {
-      storeName: store.name,
-      storeDescription: store.description,
-      logoUrl: store.logoUrl,
-      faviconUrl: store.logoUrl,
-      status: store.status,
-    },
+    store.type,
   );
   return response;
 }

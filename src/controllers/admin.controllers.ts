@@ -3,6 +3,7 @@ import { env } from "../config/env.config";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import type { Request, Response } from "express";
 import {
   AuthenticateAdminSchema,
@@ -14,6 +15,10 @@ import {
   VerifySessionSchema,
 } from "../schemas/admin.schema";
 import { sendAdminEmail } from "../emails";
+import { encryptKey } from "../utils/encrypt";
+
+const hashApiKey = (key: string) =>
+  crypto.createHash("sha256").update(key).digest("hex");
 
 const formatCurrency = (value: number) =>
   `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -86,10 +91,9 @@ export const authenticateAdmin = async (
       return;
     }
 
-    const apiKey = account.apiKey || uuidv4();
     const uid = account.uid;
 
-    const token = jwt.sign({ email, apiKey, uid }, env.JWT_SECRET, {
+    const token = jwt.sign({ email, uid }, env.JWT_SECRET, {
       expiresIn: "7d",
     });
      
@@ -109,7 +113,15 @@ export const authenticateAdmin = async (
       },
     });
 
-    const { password: _, resetToken, resetTokenExpiry, ...safeAdmin } = account;
+    const {
+      password: _,
+      resetToken,
+      resetTokenExpiry,
+      encryptedApiKey: __encryptedApiKey,
+      apiKeyIv: __apiKeyIv,
+      apiKeyHash: __apiKeyHash,
+      ...safeAdmin
+    } = account;
     res.status(200).json({
       success: "Logged in successfully",
       role: account.role.name,
@@ -383,7 +395,6 @@ export const getAdmins = async (req: Request, res: Response) => {
         email: true,
         fullName: true,
         image: true,
-        apiKey: true,
         status: true,
         timestamp: true,
         lastSeen: true,
@@ -548,7 +559,6 @@ export const updateMe = async (req: Request, res: Response) => {
         email: true,
         fullName: true,
         image: true,
-        apiKey: true,
         status: true,
         timestamp: true,
         lastSeen: true,
@@ -591,11 +601,15 @@ export const createAdmin = async (req: Request, res: Response) => {
   }
 
   try {
+    const rawApiKey = uuidv4();
+    const encryptedApiKey = encryptKey(rawApiKey);
     const account = await prisma.admin.create({
       data: {
         ...parsed.data,
         password: await bcrypt.hash(parsed.data.password, 10),
-        apiKey: uuidv4(),
+        encryptedApiKey: encryptedApiKey.encryptedKey,
+        apiKeyIv: encryptedApiKey.iv,
+        apiKeyHash: hashApiKey(rawApiKey),
       },
     });
 
@@ -761,7 +775,7 @@ export const verifySession = async (req: Request, res: Response) => {
   });
 
   const token = jwt.sign(
-    { uid: account.uid, apiKey: account.apiKey, email: account.email },
+    { uid: account.uid, email: account.email },
     env.JWT_SECRET,
     {
       expiresIn: "7d",

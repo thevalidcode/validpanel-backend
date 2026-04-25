@@ -18,6 +18,7 @@ export const apiLimiter = isDev
 
 // Export all specialized rate limiters
 export * from "./auth.ratelimit";
+export * from "./reseller.ratelimit";
 export * from "./user.ratelimit";
 export * from "./admin.ratelimit";
 export * from "./store.ratelimit";

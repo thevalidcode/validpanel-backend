@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:17
@@ -9,6 +7,6 @@ services:
       POSTGRES_PASSWORD: validpanel_pass
       POSTGRES_DB: validpanel
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ${PWD}/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"

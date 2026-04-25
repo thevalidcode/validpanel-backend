@@ -1,3 +1,4 @@
+import { BillingInterval } from "../../../prisma/generated";
 import { Layout, LogoVars, TemplateResult } from "../components/EmailLayout";
 import circularIcon from "./components/circularIcon";
 
@@ -10,15 +11,17 @@ export interface SubscriptionCreatedVars extends LogoVars {
   planName: string;
   planPrice: string;
   currency: string;
-  interval: "MONTHLY" | "YEARLY";
+  interval: BillingInterval;
   paymentMethod: string;
   expiresAt: string;
+  couponCode?: string;
 }
 
 export interface SubscriptionActivatedVars extends LogoVars {
   firstName: string;
   planName: string;
   expiresAt: string;
+  couponCode?: string;
 }
 
 export interface SubscriptionUpgradeVars extends LogoVars {
@@ -29,6 +32,7 @@ export interface SubscriptionUpgradeVars extends LogoVars {
   currency: string;
   proratedAmount?: string;
   expiresAt: string;
+  couponCode?: string;
 }
 
 export interface SubscriptionDowngradeScheduledVars extends LogoVars {
@@ -45,6 +49,7 @@ export interface SubscriptionRenewedVars extends LogoVars {
   currency: string;
   renewedAt: string;
   expiresAt: string;
+  couponCode?: string;
 }
 
 export interface SubscriptionExpiringVars extends LogoVars {
@@ -108,6 +113,7 @@ export const subscriptionCreated = ({
   interval,
   paymentMethod,
   expiresAt,
+  couponCode,
   logo,
 }: SubscriptionCreatedVars): TemplateResult => {
   const dashboardUrl = "https://validpanel.com/subscription";
@@ -156,6 +162,16 @@ export const subscriptionCreated = ({
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Valid Until:</td>
               <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${expiresAt}</td>
             </tr>
+            ${
+              couponCode
+                ? `
+            <tr>
+              <td style="padding:8px 0; color:#6B7280; font-size:14px;">Coupon Code:</td>
+              <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${couponCode}</td>
+            </tr>
+            `
+                : ""
+            }
           </table>
         </td>
       </tr>
@@ -232,6 +248,7 @@ export const subscriptionActivated = ({
   firstName,
   planName,
   expiresAt,
+  couponCode,
   logo,
 }: SubscriptionActivatedVars): TemplateResult => {
   const dashboardUrl = "https://validpanel.com";
@@ -280,6 +297,20 @@ export const subscriptionActivated = ({
       You now have full access to all features included in your plan. Start creating stores and grow your business!
     </p>
 
+    ${
+      couponCode
+        ? `
+    <table role="presentation" style="width:100%; margin:20px 0; border-collapse:collapse;">
+      <tr>
+        <td style="background:#EDE9FE; padding:12px 16px; border-radius:8px; border-left:4px solid #7C3AED;">
+          <p style="margin:0; font-size:14px; color:#4C1D95;"><strong>Coupon Applied:</strong> ${couponCode}</p>
+        </td>
+      </tr>
+    </table>
+    `
+        : ""
+    }
+
     <table role="presentation" style="width:100%; margin:25px 0; border-collapse:collapse;">
       <tr>
         <td style="text-align:center;">
@@ -327,6 +358,7 @@ export const subscriptionUpgrade = ({
   currency,
   proratedAmount,
   expiresAt,
+  couponCode,
   logo,
 }: SubscriptionUpgradeVars): TemplateResult => {
   const dashboardUrl = "https://validpanel.com/subscription";
@@ -382,6 +414,16 @@ export const subscriptionUpgrade = ({
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Valid Until:</td>
               <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${expiresAt}</td>
             </tr>
+            ${
+              couponCode
+                ? `
+            <tr>
+              <td style="padding:8px 0; color:#6B7280; font-size:14px;">Coupon Code:</td>
+              <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${couponCode}</td>
+            </tr>
+            `
+                : ""
+            }
           </table>
         </td>
       </tr>
@@ -545,6 +587,7 @@ export const subscriptionRenewed = ({
   currency,
   renewedAt,
   expiresAt,
+  couponCode,
   logo,
 }: SubscriptionRenewedVars): TemplateResult => {
   const dashboardUrl = "https://validpanel.com/subscription";
@@ -592,6 +635,16 @@ export const subscriptionRenewed = ({
               <td style="padding:8px 0; color:#6B7280; font-size:14px;">Next Renewal:</td>
               <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${expiresAt}</td>
             </tr>
+            ${
+              couponCode
+                ? `
+            <tr>
+              <td style="padding:8px 0; color:#6B7280; font-size:14px;">Coupon Code:</td>
+              <td style="padding:8px 0; color:#333; font-size:14px; font-weight:600;">${couponCode}</td>
+            </tr>
+            `
+                : ""
+            }
           </table>
         </td>
       </tr>

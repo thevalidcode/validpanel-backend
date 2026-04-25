@@ -16,7 +16,6 @@ export const UserSchema = z
     email: z.string().email(),
     uid: z.string(),
     phoneNumber: z.string().nullable(),
-    apiKey: z.string(),
     ref: z.number().nullable(),
     refCode: z.number(),
     image: z.string().url().nullable(),
@@ -107,7 +106,6 @@ export const updateUserSchema = z
 
 export const tokenPayloadSchema = z.object({
   email: z.string().email(),
-  apiKey: z.string(),
   uid: z.string(),
 });
 
