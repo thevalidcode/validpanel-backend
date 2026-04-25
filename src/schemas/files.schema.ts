@@ -3,7 +3,15 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 export const collection = z
-  .enum(["general", "default", "users", "admins", "store", "payment-gateways"])
+  .enum([
+    "general",
+    "default",
+    "users",
+    "admins",
+    "store",
+    "payment-gateways",
+    "knowledge-base",
+  ])
   .describe("Collection of the image uploaded");
 
 export const UploadImageRequest = z.object({
@@ -15,7 +23,7 @@ export const UploadImageResponse = z.object({
     .string()
     .url()
     .describe(
-      "URL of the image (e.g https://validpanel.com/assets/1/users/image.png)"
+      "URL of the image (e.g https://validpanel.com/assets/1/users/image.png)",
     ),
   message: z.string().describe("Success message"),
 });

@@ -338,6 +338,12 @@ enum AdminStatus {
   BANNED
 }
 
+enum KnowledgeBaseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Admin {
   id               Int         @id @default(autoincrement())
   uid              String      @unique @default(uuid())
@@ -359,8 +365,35 @@ model Admin {
   updatedAt     DateTime        @updatedAt @map("updated_at")
   PlatformEvent PlatformEvent[]
   UploadLog     UploadLog[]
+  KnowledgeBase KnowledgeBase[]
 
   @@map("admins")
+}
+
+model KnowledgeBase {
+  id          Int                 @id @default(autoincrement())
+  uid         String              @unique @default(uuid())
+  title       String
+  slug        String              @unique
+  summary     String?             @db.Text
+  contentHtml String              @map("content_html") @db.Text
+  coverImage  String?             @map("cover_image")
+  category    String?
+  tags        String[]            @default([])
+  status      KnowledgeBaseStatus @default(DRAFT)
+  isFeatured  Boolean             @default(false) @map("is_featured")
+  position    Int                 @default(autoincrement())
+  publishedAt DateTime?           @map("published_at")
+  authorId    Int?                @map("author_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author Admin? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([category])
+  @@map("knowledge_base")
 }
 
 enum OrderStatus {

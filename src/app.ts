@@ -32,6 +32,7 @@ import internalRoutes from "./routes/internal.routes";
 import couponRouter from "./routes/coupon.routes";
 import resellerRouter from "./routes/reseller.routes";
 import resellerStoreRouter from "./routes/resellerStore.routes";
+import knowledgeBaseRouter from "./routes/knowledgeBase.routes";
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use("/v1/emails", dynamicCors, emailRouter);
 app.use("/v1/coupons", dynamicCors, couponRouter);
 app.use("/v1/reseller", dynamicCors, resellerRouter);
 app.use("/v1/reseller-stores", dynamicCors, resellerStoreRouter);
+app.use("/v1/knowledge-base", dynamicCors, knowledgeBaseRouter);
 
 // --- Internal Routes (for inter-service communication) ---
 app.use("/internal", openCors, internalRoutes);
