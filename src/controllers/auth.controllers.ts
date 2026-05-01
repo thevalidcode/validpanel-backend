@@ -27,6 +27,18 @@ const isValidPanelDomain = async (url: string): Promise<boolean> => {
   }
 };
 
+export const logout = (req: Request, res: Response): void => {
+  const cookieOptions = {
+    secure: env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    path: "/",
+  };
+
+  res.clearCookie("auth_token", cookieOptions);
+  res.clearCookie("csrf_token", cookieOptions);
+  res.status(200).json({ success: "Logged out successfully" });
+};
+
 export const redirectToGoogle = async (
   req: Request,
   res: Response
