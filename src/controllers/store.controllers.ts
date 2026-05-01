@@ -8,7 +8,7 @@ import {
 } from "../schemas/store.schema";
 import { AuthSchema } from "../schemas/user.schema";
 import { buildNotification } from "../services/notification.services";
-import { CreateStore, DeleteStore } from "../services/store";
+import { CreateStore, DeleteStore, UpdateStore } from "../services/store";
 import { sendUserEmail, sendEmailToAdmins } from "../emails";
 import { env } from "../config/env.config";
 
@@ -334,6 +334,7 @@ export const updateStore = async (
             resellingEnabled ?? (store as any).resellingEnabled ?? false,
         } as any,
       });
+      await UpdateStore(updatedStore.owner, updatedStore);
 
       await tx.resellerStore.update({
         where: { storeId: data.storeId },
@@ -572,6 +573,7 @@ export const approveStore = async (
       });
       return { updatedStore };
     });
+    await UpdateStore(updatedStore.owner, updatedStore);
 
     // Send store approved email in production
     if (env.NODE_ENV === "production") {
@@ -625,6 +627,7 @@ export const pauseStore = async (
       return { updatedStore };
     });
 
+    await UpdateStore(updatedStore.owner, updatedStore);
     // Send store paused email in production
     if (env.NODE_ENV === "production") {
       await sendUserEmail(updatedStore.owner.email, "STORE_PAUSED", {
@@ -636,7 +639,6 @@ export const pauseStore = async (
 
     res.status(200).json({ success: "Store paused", store: updatedStore });
   } catch (err: any) {
-    console.log(err);
     res.status(500).json({ error: "Failed to pause store " + err.message });
   }
 };
@@ -687,6 +689,7 @@ export const adminUpdateStore = async (
       } as any,
     })) as any;
 
+    await UpdateStore(updatedStore.owner, updatedStore);
     // Send reactivation email if store was reactivated in production
     if (
       env.NODE_ENV === "production" &&

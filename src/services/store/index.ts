@@ -1,5 +1,8 @@
 import { Store, User } from "../../../prisma/generated";
-import { callInternalAPIForAdmins } from "../../utils/internalApi";
+import {
+  callInternalAPIForAdmins,
+  callInternalAPIForUsers,
+} from "../../utils/internalApi";
 import {
   deleteInternalResellerStore,
   upsertInternalResellerStore,
@@ -44,6 +47,23 @@ export async function DeleteStore(user: User, store: Store) {
     `/stores/${store.uid}`,
     user.uid,
     store.type,
+  );
+  return response;
+}
+
+export async function UpdateStore(user: User, store: Store) {
+  const response = await callInternalAPIForUsers(
+    "PATCH",
+    `/stores/${store.uid}`,
+    user.uid,
+    store.storeId,
+    {
+      storeName: store.name,
+      storeDescription: store.description,
+      logoUrl: store.logoUrl,
+      faviconUrl: store.logoUrl,
+      status: store.status,
+    },
   );
   return response;
 }
